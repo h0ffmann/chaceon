@@ -1,0 +1,5 @@
+[submodule "WW3"]
+	path = WW3
+	url = https://github.com/metocean/WW3
+	shallow = true
+	branch = mos-custom

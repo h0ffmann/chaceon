@@ -1,0 +1,4 @@
+# The WW3 code translated to Rust, one row each. status, in order: translated, then host, cuda, spirv
+# when that verdict of ADR-0005 passed. evidence: the command or log entry that shows the status.
+routine	file	lines	status	evidence	rust
+constants	model/src/constants.F90:61-82	22	translated	gfortran 14.3 bit probe, docs/log/2026-10-30-scaffold.md	rust/crates/ww3-kernels/src/constants.rs
