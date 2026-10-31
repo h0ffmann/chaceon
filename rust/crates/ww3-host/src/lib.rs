@@ -3,6 +3,7 @@
 //! are the reference's only on its Linux image.
 
 pub mod capture;
+pub mod disp;
 pub mod grid;
 pub mod insin4;
 pub mod insnl1;
@@ -11,4 +12,5 @@ pub mod iors;
 pub mod moddef;
 pub mod nml;
 pub mod shel;
+pub mod strt;
 pub mod wtime;

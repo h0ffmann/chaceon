@@ -50,6 +50,10 @@ tp-all:
 spirv-pair tag:
     bash scripts/spirv_pair.sh {{tag}}
 
+# The port's size by WW3 area, written into README.md
+port-summary *args:
+    python3 scripts/port_summary.py {{args}}
+
 # Compares the mod_def reader with the reference's memory, for a case with captures
 moddef-cmp mod_def tag="default_2500m":
     bash scripts/rust_in_ref.sh moddef_cmp {{mod_def}} {{tag}}
@@ -85,3 +89,7 @@ port-status:
 # Double-precision declarations and literals per WW3 file
 f64-census:
     bash scripts/f64_census.sh
+
+# Host verdict on ww3_strt: the reference's restart.ww3 and Rust's, by cmp
+strt-pair case suffix="":
+    bash scripts/strt_pair.sh {{case}} {{suffix}}

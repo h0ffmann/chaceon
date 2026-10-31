@@ -100,6 +100,7 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
         points,
         flogrd: (fields.contains("WCC"), fields.contains("WCF")),
         fields: fields.trim_matches(|c| c == '\'' || c == ' ').to_string(),
+        threads: 1,
     };
     (m, r)
 }

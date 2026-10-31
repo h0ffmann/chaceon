@@ -608,6 +608,40 @@ pub fn w3xyp3(
     });
 }
 
+/// `W3GATH`, `W3XYP3` and `W3SCAT` for component `ISP` of `va`, whose `ISEA = 1` starts at `vo`. With the
+/// three together, a device never hands the spectrum to the host to propagate it.
+#[allow(clippy::too_many_arguments)]
+pub fn w3xyp3_va(
+    p: &Xyp3Params,
+    t: &Xyp3Tables,
+    isp: i32,
+    dtg: Real,
+    yfirst: bool,
+    block: usize,
+    nspec: usize,
+    vo: usize,
+    va: &mut [Real],
+    vq: &mut [Real],
+    w: &mut Xyp3Work,
+) {
+    let (ny, ns) = (p.ny, p.nsea as usize);
+    let lq = (p.ny * (p.nx + 3)) as usize;
+    let oq = block * lq;
+    let sp = up(isp);
+    zero(vq, oq, lq);
+    each!(isea, 1, p.nsea, {
+        let ixy = t.mapsf[up(isea) + 2 * ns];
+        vq[oq + lo(ixy, ny)] = va[vo + sp + nspec * up(isea)];
+    });
+    w3xyp3(p, t, isp, dtg, yfirst, block, vq, w);
+    each!(isea, 1, p.nsea, {
+        let ixy = t.mapsf[up(isea) + 2 * ns];
+        if t.mapsta[up(ixy)] != 0 {
+            va[vo + sp + nspec * up(isea)] = vq[oq + lo(ixy, ny)];
+        }
+    });
+}
+
 /// The scalars of `W3KTP3`.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]

@@ -109,16 +109,25 @@ remains, for MetOcean's switch.
 ### Batch 3: the time loop
 
 **2026-10-31:** 18 runs pass `just tp-all` on the host with `out_grd.ww3`, `out_pnt.ww3` and a restart
-byte-identical, `ww3_tp2.15`'s grid and physics among them under homogeneous wind, and 16 of them pass
-with `W3XYP3` and `W3KTP3` in compiled SPIR-V on lavapipe (`rust/port_report/W3PRO3.md`). Open: `W3SRCE`
-in the time loop on the device, a resident spectrum, water levels, ice, boundary input, `wind.ww3`,
-track output, and any real device.
+byte-identical, `ww3_tp2.15`'s grid and physics among them under homogeneous wind. With `W3SRCE`, `W3XYP3`
+and `W3KTP3` in compiled SPIR-V on lavapipe and `VA` resident, they pass too (`rust/port_report/W3PRO3.md`).
+Open: water levels, ice, boundary input, `wind.ww3`, track output, and any real device.
 
 `w3wavemd`, `w3initmd`, `w3updtmd`, `w3pro3md`, `w3uqckmd`, `w3parall`, `w3cspcmd`, `w3flx2md`
 (`ww3_tp2.4` needs `FLX2`). `ww3_tp2.4` runs propagation alone (`ST0`, `NL0`); `ww3_tp2.15` has the
 target's physics, `PR3 UQ FLX0 LN1 ST4 NL1 BT1 DB1`, so it is the first full model (v, its `switch`).
 This is the first run with the whole spectrum resident: a Rust `ww3_shel` that writes `out_grd.ww3`
 and `restart.ww3` for `cmp`.
+
+### Runtime parallelism
+
+The owner, 2026-10-31: "chaceon must also allow MPI/OpenMP runtime option." WW3 picks this at compile time, with
+`SHRD`, `OMPG` and `DIST`. Here one binary picks it at run time: threads with `--threads N`, and ranks under
+`mpirun`. Exit: `out_grd.ww3`, `out_pnt.ww3` and the restart byte-identical to the serial run and the reference,
+for several thread and rank counts.
+
+Status: threads done (`ww3_shel <case> --threads N`, verified byte-identical for N of 1, 2, 4 and 8 on eight
+cases, see `rust/port_report/WW3_SHEL_TS1.md`); MPI open ⚠ (not built yet).
 
 ### Batch 4: outputs
 
@@ -143,7 +152,7 @@ access is still open (ww3-gpu #143), so this batch waits on it. The RTX 4090 ser
 ### Batches 7 and 8: the rest
 
 Batch 7: `ST1`, `ST2`, `ST3`, `ST6`, `NL2` to `NL5`, ice, the fluxes, tides, the switch MetOcean
-ships (`BT4`, `WCOR`, `RWND`, `SEED`, `MPI`). Batch 8: PDLIB and the unstructured solvers, the SMC
+ships (`BT4`, `WCOR`, `RWND`, `SEED`, `MPI`). Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
 grid, `ww3_multi`, domain decomposition over several GPUs. MPI needs an ADR of its own: a binding
 to C MPI, or GPU-aware transport.
 

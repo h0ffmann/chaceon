@@ -11,8 +11,8 @@ has not executed ⚠.
 
 The reference and Rust run the regtest's namelists under `switch_chaceon_shrd`, with one restart added at the
 last time step, which holds every sea point's spectrum. `cmp` judges each file. CPU is `just tp-all`, SPIR-V
-is `scripts/spirv_pair.sh`, which runs `W3XYP3` and `W3KTP3` as compiled shaders inside the time loop. The other
-kernels, `W3SRCE` included, stay on the CPU in those runs.
+is `scripts/spirv_pair.sh`, which runs `W3XYP3`, `W3KTP3` and `W3SRCE` as compiled shaders inside the time loop,
+all on one resident `VA`.
 
 | Regtest | Sea points × `NSPEC` | Active | Bytes compared | CPU | SPIR-V |
 |---|---|---|---|---|---|
@@ -32,7 +32,7 @@ kernels, `W3SRCE` included, stay on the CPU in those runs.
 | `ww3_tp2.4` | 14548 × 360 | `FLCX FLCY FLCTH`, land | 23 057 514 | identical | identical |
 | `ww3_tp2.4` `curv` | | curvilinear | 4 485 226 | identical | identical |
 | `ww3_tp2.15` | | see below | 2 492 258 | identical | identical |
-| `ww3_tp2.15` two legs | | full restart read | 4 404 550 | identical | not run |
+| `ww3_tp2.15` two legs | | full restart read | 4 404 550 | identical | second leg identical |
 
 CPU: 50 files, 83 293 901 bytes, 0 differ. SPIR-V: 44 files, 78 889 351 bytes, 0 differ. All 18 `ww3_ts1`
 variants pass `just ts1-pair` through this driver, on `out_grd.ww3` and `out_pnt.ww3`.
@@ -68,6 +68,7 @@ Every fault below changes bytes, and the rebuild without it gives 0 (restart byt
 | The `JN` choice of transparency | CPU | `ww3_tp2.15` | 906 019 |
 | 1e-7 on `W3QCK2`'s CFL | CPU | `ww3_tp1.6` | 307 |
 | 1e-7 on the current in `CXTOT` | CPU | `ww3_tp2.2`, `ww3_tp1.6` | 576 323, 300 |
+| 1e-7 on `W3SRCE`'s `FF2` | **in the shader** | `ww3_ts1` storm 6 m | 1 374 799 of `out_pnt.ww3` |
 
 These changed 0 bytes, and why:
 
@@ -96,12 +97,27 @@ Restart bytes differing, compiled each way:
 So the third row was a workaround for the order, and the kernel divides as the Fortran does again. Why a
 device might still differ, and all source-term numbers: `docs/log/2026-10-31-spirv-bit-parity.md`.
 
+## A resident spectrum
+
+`VA` lives in one device buffer bound into all three pipelines, with `W3GATH` and `W3SCAT` inside the kernel
+(`w3xyp3_va`). The host writes it at the start, and reads it only for an output due at that time, so no copy
+happens per step. `spirv_shel` prints the bytes moved (v, `scripts/spirv_pair.sh`):
+
+| Case | Dispatches | To the device | To the host |
+|---|---:|---:|---:|
+| `ww3_tp1.7` | 6 481 | 72 000 | 25 992 000 |
+| `ww3_ts1` storm 6 m | 2 161 | 3 456 | 7 468 416 |
+| `ww3_tp2.4` | 60 | 20 949 120 | 649 422 720 |
+| `ww3_tp2.15` | 97 | 3 179 520 | 39 744 000 |
+
+"To the device" is one spectrum, plus another for `W3UINI` on a wind start. "To the host" is the outputs. `W3SRCE`'s
+scalars, `UST` among them, still return per step, since the host owns them.
+
 ## How far it reaches
 
 | Not reached ⚠ | Why |
 |---|---|
-| A real GPU, `W3SRCE` in the loop on a device | CPU Vulkan only, and only propagation |
-| A resident spectrum | the host uploads `VA` and reads it back for each dispatch |
+| A real GPU | CPU Vulkan only |
 | PTX execution | `xyp3` and `ktp3` build and assemble, and never ran |
 | `wind.ww3` | `W3FLDG`'s path ran on `current.ww3` only |
 | Water levels, ice, icebergs, boundary input | refused; these runs have no `nest.ww3`, so `W3IOBC` clears `FLBPI` |

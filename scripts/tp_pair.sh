@@ -31,6 +31,7 @@ docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
     fi
     stop=$(sed -n "s/.*DOMAIN%STOP *= *.\([0-9]* [0-9]*\).*/\1/p" ww3_shel.nml)
     stop=${stop:-19680607 000000}
+    sed -i "/DATE%RESTART/d" ww3_shel.nml
     sed -i "/^&OUTPUT_DATE_NML/a \  DATE%RESTART = \x27$stop\x27 \x273600\x27 \x27$stop\x27" ww3_shel.nml
     if [ -n "$SHEL_EXTRA" ]; then
       sed -i -f "/ww3_sed" ww3_shel.nml

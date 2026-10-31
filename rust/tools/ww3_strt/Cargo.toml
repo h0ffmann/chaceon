@@ -1,0 +1,10 @@
+[package]
+name = "ww3_strt"
+description = "Writes a WW3 case's initial restart.ww3 in Rust"
+license = "MPL-2.0"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ww3-host = { path = "../../crates/ww3-host" }

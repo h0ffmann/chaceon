@@ -12,6 +12,8 @@
 | `out_grd.ww3` | WW3's field output, one record per field per output time |
 | `lavapipe` | Mesa's CPU implementation of Vulkan, the only place this repository runs SPIR-V |
 | `NoContraction` | SPIR-V decoration that stops a driver fusing a multiply and an add |
+| CRD | Contour residual distribution: the family of schemes WW3 uses on triangles |
+| `PDLIB` | WW3's domain decomposition for unstructured grids |
 | `out_pnt.ww3` | WW3's point output: spectra and scalars at output points |
 | lavapipe | Mesa's Vulkan implementation on the CPU |
 | libdevice | NVIDIA's device math library |

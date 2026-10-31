@@ -4,7 +4,7 @@
 
 use cuda_std::prelude::*;
 use ww3_kernels::pro3::{
-    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3,
+    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
@@ -240,9 +240,10 @@ pub unsafe fn srce(
     whitecap: *mut Real,
     sin_out: *mut Sin4Out,
     spr_out: *mut Spr4Out,
+    active: &[u32],
 ) {
     let point = thread::index_1d() as usize;
-    if point >= points.len() {
+    if point >= points.len() || active[point] == 0 {
         return;
     }
     let n = points.len();
@@ -344,6 +345,8 @@ pub unsafe fn xyp3(
     aq_len: usize,
     fla: *mut Real,
     fla_len: usize,
+    va: *mut Real,
+    va_len: usize,
 ) {
     let comp = thread::index_1d() as usize;
     if comp as u32 >= comps {
@@ -364,9 +367,10 @@ pub unsafe fn xyp3(
     let cytot = unsafe { core::slice::from_raw_parts_mut(cytot, cytot_len) };
     let aq = unsafe { core::slice::from_raw_parts_mut(aq, aq_len) };
     let fla = unsafe { core::slice::from_raw_parts_mut(fla, fla_len) };
+    let va = unsafe { core::slice::from_raw_parts_mut(va, va_len) };
     let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapstx, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, cx, cy, atrnx, atrny };
     let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, vlcflx, vlcfly, cxtot, cytot, aq, fla };
-    w3xyp3(p, &t, comp as i32 + 1, dtg, yfirst != 0, comp, vq, &mut w);
+    w3xyp3_va(p, &t, comp as i32 + 1, dtg, yfirst != 0, comp, comps as usize, 0, va, vq, &mut w);
 }
 
 /// One thread per active sea point.
@@ -412,9 +416,10 @@ pub unsafe fn ktp3(
     cflk_len: usize,
     fla: *mut Real,
     fla_len: usize,
+    active: &[u32],
 ) {
     let point = thread::index_1d() as usize;
-    if point >= points.len() {
+    if point >= points.len() || active[point] == 0 {
         return;
     }
     let va = unsafe { core::slice::from_raw_parts_mut(va, va_len) };
