@@ -78,6 +78,10 @@ NVIDIA's cuda-oxide, which ADR-0003 keeps as the fallback.
 
 ### Batch 1: state and files
 
+**2026-10-31:** `mod_def.ww3` is read for this switch, and `just ts1-pair` gives the first `host` verdict
+on `out_pnt.ww3` (`rust/port_report/WW3_SHEL_TS1.md`). `W3WAVE` is only the part `ww3_ts1` reaches. Next
+come more than one sea point, real state structs, restart and `out_grd.ww3`.
+
 `constants` (done), `w3gdatmd`, `w3adatmd`, `w3wdatmd`, `w3odatmd`, `w3idatmd`, `w3dispmd`,
 `w3servmd`, `w3timemd`, `w3arrymd`, and the readers `w3iogrmd`, `w3iorsmd`.
 

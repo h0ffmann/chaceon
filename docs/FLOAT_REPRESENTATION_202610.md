@@ -131,5 +131,6 @@ cannot, by specification, until its compiler decorates `NoContraction` and even 
 - **The spectrum** `VA` stays `f32`: `NSPEC * NSEA * 4` bytes. An H100's 80 GB is spent at that
   rate, and the f64 work arrays of `W3SRCE` and `W3SDB1` are per-point scratch, not residents.
 - **WW3's binary files** hold `REAL` as 4 bytes and record lengths per Fortran's unformatted
-  sequential format, with `ENDIANNESS` set by the build (`model/src/CMakeLists.txt:42`). chaceon
+  sequential format, with `ENDIANNESS` set by the build (`model/src/CMakeLists.txt:42`), which is
+big-endian here (v). chaceon
   reads and writes those bytes exactly, so `cmp` and `test.comp` can judge its output.

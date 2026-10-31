@@ -27,6 +27,14 @@ longer history; its facts are at NOAA's pin.
   (arm64 gfortran fuses by default), and PTX needs `fma_contraction(false)`.
 - Keep the operation order, reductions included. Asking comes before any change.
 
+## Files
+
+- WW3's CMake sets `ENDIANNESS='big_endian'`, so `.ww3` files are big-endian with big-endian record
+  markers, even on arm64.
+- On `ww3_ts1`, a chain of `W3SRCE` calls needs only `SPEC`, `UST` and `USTDIR` carried over.
+- Prove a first whole-file match: delete the output, regenerate it, compare hashes, then break it on
+  purpose. A file left over from the reference passes `cmp` too.
+
 ## Memory
 
 - Fortran bounds survive translation: `SIG(0:NK+1)`, `CG(0:NK+1,0:NSEA)`. Index through a named

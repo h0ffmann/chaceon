@@ -342,6 +342,18 @@ pub fn tabu_fw() -> (Real, Vec<Real>) {
     (delab, t)
 }
 
+/// `WAVNU2`: `(K, CG)`, for positive `w`.
+pub fn wavnu2_cg(w: Real, h: Real, eps: Real, nmax: i32) -> (Real, Real) {
+    let k = wavnu2(w, h, eps, nmax);
+    let w0 = w.abs();
+    let cg = if 2. * k * h > 25. {
+        w0 / k * 0.5
+    } else {
+        w0 / k * 0.5 * (1. + (2. * k * h / (2. * k * h).sinh()))
+    };
+    (k, cg)
+}
+
 /// `WAVNU2`: `K`, for positive `w`.
 pub fn wavnu2(w: Real, h: Real, eps: Real, nmax: i32) -> Real {
     let w0 = w.abs();
