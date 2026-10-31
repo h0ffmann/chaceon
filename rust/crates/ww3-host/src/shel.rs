@@ -13,6 +13,7 @@ use crate::iogo::{self, Grd, Input};
 use crate::iors::{self, State};
 use crate::moddef::{ModDef, Records};
 use crate::wtime::{Time, dsec21, tick21};
+use par::{Layout, Par};
 use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -25,6 +26,8 @@ use ww3_kernels::real::Real;
 use ww3_kernels::sin4::{Sin4Out, Spr4Out};
 use ww3_kernels::srce::{SRCE_DIRECT, SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce, work_lens, work_small};
 use ww3_libm::{atan2f, atanf, sincosf, sqrtf};
+
+pub mod par;
 
 const UNDEF: Real = -999.9;
 const U10MIN: Real = 1.;
@@ -607,8 +610,67 @@ pub trait Device {
     );
 }
 
-/// Runs the case. Writes `out_grd.ww3`, `out_pnt.ww3` and `restartNNN.ww3` into `dir`.
-pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device>) {
+/// Runs the case on one rank. Writes `out_grd.ww3`, `out_pnt.ww3` and `restartNNN.ww3` into `dir`.
+pub fn run(m: &ModDef, r: Run, dir: &str, device: Option<&mut dyn Device>) {
+    run_impl(m, r, dir, device, &Par::serial());
+}
+
+/// Runs the case on the ranks of `comm`, the CPU kernels only. Rank 0 writes the files.
+pub fn run_ranks(m: &ModDef, r: Run, dir: &str, comm: &Par) {
+    run_impl(m, r, dir, None, comm);
+}
+
+/// One sea point's values of everything an output reads that `W3SRCE` writes: `VA`, `UST`, `USTDIR`,
+/// `DTDYN`, `FCUT`, `SRCE` and `WHITECAP`.
+const SRCE_N: usize = std::mem::size_of::<SrceOut>() / std::mem::size_of::<Real>();
+const _: () = assert!(SRCE_N * std::mem::size_of::<Real>() == std::mem::size_of::<SrceOut>());
+
+/// `W3IOGO`'s gather: rank 0 receives the sea points the other ranks own. Every other rank keeps stale
+/// values at points it does not own, which nothing reads before the point is written again.
+#[allow(clippy::too_many_arguments)]
+fn gather_out(
+    comm: &Par,
+    lay: &Layout,
+    nspec: usize,
+    s: &mut State,
+    dtdyn: &mut [Real],
+    fcut: &mut [Real],
+    src: &mut [SrceOut],
+    whitecap: &mut [Real],
+) {
+    let width = nspec + 4 + SRCE_N + 4;
+    let me = comm.rank();
+    let mut send = Vec::with_capacity(lay.pts[me].len() * width);
+    for &i in &lay.pts[me] {
+        send.extend_from_slice(&s.va[nspec * i..nspec * (i + 1)]);
+        send.extend_from_slice(&[s.ust[i], s.ustdir[i], dtdyn[i], fcut[i]]);
+        // SAFETY: SrceOut is repr(C) and made only of Real, as the assert above checks.
+        send.extend_from_slice(unsafe { std::slice::from_raw_parts(&src[i] as *const SrceOut as *const Real, SRCE_N) });
+        send.extend_from_slice(&whitecap[4 * i..4 * (i + 1)]);
+    }
+    let scnt: Vec<usize> = (0..comm.size()).map(|q| if q == 0 { send.len() } else { 0 }).collect();
+    let rcnt: Vec<usize> = lay.pts.iter().map(|p| if me == 0 { p.len() * width } else { 0 }).collect();
+    let mut recv = vec![0.; rcnt.iter().sum()];
+    comm.alltoallv(&send, &scnt, &mut recv, &rcnt);
+    if me != 0 {
+        return;
+    }
+    let mut blocks = recv.chunks_exact(width);
+    for p in &lay.pts {
+        for &i in p {
+            let b = blocks.next().unwrap();
+            s.va[nspec * i..nspec * (i + 1)].copy_from_slice(&b[..nspec]);
+            let b = &b[nspec..];
+            (s.ust[i], s.ustdir[i], dtdyn[i], fcut[i]) = (b[0], b[1], b[2], b[3]);
+            // SAFETY: as above; the destination is a whole SrceOut.
+            unsafe { std::slice::from_raw_parts_mut(&mut src[i] as *mut SrceOut as *mut Real, SRCE_N) }
+                .copy_from_slice(&b[4..4 + SRCE_N]);
+            whitecap[4 * i..4 * (i + 1)].copy_from_slice(&b[4 + SRCE_N..]);
+        }
+    }
+}
+
+fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device>, comm: &Par) {
     assert!(!m.fldry, "FLDRY is not implemented");
     // W3IOBC clears FLBPI when there is no nest file, and W3XYP3 then has no boundary input.
     assert!(!m.flbpi || !std::path::Path::new(&format!("{dir}/nest.ww3")).exists(), "input boundaries are not implemented");
@@ -700,12 +762,24 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
 
     // `--threads`: one scratch set per thread; the serial path above stays the one `--threads 1` takes.
     let par = r.threads > 1 && device.is_none();
-    let nthr = if par { r.threads } else { 0 };
-    let mut ktp_s: Vec<KtpScratch> = (0..nthr).map(|_| KtpScratch::new(nk, nth)).collect();
+    // `DIST`: the ranks. One rank takes none of the paths below.
+    let dist = comm.size() > 1;
+    assert!(!dist || device.is_none(), "ranks and a device are not combined");
+    let (rank, size) = (comm.rank(), comm.size());
+    let root = rank == 0;
+    let mine = |isea: usize| (isea - 1) % size == rank;
+    let lay = dist.then(|| Layout::new(size, nsea, nspec, nk, nth, m.dtmax, m.dtcfl, &m.sig));
+    let nown = lay.as_ref().map_or(0, |l| l.specs[rank].len());
+    let nthr = if par { r.threads } else { dist as usize };
+    let mut ktp_s: Vec<KtpScratch> = (0..if par { nthr } else { 0 }).map(|_| KtpScratch::new(nk, nth)).collect();
     let mut xyp_s: Vec<XypScratch> = (0..nthr).map(|_| XypScratch::new(nx, ny, nsea)).collect();
-    let mut srce_s: Vec<SrceScratch> = (0..nthr).map(|_| SrceScratch::new(&p, nspec)).collect();
+    let mut srce_s: Vec<SrceScratch> = (0..if par { nthr } else { 0 }).map(|_| SrceScratch::new(&p, nspec)).collect();
     // The components of `W3XYP3`, one column of `NSEA` values each, between its gather and its scatter.
-    let mut xyp_cols: Vec<Real> = vec![0.; if par { nsea * nspec } else { 0 }];
+    let mut xyp_cols: Vec<Real> = vec![0.; if dist { nown * nsea } else if par { nsea * nspec } else { 0 }];
+    // W3GATH and W3SCAT's buffers: this rank's points by all components, and this rank's components by all points.
+    let nmine = lay.as_ref().map_or(0, |l| l.pts[rank].len());
+    let mut buf_pts: Vec<Real> = vec![0.; nmine * nspec];
+    let mut buf_cols: Vec<Real> = vec![0.; nown * nsea];
 
     let mut mp = Maps::default();
     let (mut atrnx, mut atrny) = (vec![1.; 3 * nxy], vec![1.; 3 * nxy]);
@@ -747,8 +821,8 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
     }
 
     let flags = iogo::ids(&r.fields, m);
-    let mut grd = flout[0].then(|| Grd::new(&format!("{dir}/out_grd.ww3"), m, flags.clone()));
-    let mut pnt = (flout[1] && !pts.is_empty()).then(|| {
+    let mut grd = (flout[0] && root).then(|| Grd::new(&format!("{dir}/out_grd.ww3"), m, flags.clone()));
+    let mut pnt = (flout[1] && !pts.is_empty() && root).then(|| {
         let mut f = Out::new(&format!("{dir}/out_pnt.ww3"));
         let mut h = Vec::new();
         text(&mut h, "WAVEWATCH III POINT OUTPUT FILE", 31);
@@ -965,7 +1039,7 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                                 continue;
                             }
                             if par {
-                                let tasks = va.chunks_mut(nspec).enumerate().skip(1).take(nsea);
+                                let tasks = va.chunks_mut(nspec).enumerate().skip(1).take(nsea).filter(|(i, _)| mine(*i));
                                 spread(&mut ktp_s, tasks, |sc, (isea, spec)| {
                                     let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
                                     if mapsta[c] != 1 {
@@ -1013,7 +1087,7 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                             }
                             for isea in 1..=nsea {
                                 let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
-                                if mapsta[c] != 1 {
+                                if !mine(isea) || mapsta[c] != 1 {
                                     continue;
                                 }
                                 let q = Ktp3Point {
@@ -1098,6 +1172,81 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                         };
                         if let Some(d) = device.as_deref_mut() {
                             d.xyp3(&px, &tb, dtg, yfirst, nspec);
+                        } else if let Some(l) = lay.as_ref() {
+                            // `DIST`: W3GATH moves each component's values from the ranks that own the sea
+                            // points to the rank that owns the component, which runs W3XYP3 on the whole
+                            // field as the serial run does; W3SCAT moves the result back.
+                            let ny_i = m.ny as usize;
+                            let specs_me = &l.specs[rank];
+                            let scnt: Vec<usize> = l.specs.iter().map(|q| l.pts[rank].len() * q.len()).collect();
+                            let rcnt: Vec<usize> = l.pts.iter().map(|p| p.len() * specs_me.len()).collect();
+                            let mut k = 0;
+                            for q in &l.specs {
+                                for &isea in &l.pts[rank] {
+                                    for &ispec in q {
+                                        buf_pts[k] = s.va[ispec + nspec * isea];
+                                        k += 1;
+                                    }
+                                }
+                            }
+                            comm.alltoallv(&buf_pts, &scnt, &mut buf_cols, &rcnt);
+                            let offs: Vec<usize> = rcnt.iter().scan(0, |a, &n| Some(std::mem::replace(a, *a + n))).collect();
+                            let (recv, nme) = (&buf_cols, specs_me.len());
+                            let cols = xyp_cols.chunks_mut(nsea).enumerate();
+                            spread(&mut xyp_s, cols, |sc, (lspec, col)| {
+                                sc.field.fill(0.);
+                                for (p, pts) in l.pts.iter().enumerate() {
+                                    for (i, &isea) in pts.iter().enumerate() {
+                                        let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                        sc.field[c + ny_i] = recv[offs[p] + i * nme + lspec];
+                                    }
+                                }
+                                let [iixy1, iixy2, iixy3, iixy4] = sc.iixy.each_mut().map(|v| v.as_mut_slice());
+                                let [rdi1, rdi2, rdi3, rdi4] = sc.rdi.each_mut().map(|v| v.as_mut_slice());
+                                let mut w = Xyp3Work {
+                                    iixy1,
+                                    iixy2,
+                                    iixy3,
+                                    iixy4,
+                                    rdi1,
+                                    rdi2,
+                                    rdi3,
+                                    rdi4,
+                                    vlcflx: &mut sc.vlcflx,
+                                    vlcfly: &mut sc.vlcfly,
+                                    cxtot: &mut sc.cxtot,
+                                    cytot: &mut sc.cytot,
+                                    aq: &mut sc.aq,
+                                    fla: &mut sc.fla,
+                                };
+                                w3xyp3(&px, &tb, specs_me[lspec] as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w);
+                                for isea in 1..=nsea {
+                                    let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                    col[isea - 1] = sc.field[c + ny_i];
+                                }
+                            });
+                            let mut k = 0;
+                            for pts in &l.pts {
+                                for &isea in pts {
+                                    for lspec in 0..nme {
+                                        buf_cols[k] = xyp_cols[lspec * nsea + isea - 1];
+                                        k += 1;
+                                    }
+                                }
+                            }
+                            comm.alltoallv(&buf_cols, &rcnt, &mut buf_pts, &scnt);
+                            let mut k = 0;
+                            for q in &l.specs {
+                                for &isea in &l.pts[rank] {
+                                    let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                    for &ispec in q {
+                                        if mapsta[c] != 0 {
+                                            s.va[ispec + nspec * isea] = buf_pts[k];
+                                        }
+                                        k += 1;
+                                    }
+                                }
+                            }
                         } else if par {
                             // W3GATH, W3XYP3 and W3SCAT of `w3xyp3_va`, split so that no thread writes
                             // `va` by component: each thread gathers its components from `va` (read only)
@@ -1216,6 +1365,7 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                             .enumerate()
                             .skip(1)
                             .take(nsea)
+                            .filter(|(isea, _)| mine(*isea))
                             .map(|(isea, ((((((spec, whitecap), ust), ustdir), dtdyn), fcut), src))| SrceTask {
                                 isea,
                                 spec,
@@ -1272,6 +1422,9 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                         });
                     }
                     for isea in 1..=if device.is_some() || par { 0 } else { nsea } {
+                        if !mine(isea) {
+                            continue;
+                        }
                         let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
                         if mapsta[c] != 1 {
                             s.ust[isea] = UNDEF;
@@ -1310,6 +1463,11 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
             let dt1 = if tofrst[0] == -1 { 1. } else { dsec21(time, tofrst) };
             let dt2 = if tdn[0] == -1 { 1. } else { dsec21(time, tdn) };
             if dt1 <= 0. && dt2 != 0. {
+                if let Some(l) = lay.as_ref() {
+                    if (0..3).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
+                        gather_out(comm, l, nspec, &mut s, &mut dtdyn, &mut fcut, &mut src, &mut whitecap);
+                    }
+                }
                 // The only reads of the resident spectrum: what an output due now needs.
                 if let Some(d) = device.as_deref_mut() {
                     if (0..3).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
@@ -1364,12 +1522,19 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                         } else if JS[j] == 4 {
                             let path = format!("{dir}/restart{ifile:03}.ww3");
                             ifile += 1;
-                            let before = s.va.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
-                            iors::write(&path, m, &mut s, time, &mapsta, &mapst2);
-                            // W3IORS ends with VA = MAX(0.,VA).
-                            if s.va.iter().zip(&before).any(|(x, b)| x.to_bits() != *b) {
-                                if let Some(d) = device.as_deref_mut() {
-                                    d.va_write(&s.va[nspec..]);
+                            if root {
+                                let before = s.va.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+                                iors::write(&path, m, &mut s, time, &mapsta, &mapst2);
+                                // W3IORS ends with VA = MAX(0.,VA).
+                                if s.va.iter().zip(&before).any(|(x, b)| x.to_bits() != *b) {
+                                    if let Some(d) = device.as_deref_mut() {
+                                        d.va_write(&s.va[nspec..]);
+                                    }
+                                }
+                            } else {
+                                // The same clamp on the points this rank owns; the file is rank 0's.
+                                for v in &mut s.va {
+                                    *v = v.max(0.);
                                 }
                             }
                         }

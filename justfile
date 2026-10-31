@@ -93,3 +93,7 @@ f64-census:
 # Host verdict on ww3_strt: the reference's restart.ww3 and Rust's, by cmp
 strt-pair case suffix="":
     bash scripts/strt_pair.sh {{case}} {{suffix}}
+
+# Runtime MPI: ww3_shel under mpirun for R of 1 to 4, byte-compared with the reference
+mpi-pair *cases:
+    bash scripts/mpi_pair.sh {{cases}}

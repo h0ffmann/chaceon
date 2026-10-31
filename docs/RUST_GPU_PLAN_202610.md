@@ -127,7 +127,11 @@ The owner, 2026-10-31: "chaceon must also allow MPI/OpenMP runtime option." WW3 
 for several thread and rank counts.
 
 Status: threads done (`ww3_shel <case> --threads N`, verified byte-identical for N of 1, 2, 4 and 8 on eight
-cases, see `rust/port_report/WW3_SHEL_TS1.md`); MPI open ⚠ (not built yet).
+cases, see `rust/port_report/WW3_SHEL_TS1.md`). Ranks done on the host CPU: `mpirun -n R ww3_shel <case> [--threads N]`
+built with the Cargo feature `mpi` (`ww3-host`, `ww3_shel`), the sea points dealt round-robin and the spectral
+components by `IAPPRO` as WW3's `DIST` does, rank 0 writing the files; byte-identical to the reference on eight cases
+for R of 1 to 4 and R=2 with two threads (`scripts/mpi_pair.sh`, table in `rust/port_report/WW3_SHEL_TS1.md`).
+Not built: a rank layout with a device (`spirv_shel`, `gpu-*` take no ranks), MPI across hosts ⚠, and any speed claim.
 
 ### Batch 4: outputs
 

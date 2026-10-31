@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# Runtime MPI for ww3_shel (`mpirun -n R ww3_shel <case>`), linux/arm64. Two targets, both on Debian
+# bookworm so the libc matches the reference's glibc 2.36 and OpenMPI is the same 4.1.x in both:
+#   builder  rust:1.90-bookworm plus libopenmpi-dev and libclang, which the `mpi` crate's bindgen needs.
+#   run      the reference image chaceon-ref (docker/Dockerfile.reference) plus the OpenMPI runtime.
+#   just mpi-build   (scripts/rust_mpi.sh --image)
+FROM rust:1.90-bookworm AS builder
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libopenmpi-dev openmpi-bin libclang-dev clang pkg-config \
+ && rm -rf /var/lib/apt/lists/*
+
+FROM chaceon-ref:switch_chaceon_shrd AS run
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends openmpi-bin libopenmpi3 \
+ && rm -rf /var/lib/apt/lists/* \
+ && { mpirun --version | head -1; dpkg-query -W -f='openmpi ${Version}\n' libopenmpi3; }

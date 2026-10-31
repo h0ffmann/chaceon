@@ -33,3 +33,8 @@
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |
+| MPI, rank | Message Passing Interface; a rank is one of the processes `mpirun -n R` starts |
+| `DIST`, `SHRD`, `OMPG` | WW3 switches for distributed memory (MPI), shared memory and OpenMP over grid points; picked at compile time there, at run time here |
+| `IAPPRO` | WW3's table from spectral component to the rank that propagates it (`W3INIT`, `w3initmd.F90:853`) |
+| `W3GATH`, `W3SCAT` | Gather one component's values over all sea points into the field `W3XYP3` takes, and scatter the result back (`w3wavemd.F90`) |
+| rsmpi | The `mpi` crate: Rust bindings to the system MPI library through bindgen |
