@@ -63,7 +63,7 @@ Mathematical functions need both widths. `W3SDB1` calls `exp`, `tanh` and `sqrt`
 ## Four ways the obvious Rust is wrong
 
 Each row was run on 2026-10-30 (v): gfortran 14.3.0 `-O3` in `gcc:14-bookworm` against rustc 1.99.1
-([log](log/2026-10-30-scaffold.md)). The reference is gfortran 12.2.0; to repeat with it in Batch 0 ⚠. `a = 0.1` and `b = 3.3` are `REAL`; `d` is `REAL*8`.
+([log](log/2026-10-30-scaffold.md)). Repeated on arm64 with GCC 12.5.0: same bits (v). `a = 0.1` and `b = 3.3` are `REAL`; `d` is `REAL*8`.
 
 | Fortran | gfortran's bits | Correct Rust | Wrong Rust, and its bits |
 |---|---|---|---|
@@ -97,7 +97,7 @@ converts, one `as` per Fortran conversion.
 
 | | CPU reference | Rust-CUDA | rust-gpu on Vulkan |
 |---|---|---|---|
-| Contraction into FMA | none expected: no `-march` in the flags, so baseline x86_64 has no FMA instruction ⚠ | **on by default**: `fma_contraction: true` (`cuda_builder/src/lib.rs:211` at `3a82c35`). Set `false`, which passes `-fma=0` (`:743-744`) (v) | **Allowed**: without `NoContraction`, the driver may contract (v, Vulkan specification). `rustc_codegen_spirv` at `60d1e25` emits no such decoration (v, `grep -rn NoContraction crates`) |
+| Contraction into FMA | **off by build flag**: arm64 gfortran fuses by default, so the reference adds `-ffp-contract=off` (v, ADR-0005) | **on by default**: `fma_contraction: true` (`cuda_builder/src/lib.rs:211` at `3a82c35`). Set `false`, which passes `-fma=0` (`:743-744`) (v) | **Allowed**: without `NoContraction`, the driver may contract (v, Vulkan specification). `rustc_codegen_spirv` at `60d1e25` emits no such decoration (v, `grep -rn NoContraction crates`) |
 | `/` | IEEE | correctly rounded when `fast_div` is off, its default (v, option; rounding not run ⚠) | **2.5 ULP** allowed (v, Vulkan specification) |
 | `+`, `*` | IEEE | IEEE | correctly rounded (v) |
 | `exp`, `log`, `pow` | glibc | **libdevice by default**: `override_libm: true`, "likely to not be deterministic" (`cuda_builder/src/lib.rs`, doc of `override_libm`) (v). Set `false` and call `ww3-libm` | `GLSL.std.450`, a ULP bound, not glibc's bits (v, `libm_intrinsics.rs:84-85`, `:146-147`). Call `ww3-libm` |

@@ -20,7 +20,7 @@ chaceon. `test.comp` and `cmp` judge the output files. Three verdicts come from 
 
 | Verdict | Compiled by | Runs on | Pass means | Status today |
 |---|---|---|---|---|
-| `host` | rustc | x86_64 CPU | Byte-identical to the reference | Exists to prove the translation; never the product |
+| `host` | rustc | Apple Silicon CPU, in the reference's Linux image | Byte-identical to the reference | Exists to prove the translation; never the product |
 | `cuda` | Rust-CUDA | H100, RTX 4090 | Byte-identical is the target; tolerance otherwise, every difference recorded | The product |
 | `spirv` | rust-gpu | Vulkan | Within tolerance only: the specification rules out identical bits ([details](FLOAT_REPRESENTATION_202610.md#device-float-behaviour)) | The portable backend |
 
@@ -53,8 +53,7 @@ The first five batches give a working forecast for the target switch,
 Nothing else is worth starting until these hold, because the two compilers are the plan's largest
 risk: both projects call themselves early-stage (v, their READMEs, 2026-10-30).
 
-1. Build the reference with `just ref-build`, on a native x86_64 machine for any bit verdict. It
-   builds under emulation on the Mac (v, 2026-10-30), which proves the build only.
+1. Build the reference with `just ref-build`: native linux/arm64 on Apple Silicon, contraction off.
 2. Run `ww3_ts1` ST4, `ww3_tp2.4` and `ww3_tp2.15` on it, twice, to learn which files WW3 itself
    does not reproduce. Keep the outputs by checksum.
 3. Profile the reference at this pin. ww3-gpu's profiles are NOAA's pin, and MetOcean's ST4 differs.
@@ -140,15 +139,14 @@ to C MPI, or GPU-aware transport.
 | The two pin different nightlies, `2026-04-02` and `2026-08-15` (v) | A language feature works on only one | Separate workspaces; kernels use only what both accept |
 | gfortran's `-O3` choices (power chains, ST4's libmvec loops, per ww3-gpu's `st4_libmvec.hpp:10-13`) | `host` is off by a ULP | Read the optimised code; repeat at this pin ⚠ |
 | Two executables, unlike ww3-gpu's one | Build differences count as physics | One named machine; the reference runs twice to measure itself |
-| glibc picks `expf`'s FMA variant by CPU ⚠ | The reference depends on the machine | Record the CPU; never judge bits on emulated x86_64 |
-| gfortran on arm64 may contract by default ⚠ | The Mac's Fortran is not the reference | x86_64 only (ADR-0005) |
+| glibc's math is platform-specific ⚠ | macOS libm is not the reference's | `host` runs inside the reference's linux/arm64 image, against its glibc (ADR-0005) |
+| gfortran on arm64 fuses `a*b+c` by default (v, probe) | Default reference differs from Rust's arithmetic | The reference is built with `-ffp-contract=off` (ADR-0005) |
+| An arm64 reference is not LabECO's operational x86_64 build | Bits proved here are this reference's | Contraction off keeps the arithmetic IEEE; libm results may still differ ⚠ |
 | `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac | Stop with a message; no demotion |
-| Licence | A translation of LGPL code under MPL-2.0 | ADR-0006 |
+| Licence | A translation of LGPL code under MPL-2.0 | The owner's decision, ADR-0006; to revisit before distribution |
 
 ## Open for the owner
 
-1. **Licence** (ADR-0006): the repository's `LICENSE` is MPL-2.0, and a translation of WW3 derives
-   from LGPLv3 code. Files translated from WW3 are marked `LGPL-3.0-only` until this is settled.
-2. **The switch**: `switch_chaceon_shrd` is ww3-gpu's guess at ondaseventos' build ⚠.
-3. **GPU supervision**: AGENTS.md keeps ww3-gpu's rule that device runs need the owner. If runs on
-   the Mac may go unsupervised, ADR-0003 should say so.
+1. **The switch**: `switch_chaceon_shrd` is ww3-gpu's guess at ondaseventos' build ⚠.
+2. **GPU supervision**: AGENTS.md keeps ww3-gpu's rule that device runs need the owner. If runs on
+   the Mac may go unsupervised, a new ADR should say so.

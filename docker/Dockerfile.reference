@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# The Fortran reference: metocean/WW3 at the pin, built by WW3's own CMake, for x86_64. Nothing of
-# chaceon enters it except the switch file. docs/ADRs/ADR-0005 says why x86_64.
+# The Fortran reference: metocean/WW3 at the pin, built by WW3's own CMake, for linux/arm64. Nothing
+# of chaceon enters it except the switch file. -ffp-contract=off: docs/ADRs/ADR-0005.
 #   just ref-build
 FROM debian:bookworm-slim AS build
 ARG DEBIAN_FRONTEND=noninteractive
@@ -17,12 +17,12 @@ RUN git init -q /src && git -C /src fetch -q --depth 1 "${WW3_REPO}" "${WW3_REF}
  && git -C /src checkout -q FETCH_HEAD \
  && test "$(cat /src/VERSION)" = "${WW3_VERSION}"
 RUN cmake -S /src -B /build -DSWITCH="/switches/${WW3_SWITCH_FILE}" -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_INSTALL_PREFIX=/opt/ww3 \
+      -DCMAKE_Fortran_FLAGS=-ffp-contract=off -DCMAKE_INSTALL_PREFIX=/opt/ww3 \
  && cmake --build /build -j"$(nproc)" \
  && mkdir -p /opt/ww3/bin && cp /build/bin/ww3_* /opt/ww3/bin/ \
  && for p in grid strt prnc shel ounf ounp; do test -x "/opt/ww3/bin/ww3_$p"; done \
  && { echo "WW3 ${WW3_VERSION} ${WW3_REPO} ${WW3_REF}"; echo "switch: $(cat /switches/${WW3_SWITCH_FILE})"; \
-      gfortran --version | head -1; ldd --version | head -1; } > /opt/ww3/BUILD_INFO
+      echo "arch: $(uname -m), extra flags: -ffp-contract=off"; gfortran --version | head -1; ldd --version | head -1; } > /opt/ww3/BUILD_INFO
 
 FROM debian:bookworm-slim AS dist
 ARG DEBIAN_FRONTEND=noninteractive

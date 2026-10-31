@@ -19,7 +19,8 @@ longer history; its facts are at NOAA's pin.
 - `REAL` is `f32`. A literal without `D` is `f32` even inside an `f64` expression.
 - `d = a*b` is `(a * b) as f64`. Put each `as` where gfortran converts.
 - `f32::max` hides NaN. Read what gfortran's `MAX` compiled to at that site.
-- Rust's `a * b + c` is not contracted on the host. On PTX that needs `fma_contraction(false)`.
+- Rust's `a * b + c` is not contracted on the host. The reference needs `-ffp-contract=off` to match
+  (arm64 gfortran fuses by default), and PTX needs `fma_contraction(false)`.
 - Keep the operation order, reductions included. Asking comes before any change.
 
 ## Memory
@@ -42,5 +43,6 @@ longer history; its facts are at NOAA's pin.
 ## Before claiming a verdict
 
 `translated` means the code exists. `host` means `cmp` and `test.comp` passed on the regtest the
-batch names, on a native x86_64 machine, against the same commit of the reference. A zero difference
+batch names, in the reference's linux/arm64 image on Apple Silicon, against the same commit of the
+reference. A zero difference
 from a run that never reached the routine proves nothing: check it ran.

@@ -68,7 +68,7 @@ git clone --recurse-submodules git@github.com:h0ffmann/chaceon.git && cd chaceon
 just check        # refuses Rust tests, then cargo check
 just port-status  # lines per batch, routines per status
 just f64-census   # double precision per WW3 file
-just ref-build    # the Fortran reference, x86_64 image
+just ref-build    # the Fortran reference, linux/arm64 image
 ```
 
 | You changed | Run |
@@ -86,8 +86,8 @@ A missing tool is a reason to install it, not to skip the gate.
   to find traps, not as a source.
 - **Order.** Batches in the plan's order; inside a batch, the measured profile at this pin, most
   expensive first.
-- **Reference target.** The executable WW3's CMake builds with gfortran `-O3`, not the source read
-  by eye. When `host` differs by a ULP, read the optimised GIMPLE first. The `ww3-port` skill has
+- **Reference target.** The executable WW3's CMake builds with gfortran `-O3` and
+  `-ffp-contract=off` on Apple Silicon (ADR-0005), not the source read by eye. When `host` differs by a ULP, read the optimised GIMPLE first. The `ww3-port` skill has
   the traps.
 - **A difference is a defect of the port** until two runs of the Fortran itself differ on that file.
 - **Kernels.** `#![no_std]`, no allocation, no I/O, no panic path that depends on data, the same
@@ -96,7 +96,7 @@ A missing tool is a reason to install it, not to skip the gate.
   `ftz(false)`, `fast_sqrt(false)`, `fast_div(false)`. The defaults of the first two are wrong for us.
 - **Every routine** has a row in `rust/ports.tsv` and a report in `rust/port_report/<ROUTINE>.md`:
   what was translated, its comparison, its timing. `translated` never means `host`.
-- **Licence.** A file translated from WW3 starts with `// SPDX-License-Identifier: LGPL-3.0-only`
+- **Licence.** Every file, translated or not, starts with `// SPDX-License-Identifier: MPL-2.0`
   ([ADR-0006](docs/ADRs/ADR-0006-licence.md)).
 
 ## Running on the GPU

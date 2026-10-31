@@ -17,5 +17,5 @@ discipline of [ww3-gpu](https://github.com/h0ffmann/ww3-gpu) without Kokkos.
 
 ## Licence
 
-See [ADR-0006](docs/ADRs/ADR-0006-licence.md): this repository is MPL-2.0, and files translated from
-WW3 are marked LGPL-3.0-only. WAVEWATCH III is a trademark of the NWS.
+MPL-2.0, translated files included ([ADR-0006](docs/ADRs/ADR-0006-licence.md)). WAVEWATCH III is a
+trademark of the NWS.
