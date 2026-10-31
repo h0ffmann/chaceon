@@ -7,6 +7,7 @@
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
 | GIMPLE | GCC's intermediate form, read to see what `-O3` computes |
 | `host`, `cuda`, `spirv` | The three verdicts of ADR-0005 |
+| `out_pnt.ww3` | WW3's point output: spectra and scalars at output points |
 | lavapipe | Mesa's Vulkan implementation on the CPU |
 | libdevice | NVIDIA's device math library |
 | libmvec | glibc's vector math library |

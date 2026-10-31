@@ -1,14 +1,15 @@
 # The WW3 code translated to Rust, one row each. status, in order: translated; routine (ADR-0007: every
 # captured call bit-identical); then host, cuda, spirv when that verdict of ADR-0005 passed on whole
-# output files. evidence: the command or log entry that shows the status.
+# output files. host here means out_pnt.ww3 on ww3_ts1 only: rust/port_report/WW3_SHEL_TS1.md says how
+# far that reaches. evidence: the command or log entry that shows the status.
 routine	file	lines	status	evidence	rust
 constants	model/src/constants.F90:61-82	22	translated	gfortran 14.3 bit probe, docs/log/2026-10-30-scaffold.md	rust/crates/ww3-kernels/src/constants.rs
-w3snl1md:w3snl1	model/src/w3snl1md.F90:99-457	359	routine	just snl1-cmp and just spirv-replay at 2500, 20 and 8 m: 0 of 14169600 values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-kernels/src/snl1.rs
-w3snl1md:insnl1	model/src/w3snl1md.F90:467-770	304	routine	just snl1-cmp: 0 of 30163 table values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-host/src/insnl1.rs
-w3src4md:w3sds4	model/src/w3src4md.F90:1872-2599	728	routine	just sds4-cmp on 10 captures: 0 of 32325392 values differ, in call and batch layouts; SPIR-V within tolerance only, not bit-equal; rust/port_report/W3SDS4.md	rust/crates/ww3-kernels/src/sds4.rs
-w3src4md:w3sin4	model/src/w3src4md.F90:424-906	483	routine	just st4-cmp on 12 captures: 0 of 54362284 values differ, guards reached by entry pokes; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
-w3src4md:w3spr4	model/src/w3src4md.F90:143-385	243	routine	just st4-cmp spr4 on 11 captures: 0 of 327948 values differ; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
-w3src4md:calc_ustar	model/src/w3src4md.F90:1738-1840	103	routine	through W3SPR4; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
+w3snl1md:w3snl1	model/src/w3snl1md.F90:99-457	359	host	just ts1-pair on 18 cases; just snl1-cmp and just spirv-replay at 2500, 20 and 8 m: 0 of 14169600 values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-kernels/src/snl1.rs
+w3snl1md:insnl1	model/src/w3snl1md.F90:467-770	304	host	just ts1-pair on 18 cases; just snl1-cmp: 0 of 30163 table values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-host/src/insnl1.rs
+w3src4md:w3sds4	model/src/w3src4md.F90:1872-2599	728	host	just ts1-pair on 18 cases; just sds4-cmp on 10 captures: 0 of 32325392 values differ, in call and batch layouts; SPIR-V within tolerance only, not bit-equal; rust/port_report/W3SDS4.md	rust/crates/ww3-kernels/src/sds4.rs
+w3src4md:w3sin4	model/src/w3src4md.F90:424-906	483	host	just ts1-pair on 18 cases; just st4-cmp on 12 captures: 0 of 54362284 values differ, guards reached by entry pokes; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
+w3src4md:w3spr4	model/src/w3src4md.F90:143-385	243	host	just ts1-pair on 18 cases; just st4-cmp spr4 on 11 captures: 0 of 327948 values differ; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
+w3src4md:calc_ustar	model/src/w3src4md.F90:1738-1840	103	host	just ts1-pair on 18 cases; through W3SPR4; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
 w3src4md:insin4	model/src/w3src4md.F90:917-1179	263	routine	just st4-cmp sin4: every table equal on default, filipot, noshelter; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 w3src4md:tabu_stress	model/src/w3src4md.F90:1188-1309	122	routine	TAUT equal; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 w3src4md:tabu_tauhf	model/src/w3src4md.F90:1325-1477	153	routine	TAUHFT equal, noshelter; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
@@ -16,7 +17,18 @@ w3src4md:tabu_tauhf2	model/src/w3src4md.F90:1495-1720	226	routine	TAUHFT and TAU
 constants:tabu_fw	model/src/constants.F90:119-212	94	routine	FWTABLE equal; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 constants:kzeone	model/src/constants.F90:243-406	164	routine	through FWTABLE; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 w3dispmd:wavnu2	model/src/w3dispmd.F90:203-344	142	routine	through IKTAB, positive frequency only; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
-w3srcemd:w3srce	model/src/w3srcemd.F90	2692	routine	just srce-cmp on 11 captures: 7931 calls, 0 of 7082383 values differ, for switch_chaceon_shrd; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
-w3sln1md:w3sln1	model/src/w3sln1md.F90	216	routine	through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
-w3sbt1md:w3sbt1	model/src/w3sbt1md.F90	246	routine	through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
-w3sdb1md:w3sdb1	model/src/w3sdb1md.F90	343	routine	through W3SRCE on filipot and storm, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3srcemd:w3srce	model/src/w3srcemd.F90	2692	host	just ts1-pair on 18 cases; just srce-cmp on 11 captures: 7931 calls, 0 of 7082383 values differ, for switch_chaceon_shrd; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3sln1md:w3sln1	model/src/w3sln1md.F90	216	host	just ts1-pair on 18 cases; through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3sbt1md:w3sbt1	model/src/w3sbt1md.F90	246	host	just ts1-pair on 18 cases; through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3sdb1md:w3sdb1	model/src/w3sdb1md.F90	343	host	just ts1-pair on 18 cases; through W3SRCE on filipot and storm, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3iogrmd:w3iogr	model/src/w3iogrmd.F90:115-1781	1667	host	read only, for this switch; just moddef-cmp equals the reference's memory; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/moddef.rs
+w3iopomd:w3iope	model/src/w3iopomd.F90:607-1027	421	host	one point, just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+w3iopomd:w3iopo	model/src/w3iopomd.F90:1039-1472	434	host	write only, just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+w3updtmd:w3uwnd	model/src/w3updtmd.F90:488-815	328	host	just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+w3fldsmd:w3fldh	model/src/w3fldsmd.F90:2138-2487	350	host	winds only, just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+w3dispmd:distab	model/src/w3dispmd.F90:551-682	132	host	just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+w3dispmd:wavnu1	model/src/w3dispmd.F90:84-201	118	host	just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+w3timemd:tick21	model/src/w3timemd.F90:83-330	248	host	standard calendar, just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/wtime.rs
+w3timemd:dsec21	model/src/w3timemd.F90:332-573	242	host	standard calendar, just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/wtime.rs
+w3wavemd:w3wave	model/src/w3wavemd.F90:228-2899	2672	translated	only the time and output logic ts1 reaches, in shel.rs; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
+ww3_shel:ww3_shel	model/src/ww3_shel.F90	2921	translated	only the outer loop and namelist keys ts1 reaches; rust/port_report/WW3_SHEL_TS1.md	rust/tools/ww3_shel/src/main.rs

@@ -5,3 +5,6 @@
 pub mod capture;
 pub mod insin4;
 pub mod insnl1;
+pub mod moddef;
+pub mod shel;
+pub mod wtime;

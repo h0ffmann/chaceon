@@ -34,6 +34,14 @@ sds4-cmp variant="default" depth="2500":
 st4-cmp routine="sin4" variant="default" depth="2500":
     bash scripts/rust_in_ref.sh st4_cmp {{routine}} /work/capture/{{routine}}_{{variant}}_{{depth}}m.bin
 
+# Host verdict: the reference and Rust run ww3_ts1, and cmp judges out_pnt.ww3
+ts1-pair variant="default" depth="2500":
+    bash scripts/ts1_pair.sh {{variant}} {{depth}}
+
+# Compares the mod_def reader with the reference's memory, for a case with captures
+moddef-cmp mod_def tag="default_2500m":
+    bash scripts/rust_in_ref.sh moddef_cmp {{mod_def}} {{tag}}
+
 # Replays W3SRCE calls of a case, every bit; needs that case's snl1, sds4, sin4 and spr4 captures
 srce-cmp tag="default_2500m":
     bash scripts/rust_in_ref.sh srce_cmp {{tag}}
