@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
-//! Runs the SPIR-V that rust-gpu built on every captured `W3SNL1` call and compares bits with the
-//! reference. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
+//! reference. Usage: spirv_replay <spv> <snl1|sds4> <capture>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
 use std::ffi::CStr;
-use ww3_host::capture::Snl1Capture;
-use ww3_kernels::snl1::work_len;
+use ww3_host::capture::{Sds4Capture, Snl1Capture};
+use ww3_kernels::{sds4, snl1};
 
 struct Buffer {
     buffer: vk::Buffer,
@@ -18,22 +18,14 @@ fn bytes<T>(v: &[T]) -> &[u8] {
     unsafe { std::slice::from_raw_parts(v.as_ptr().cast(), size_of_val(v)) }
 }
 
-fn main() {
-    let mut args = std::env::args().skip(1);
-    let (spv, path) = (args.next().expect("spv"), args.next().expect("capture"));
-    let c = Snl1Capture::read(&path);
-    let t = c.rebuild();
-    let p = t.params;
-    let (nk, nspec) = (p.nk as usize, p.nspec as usize);
-    let points = c.calls.len();
-    let concat = |f: fn(&ww3_host::capture::Snl1Call) -> &Vec<f32>| -> Vec<f32> {
-        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
-    };
-    let (a, cg, s_ref, d_ref) = (concat(|k| &k.a), concat(|k| &k.cg), concat(|k| &k.s), concat(|k| &k.d));
-    let kd: Vec<f32> = c.calls.iter().map(|k| k.kdmean).collect();
-    assert_eq!(cg.len(), points * nk);
+/// One storage buffer, by binding: data to upload, or an empty output of this many bytes.
+enum Slot<'a> {
+    In(&'a [u8]),
+    Out(usize),
+}
 
-    let code = std::fs::read(&spv).unwrap();
+/// Dispatches `entry_name` over `points` and returns the final contents of every buffer.
+fn dispatch(code: &[u8], entry_name: &CStr, slots: &[Slot], points: usize) -> Vec<Vec<u8>> {
     let words: Vec<u32> =
         code.chunks_exact(4).map(|b| u32::from_le_bytes(b.try_into().unwrap())).collect();
 
@@ -98,20 +90,13 @@ fn main() {
             b
         };
 
-        let params = std::slice::from_ref(&p);
-        let buffers = [
-            input(bytes(params)),
-            input(bytes(&c.sig)),
-            input(bytes(&t.af11)),
-            input(bytes(&t.pm)),
-            input(bytes(&t.ic)),
-            input(bytes(&a)),
-            input(bytes(&cg)),
-            input(bytes(&kd)),
-            make(points * nspec * 4),
-            make(points * nspec * 4),
-            make(points * work_len(&p) * 4),
-        ];
+        let buffers: Vec<Buffer> = slots
+            .iter()
+            .map(|slot| match slot {
+                Slot::In(data) => input(data),
+                Slot::Out(size) => make(*size),
+            })
+            .collect();
 
         let bindings: Vec<_> = (0..buffers.len() as u32)
             .map(|i| {
@@ -137,7 +122,7 @@ fn main() {
         let stage = vk::PipelineShaderStageCreateInfo::default()
             .stage(vk::ShaderStageFlags::COMPUTE)
             .module(module)
-            .name(c"snl1");
+            .name(entry_name);
         let pipeline = device
             .create_compute_pipelines(
                 vk::PipelineCache::null(),
@@ -199,23 +184,128 @@ fn main() {
         device.wait_for_fences(&[fence], true, u64::MAX).unwrap();
         println!("dispatch {points} points in {:?}", start.elapsed());
 
-        let read = |b: &Buffer| std::slice::from_raw_parts(b.map.cast::<f32>(), points * nspec);
-        let mut ok = true;
-        for (name, ours, theirs) in [("S", read(&buffers[8]), &s_ref), ("D", read(&buffers[9]), &d_ref)] {
-            let bad: Vec<(f32, f32)> = ours
-                .iter()
-                .zip(theirs.iter())
-                .filter(|(x, y)| x.to_bits() != y.to_bits())
-                .map(|(x, y)| (*x, *y))
-                .collect();
-            let ulp = bad.iter().map(|(x, y)| (x.to_bits() as i64 - y.to_bits() as i64).unsigned_abs()).max();
-            println!("{name:8} {:>9} values, {} differ, max {} ULP", ours.len(), bad.len(), ulp.unwrap_or(0));
-            if let Some((x, y)) = bad.first() {
-                println!("         first: ours {x:e}, reference {y:e}");
-            }
-            ok &= bad.is_empty();
-        }
-        println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });
-        std::process::exit(!ok as i32);
+        buffers
+            .iter()
+            .map(|b| std::slice::from_raw_parts(b.map, b.size as usize).to_vec())
+            .collect()
     }
+}
+
+fn floats(b: &[u8]) -> Vec<f32> {
+    b.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect()
+}
+
+/// Compares one output buffer. Returns true when every bit is equal.
+fn compare(name: &str, ours: &[u8], theirs: &[f32]) -> bool {
+    let ours = floats(ours);
+    assert_eq!(ours.len(), theirs.len());
+    let bad: Vec<(f32, f32)> = ours
+        .iter()
+        .zip(theirs.iter())
+        .filter(|(x, y)| x.to_bits() != y.to_bits())
+        .map(|(x, y)| (*x, *y))
+        .collect();
+    let ulp = bad.iter().map(|(x, y)| (x.to_bits() as i64 - y.to_bits() as i64).unsigned_abs()).max();
+    println!("{name:9}{:>9} values, {} differ, max {} ULP", ours.len(), bad.len(), ulp.unwrap_or(0));
+    if let Some((x, y)) = bad.first() {
+        println!("         first: ours {x:e}, reference {y:e}");
+    }
+    bad.is_empty()
+}
+
+fn snl1_run(code: &[u8], path: &str) -> bool {
+    let c = Snl1Capture::read(path);
+    let t = c.rebuild();
+    let p = t.params;
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let concat = |f: fn(&ww3_host::capture::Snl1Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, s_ref, d_ref) = (concat(|k| &k.a), concat(|k| &k.cg), concat(|k| &k.s), concat(|k| &k.d));
+    let kd: Vec<f32> = c.calls.iter().map(|k| k.kdmean).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&t.af11)),
+        Slot::In(bytes(&t.pm)),
+        Slot::In(bytes(&t.ic)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&kd)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * snl1::work_len(&p) * 4),
+    ];
+    let out = dispatch(code, c"snl1", &slots, points);
+    compare("S", &out[8], &s_ref) & compare("D", &out[9], &d_ref)
+}
+
+fn sds4_run(code: &[u8], path: &str) -> bool {
+    let c = Sds4Capture::read(path);
+    let p = c.params;
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let (lw, li) = sds4::work_len(&p);
+    let concat = |f: fn(&ww3_host::capture::Sds4Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, k, cg, wc) = (concat(|x| &x.a), concat(|x| &x.k), concat(|x| &x.cg), concat(|x| &x.whitecap_in));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd, rb, rw) =
+        (concat(|x| &x.srhs), concat(|x| &x.ddiag), concat(|x| &x.brlambda), concat(|x| &x.whitecap));
+    // An empty table still needs a buffer to bind.
+    let one = [0u8; 4];
+    let table = |b: &'_ [u8]| -> Vec<u8> { if b.is_empty() { one.to_vec() } else { b.to_vec() } };
+    let owned = [
+        table(bytes(&c.cumulw)),
+        table(bytes(&c.iktab)),
+        table(bytes(&c.dcki)),
+        table(bytes(&c.qbi)),
+    ];
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.ec2)),
+        Slot::In(bytes(&c.es2)),
+        Slot::In(bytes(&c.esc)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.satindices)),
+        Slot::In(bytes(&c.satweights)),
+        Slot::In(&owned[0]),
+        Slot::In(&owned[1]),
+        Slot::In(&owned[2]),
+        Slot::In(&owned[3]),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::In(bytes(&wc)),
+        Slot::Out(points * lw * 4),
+        Slot::Out(points * li * 4),
+    ];
+    let out = dispatch(code, c"sds4", &slots, points);
+    compare("SRHS", &out[18], &rs)
+        & compare("DDIAG", &out[19], &rd)
+        & compare("BRLAMBDA", &out[20], &rb)
+        & compare("WHITECAP", &out[21], &rw)
+}
+
+fn main() {
+    let mut args = std::env::args().skip(1);
+    let (spv, kernel, path) =
+        (args.next().expect("spv"), args.next().expect("kernel"), args.next().expect("capture"));
+    let code = std::fs::read(&spv).unwrap();
+    let ok = match kernel.as_str() {
+        "snl1" => snl1_run(&code, &path),
+        "sds4" => sds4_run(&code, &path),
+        other => panic!("unknown kernel {other}"),
+    };
+    println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });
+    std::process::exit(!ok as i32);
 }

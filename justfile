@@ -18,25 +18,29 @@ lint-sh:
 ref-build switch="switch_chaceon_shrd":
     bash scripts/ref_build.sh {{switch}}
 
-# Captures W3SNL1 from the reference running ww3_ts1 at a depth in metres
-capture depth="2500" stride="1":
-    bash scripts/capture_snl1.sh {{stride}} {{depth}}
+# Records a routine from the reference running ww3_ts1
+capture routine="snl1" variant="default" depth="2500" stride="1":
+    bash scripts/capture.sh {{routine}} {{variant}} {{depth}} {{stride}}
 
-# Replays a capture through the host build, every bit
+# Replays a W3SNL1 capture through the host build, every bit
 snl1-cmp depth="2500":
-    bash scripts/rust_in_ref.sh snl1_cmp /work/capture/snl1_ts1_{{depth}}m.bin
+    bash scripts/rust_in_ref.sh snl1_cmp /work/capture/snl1_default_{{depth}}m.bin
 
-# ww3-libm against the reference's glibc, every f32
-libm-bits:
-    bash scripts/rust_in_ref.sh libm_bits
+# Replays a W3SDS4 capture through the host build, every bit
+sds4-cmp variant="default" depth="2500":
+    bash scripts/rust_in_ref.sh sds4_cmp /work/capture/sds4_{{variant}}_{{depth}}m.bin
+
+# ww3-libm against the reference's glibc: every f32, and samples for two arguments
+libm-bits samples="8000000000":
+    bash scripts/rust_in_ref.sh libm_bits {{samples}}
 
 # Compiles the kernels to SPIR-V
 spirv:
     bash scripts/spirv.sh
 
 # Runs the compiled SPIR-V on a capture, on CPU Vulkan
-spirv-replay depth="2500":
-    bash scripts/spirv_replay.sh capture/snl1_ts1_{{depth}}m.bin
+spirv-replay kernel="snl1" variant="default" depth="2500":
+    bash scripts/spirv_replay.sh {{kernel}} capture/{{kernel}}_{{variant}}_{{depth}}m.bin
 
 # Compiles the kernels to PTX and assembles sm_89 and sm_90 binaries
 ptx:

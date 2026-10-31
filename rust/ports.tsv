@@ -5,3 +5,4 @@ routine	file	lines	status	evidence	rust
 constants	model/src/constants.F90:61-82	22	translated	gfortran 14.3 bit probe, docs/log/2026-10-30-scaffold.md	rust/crates/ww3-kernels/src/constants.rs
 w3snl1md:w3snl1	model/src/w3snl1md.F90:99-457	359	routine	just snl1-cmp and just spirv-replay at 2500, 20 and 8 m: 0 of 14169600 values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-kernels/src/snl1.rs
 w3snl1md:insnl1	model/src/w3snl1md.F90:467-770	304	routine	just snl1-cmp: 0 of 30163 table values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-host/src/insnl1.rs
+w3src4md:w3sds4	model/src/w3src4md.F90:1872-2599	728	routine	just sds4-cmp on 10 captures: 0 of 32325392 values differ, in call and batch layouts; SPIR-V within tolerance only, not bit-equal; rust/port_report/W3SDS4.md	rust/crates/ww3-kernels/src/sds4.rs

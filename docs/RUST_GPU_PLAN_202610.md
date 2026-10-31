@@ -53,9 +53,10 @@ The first five batches give a working forecast for the target switch,
 Nothing else is worth starting until these hold, because the two compilers are the plan's largest
 risk: both projects call themselves early-stage (v, their READMEs, 2026-10-30).
 
-**Done, 2026-10-30:** both compilers build a real kernel (`W3SNL1`), `ww3-libm` has `expf`, and
-capture and replay work (ADR-0007, [log](log/2026-10-30-snl1-parity.md)). **Open:** items 2 and 3
-beyond `ww3_ts1`, the rest of `ww3-libm`, the device audit of item 6, `ww3cmp`.
+**Done, 2026-10-31:** both compilers build real kernels (`W3SNL1`, `W3SDS4`), `ww3-libm` covers what
+they call, and capture and replay work (ADR-0007, logs of [10-30](log/2026-10-30-snl1-parity.md) and
+[10-31](log/2026-10-31-sds4-parity.md)). **Open:** items 2 and 3 beyond `ww3_ts1`, the device audit
+of item 6, `ww3cmp`.
 
 1. Build the reference with `just ref-build`: native linux/arm64 on Apple Silicon, contraction off.
 2. Run `ww3_ts1` ST4, `ww3_tp2.4` and `ww3_tp2.15` on it, twice, to learn which files WW3 itself
@@ -89,8 +90,9 @@ NVIDIA's cuda-oxide, which ADR-0003 keeps as the fallback.
 
 ### Batch 2: source terms on the device
 
-In the order the profile sets, pending Batch 0's new one: `W3SNL1`, `W3SDS4`, `W3SIN4`, `W3SPR4`,
-`W3SRCE`, `W3SDB1`, `W3SBT1`, `W3SLN1`, `W3SBT4`, and their setup routines.
+In the order the profile sets, pending Batch 0's new one: `W3SNL1` (`routine`), `W3SDS4` (`routine`),
+`W3SIN4`, `W3SPR4`, `W3SRCE`, `W3SDB1`, `W3SBT1`, `W3SLN1`, `W3SBT4`, and their setup routines.
+`W3SDS4` reads `INSIN4`'s tables from the capture for now: `INSIN4` comes with `W3SIN4`.
 
 - Source: the Fortran at the pin, never ww3-gpu's C++, which translates NOAA's ST4 and misses
   MetOcean's `USTAR` floors and `ISNAN` guards (`w3src4md.F90:680`, `:780`, `:835`, `:1683`;
@@ -147,6 +149,8 @@ to C MPI, or GPU-aware transport.
 | gfortran on arm64 fuses `a*b+c` by default (v, probe) | Default reference differs from Rust's arithmetic | The reference is built with `-ffp-contract=off` (ADR-0005) |
 | An arm64 reference is not LabECO's operational x86_64 build | Bits proved here are this reference's | Contraction off keeps the arithmetic IEEE; libm results may still differ ⚠ |
 | `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac, and no `W3SNL1` either: `ww3-libm`'s `expf` needs `f64` and `i64` | Stop with a message; no demotion |
+| SPIR-V is not bit-identical on `W3SDS4` (v), and the cause is partly unattributed ⚠ | `spirv` needs tolerances that a large difference may not fit | Measure on a real device before fixing tolerances; `NoContraction` through inline assembly is untried |
+| Soft `fma64` and `sqrtf` are slow on a device ⚠ | Wall time | Replace them on PTX in Batch 6, once `fma.rn` and `sqrt.rn` are shown to give the same bits |
 | Rust-CUDA's LLVM 7 path is its legacy one (v) | A language or `core` change may stop building | Pinned nightly; kept plain; cuda-oxide is the fallback |
 | Licence | A translation of LGPL code under MPL-2.0 | The owner's decision, ADR-0006; to revisit before distribution |
 
