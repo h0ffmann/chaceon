@@ -3,6 +3,8 @@
 //! `W3MAPT` (`model/src/w3pro3md.F90`), `W3UTRN`, `W3DZXY` (`w3updtmd.F90`), and the metrics `W3GNTX`
 //! gets from `W3CGDM` (`w3gsrumd.F90`), which WW3 calls with `SPHERE=.FALSE.`, `DX` and `DY`.
 
+#![allow(clippy::approx_constant)]
+
 use crate::moddef::ModDef;
 use ww3_kernels::constants::{DERA, RADIUS};
 use ww3_kernels::real::Real;
@@ -21,10 +23,123 @@ pub struct Metrics {
     pub dqdx: Vec<Real>,
     pub dqdy: Vec<Real>,
     pub gsqrt: Vec<Real>,
+    pub hpfac: Vec<Real>,
+    pub hqfac: Vec<Real>,
+}
+
+const PI: f64 = 3.14159265358979323846;
+const D2R: f64 = PI / 180.;
+const R2D: f64 = 1. / D2R;
+const REARTH: f64 = 4.0e7 / (2. * PI);
+
+/// `W3FDWT` with `M = 1`, `Z = 0`: the weights of a first derivative, `C(:,1)`.
+fn fdwt(x: &[f64]) -> Vec<f64> {
+    let n = x.len() - 1;
+    let mut c = vec![[0f64; 2]; n + 1];
+    let (mut c1, mut c4) = (1f64, x[0]);
+    c[0][0] = 1.;
+    for i in 1..=n {
+        let mn = i.min(1);
+        let (mut c2, c5) = (1f64, c4);
+        c4 = x[i];
+        for j in 0..i {
+            let c3 = x[i] - x[j];
+            c2 *= c3;
+            if j == i - 1 {
+                for k in (1..=mn).rev() {
+                    c[i][k] = c1 * (k as f64 * c[i - 1][k - 1] - c5 * c[i - 1][k]) / c2;
+                }
+                c[i][0] = -c1 * c5 * c[i - 1][0] / c2;
+            }
+            for k in (1..=mn).rev() {
+                c[j][k] = (c4 * c[j][k] - k as f64 * c[j][k - 1]) / c3;
+            }
+            c[j][0] = c4 * c[j][0] / c3;
+        }
+        c1 = c2;
+    }
+    c.iter().map(|v| v[1]).collect()
+}
+
+/// `W3SPLX` from a pole, `(LON0, LAT0) = (0, ±90)`.
+fn splx(lat0: f64, c0: f64, lam: f64, phi: f64) -> (f64, f64) {
+    let (clam, slam) = ((lam * D2R).cos(), (lam * D2R).sin());
+    let (cphi0, cphi) = ((lat0 * D2R).cos(), (phi * D2R).cos());
+    let (sphi0, sphi) = ((lat0 * D2R).sin(), (phi * D2R).sin());
+    let k0 = (0.5 * c0 * D2R).cos();
+    let k0 = k0 * k0;
+    let k = 2. * k0 * REARTH / (1. + sphi0 * sphi + cphi0 * cphi * clam);
+    (k * cphi * slam, k * (cphi0 * sphi - sphi0 * cphi * clam))
+}
+
+/// `SPDDP` and `SPDDQ`, which are the same arithmetic: `(DX,DY)` in the plane to `(DLAM,DPHI)`.
+fn spdd(c0: f64, ihem: f64, lam: f64, phi: f64, d1: f64, d2: f64) -> (f64, f64) {
+    let k0 = (0.5 * c0 * D2R).cos();
+    let k0 = k0 * k0;
+    let mu = lam * D2R;
+    let a = ihem;
+    let nu = PI / 4. - a * 0.5 * phi * D2R;
+    let nu = nu.abs().max(1.0e-6).copysign(nu);
+    let fac = R2D * 0.5 / REARTH / k0;
+    let (cosmu, sinmu) = (mu.cos(), mu.sin());
+    let cosnu2 = nu.cos();
+    let cosnu2 = cosnu2 * cosnu2;
+    let cotnu = 1. / nu.tan();
+    let dlamdx = fac * cotnu * cosmu;
+    let dlamdy = a * fac * cotnu * sinmu;
+    let dphidx = -a * 2. * fac * cosnu2 * sinmu;
+    let dphidy = 2. * fac * cosnu2 * cosmu;
+    (d1 * dlamdx + d2 * dlamdy, d1 * dphidx + d2 * dphidy)
+}
+
+/// `DXYDP` or `DXYDQ` at grid point `(p, q)`, `along_p` picks the direction. `N` is 2 or 4.
+fn dxyd(m: &ModDef, n: i32, along_p: bool, p: i32, q: i32) -> (f64, f64) {
+    let (nx, ny) = (m.nx, m.ny);
+    let at = |ix: i32, iy: i32| ((iy - 1) + (ix - 1) * ny) as usize;
+    let (pos, range) = if along_p { (p, nx) } else { (q, ny) };
+    let closed = along_p && m.iclose != -1;
+    let i = if closed {
+        n / 2
+    } else if pos - 1 < n / 2 {
+        pos - 1
+    } else if range - pos < n / 2 {
+        n + pos - range
+    } else {
+        n / 2
+    };
+    let (mut xp, mut yp, mut ks) = (Vec::new(), Vec::new(), Vec::new());
+    for j in 0..=n {
+        let mut k = pos + (j - i);
+        if closed {
+            k = (k - 1).rem_euclid(range) + 1;
+        }
+        let c = if along_p { at(k, q) } else { at(p, k) };
+        xp.push(m.xgrd[c] as f64);
+        yp.push(m.ygrd[c] as f64);
+        ks.push((j - i) as f64);
+    }
+    let c = fdwt(&ks);
+    let dot = |v: &[f64]| c.iter().zip(v).fold(0f64, |s, (a, b)| s + a * b);
+    if !m.flagll {
+        return (dot(&xp), dot(&yp));
+    }
+    let (x0, y0) = (m.xgrd[at(p, q)] as f64, m.ygrd[at(p, q)] as f64);
+    let ihem = if yp.iter().cloned().fold(f64::MIN, f64::max) < 0. { -1. } else { 1. };
+    let c0 = 90. - y0.abs();
+    let (mut up, mut vp) = (Vec::new(), Vec::new());
+    for l in 0..xp.len() {
+        let (u, v) = splx(90f64.copysign(ihem), c0, xp[l], yp[l]);
+        up.push(u);
+        vp.push(v);
+    }
+    spdd(c0, ihem, x0, y0, dot(&up), dot(&vp))
 }
 
 impl Metrics {
     pub fn new(m: &ModDef) -> Self {
+        if m.gtype == 2 {
+            return Self::curvilinear(m);
+        }
         let n = (m.nx * m.ny) as usize;
         let (dxdp, dydq) = (m.sx as f64, m.sy as f64);
         let (dxdq, dydp) = (0f64, 0f64);
@@ -35,7 +150,48 @@ impl Metrics {
             dqdx: vec![(-dydp / g) as Real; n],
             dqdy: vec![(dxdp / g) as Real; n],
             gsqrt: vec![g as Real; n],
+            hpfac: vec![(dxdp * dxdp + dydp * dydp).max(1e-15).sqrt() as Real; n],
+            hqfac: vec![(dxdq * dxdq + dydq * dydq).max(1e-15).sqrt() as Real; n],
         }
+    }
+}
+
+impl Metrics {
+    /// `W3CGDM` with `NFD = 4`, which falls back to 2 where the metric turns left-handed.
+    fn curvilinear(m: &ModDef) -> Self {
+        let n = (m.nx * m.ny) as usize;
+        let mut g = Self {
+            dpdx: vec![0.; n],
+            dpdy: vec![0.; n],
+            dqdx: vec![0.; n],
+            dqdy: vec![0.; n],
+            gsqrt: vec![0.; n],
+            hpfac: vec![0.; n],
+            hqfac: vec![0.; n],
+        };
+        for ix in 1..=m.nx {
+            for iy in 1..=m.ny {
+                let c = ((iy - 1) + (ix - 1) * m.ny) as usize;
+                let (mut dxdp, mut dydp) = dxyd(m, 4, true, ix, iy);
+                let (mut dxdq, mut dydq) = dxyd(m, 4, false, ix, iy);
+                let mut gs = dxdp * dydq - dxdq * dydp;
+                if gs < 0. {
+                    (dxdp, dydp) = dxyd(m, 2, true, ix, iy);
+                    (dxdq, dydq) = dxyd(m, 2, false, ix, iy);
+                    gs = dxdp * dydq - dxdq * dydp;
+                }
+                assert!(gs >= 0., "W3CGDM: not a right-handed grid");
+                let gs = gs.max(1.0e-15);
+                g.dpdx[c] = (dydq / gs) as Real;
+                g.dpdy[c] = (-dxdq / gs) as Real;
+                g.dqdx[c] = (-dydp / gs) as Real;
+                g.dqdy[c] = (dxdp / gs) as Real;
+                g.gsqrt[c] = gs as Real;
+                g.hpfac[c] = (dxdp * dxdp + dydp * dydp).max(1.0e-15).sqrt() as Real;
+                g.hqfac[c] = (dxdq * dxdq + dydq * dydq).max(1.0e-15).sqrt() as Real;
+            }
+        }
+        g
     }
 }
 
@@ -155,15 +311,14 @@ pub fn w3map3(m: &ModDef, mapsta: &[i32], mp: &mut Maps) {
     }
 }
 
-/// `W3UTRN`, ice and icebergs out: `TRFLAG` of 3 and above stops in the driver. `ATRNX(NY*NX,-1:1)` is
-/// `atrnx[ixy-1 + (j+1)*NY*NX]`.
+/// `W3UTRN`, with no ice or icebergs: where they are zero `TRIX` and `TRIY` are 1, and the ice part of
+/// `W3UTRN` leaves every value as it is. `ATRNX(NY*NX,-1:1)` is `atrnx[ixy-1 + (j+1)*NY*NX]`.
 pub fn w3utrn(m: &ModDef, mapsta: &[i32], atrnx: &mut [Real], atrny: &mut [Real]) {
     atrnx.fill(1.);
     atrny.fill(1.);
     if m.trflag == 0 {
         return;
     }
-    assert!(m.trflag < 3, "ice in the transparencies is not implemented");
     let (nx, ny, nsea) = (m.nx, m.ny, m.nsea as usize);
     let n = (nx * ny) as usize;
     let (tx, ty) = (&m.trnx, &m.trny);
@@ -172,7 +327,7 @@ pub fn w3utrn(m: &ModDef, mapsta: &[i32], atrnx: &mut [Real], atrny: &mut [Real]
     for i in 0..nsea {
         let (ix, iy, ixy) = (m.mapsf[i], m.mapsf[i + nsea], m.mapsf[i + 2 * nsea]);
         let c = at(ixy);
-        if m.trflag == 1 {
+        if m.trflag % 2 == 1 {
             atrnx[c] = if ix == 1 { tx[at(iy + (nx - 1) * ny)] } else { tx[at(ixy - ny)] };
             atrnx[c + 2 * n] = if ix == nx { tx[at(iy)] } else { tx[at(ixy)] };
             atrny[c] = ty[at(ixy - 1)];

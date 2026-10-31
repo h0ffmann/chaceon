@@ -46,6 +46,10 @@ tp-pair case suffix="":
 tp-all:
     bash scripts/tp_all.sh
 
+# A prepared case with propagation in compiled SPIR-V on lavapipe, by cmp
+spirv-pair tag:
+    bash scripts/spirv_pair.sh {{tag}}
+
 # Compares the mod_def reader with the reference's memory, for a case with captures
 moddef-cmp mod_def tag="default_2500m":
     bash scripts/rust_in_ref.sh moddef_cmp {{mod_def}} {{tag}}

@@ -216,11 +216,12 @@ pub fn srce(
     w3srce(p, &t, &pt, spec, wn1, cg1, &mut w, out, point);
 }
 
-/// One spectral component per dispatch for now: `vq` and the work arrays hold one component, so this
-/// entry point does not yet run components in parallel.
-#[spirv(compute(threads(1)))]
+/// One thread per spectral component: `vq` and the work arrays hold a block per component. `call` is
+/// `YFIRST`, `dtg` the step.
+#[spirv(compute(threads(64)))]
 #[allow(clippy::too_many_arguments)]
 pub fn xyp3(
+    #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Xyp3Params,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] call: &[i32; 2],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dtg: &Real,
@@ -229,48 +230,55 @@ pub fn xyp3(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] esin: & [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] mapsf: & [i32],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] mapsta: & [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] mapaxy: & [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] mapcxy: & [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] mapx2: & [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 11)] mapy2: & [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 12)] maptrn: & [u32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 13)] clats: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 14)] dpdx: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 15)] dpdy: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 16)] dqdx: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 17)] dqdy: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 18)] gsqrt: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 19)] cg: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 20)] atrnx: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 21)] atrny: & [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 22)] vq: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 23)] iixy1: &mut [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 24)] iixy2: &mut [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 25)] iixy3: &mut [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 26)] iixy4: &mut [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 27)] rdi1: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 28)] rdi2: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 29)] rdi3: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 30)] rdi4: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 31)] mapstx: &mut [i32],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 32)] vlcflx: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 33)] vlcfly: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 34)] cxtot: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 35)] cytot: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 36)] aq: &mut [Real],
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 37)] fla: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] mapstx: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] mapaxy: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] mapcxy: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 11)] mapx2: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 12)] mapy2: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 13)] maptrn: & [u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 14)] clats: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 15)] dpdx: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 16)] dpdy: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 17)] dqdx: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 18)] dqdy: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 19)] gsqrt: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 20)] cg: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 21)] cx: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 22)] cy: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 23)] atrnx: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 24)] atrny: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 25)] vq: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 26)] iixy1: &mut [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 27)] iixy2: &mut [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 28)] iixy3: &mut [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 29)] iixy4: &mut [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 30)] rdi1: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 31)] rdi2: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 32)] rdi3: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 33)] rdi4: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 34)] vlcflx: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 35)] vlcfly: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 36)] cxtot: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 37)] cytot: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 38)] aq: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 39)] fla: &mut [Real],
 ) {
-    let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, atrnx, atrny };
-    let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, mapstx, vlcflx, vlcfly, cxtot, cytot, aq, fla };
-    w3xyp3(p, &t, call[0], *dtg, call[1] != 0, vq, &mut w);
+    let comp = id.x as usize;
+    if comp as i32 >= call[0] {
+        return;
+    }
+    let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapstx, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, cx, cy, atrnx, atrny };
+    let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, vlcflx, vlcfly, cxtot, cytot, aq, fla };
+    w3xyp3(p, &t, comp as i32 + 1, *dtg, call[1] != 0, comp, vq, &mut w);
 }
 
-/// One sea point per dispatch for now, as `xyp3`.
-#[spirv(compute(threads(1)))]
+/// One thread per active sea point.
+#[spirv(compute(threads(64)))]
 #[allow(clippy::too_many_arguments)]
 pub fn ktp3(
+    #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Ktp3Params,
-    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] q: &Ktp3Point,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] points: &[Ktp3Point],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] sig: & [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] dsip: & [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] ecos: & [Real],
@@ -295,7 +303,12 @@ pub fn ktp3(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 23)] cflk: &mut [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 24)] fla: &mut [Real],
 ) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
     let t = Ktp3Tables { sig, dsip, ecos, esin, ec2, esc, es2, mapwn, mapth2, mapwn2 };
     let mut w = Ktp3Work { dsdd, frk, frg, fkc, vq, db, dm, vcflt, cflk, fla };
-    w3ktp3(p, &t, q, cg, wn, va, &mut w);
+    let q = points[point];
+    w3ktp3(p, &t, &q, point, cg, wn, va, &mut w);
 }

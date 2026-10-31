@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The host verdict of ADR-0005 on a propagation regtest: the reference and Rust run the same case, and
-# cmp judges out_pnt.ww3 and a restart at the last time step, which holds every sea point's spectrum.
-# Usage: tp_pair.sh <regtest> [nml-suffix] [extra ww3_grid lines]. Rust reads the mod_def.ww3 and
+# cmp judges out_grd.ww3, out_pnt.ww3 and a restart at the last time step, which holds every sea point's spectrum.
+# Usage: tp_pair.sh <regtest> [nml-suffix]. TP_SHEL names a sed script for ww3_shel.nml, TP_RUN a line
+# for &RUN_NML, TP_PREP a ww3_prep input, TP_RESUME a restart under work/ with
+# TP_START its time, TP_STOP a stop time, and TP_TAG a suffix for the work directory. Rust reads the mod_def.ww3 and
 # restart.ww3 the reference's preprocessors wrote. Exit 0 only when every file is byte-identical.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -9,10 +11,12 @@ case_name="$1"
 suffix="${2:-}"
 tag="${case_name}${suffix:+_$suffix}${TP_TAG:+_$TP_TAG}"
 mkdir -p "work/pair/$tag"
-rm -f "work/pair/$tag"/*
+find "work/pair/$tag" -maxdepth 1 -type f -delete
 docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
   -v "$PWD/WW3/regtests/$case_name/input:/ww3_input:ro" \
-  -e TAG="$tag" -e SUFFIX="$suffix" -e RUN_EXTRA="${TP_RUN:-}" -e SHEL_EXTRA="${TP_SHEL:-}" -e STOP_AT="${TP_STOP:-}" \
+  -v "$PWD/${TP_SHEL:-scripts/tp_pair.sh}:/ww3_sed:ro" \
+  -e TAG="$tag" -e SUFFIX="$suffix" -e RUN_EXTRA="${TP_RUN:-}" -e SHEL_EXTRA="${TP_SHEL:-}" -e STOP_AT="${TP_STOP:-}" -e PREP="${TP_PREP:-}" \
+  -e RESUME="${TP_RESUME:-}" -e START_AT="${TP_START:-}" \
   --entrypoint bash chaceon-ref:switch_chaceon_shrd -c '
     set -e
     mkdir -p /run/c/work && cp -R /ww3_input /run/c/input && cd /run/c/work
@@ -29,21 +33,32 @@ docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
     stop=${stop:-19680607 000000}
     sed -i "/^&OUTPUT_DATE_NML/a \  DATE%RESTART = \x27$stop\x27 \x273600\x27 \x27$stop\x27" ww3_shel.nml
     if [ -n "$SHEL_EXTRA" ]; then
-      sed -i "$SHEL_EXTRA" ww3_shel.nml
+      sed -i -f "/ww3_sed" ww3_shel.nml
     fi
     ww3_grid > grid.log 2>&1
-    ww3_strt > strt.log 2>&1
+    if [ -n "$PREP" ]; then
+      cp "../input/$PREP" ww3_prep.inp
+      ww3_prep > prep.log 2>&1
+    fi
+    if [ -n "$RESUME" ]; then
+      cp "/work/$RESUME" restart.ww3
+      sed -i "/DOMAIN%START/d; /^&DOMAIN_NML/a \  DOMAIN%START = \x27$START_AT\x27" ww3_shel.nml
+    else
+      ww3_strt > strt.log 2>&1
+    fi
     ww3_shel > shel.log 2>&1
     d=/work/pair/$TAG
     cat mod_def.ww3 > $d/mod_def.ww3
     cat restart.ww3 > $d/restart.ww3
     sed "s#\.\./input/##" ww3_shel.nml > $d/ww3_shel.nml
+    for f in current.ww3 wind.ww3; do if [ -f $f ]; then cat $f > $d/$f; fi; done
     if [ -f ../input/points.list ]; then cp ../input/points.list $d/; fi
     if [ -f out_pnt.ww3 ]; then mv out_pnt.ww3 $d/out_pnt.reference; fi
+    if [ -f out_grd.ww3 ]; then cat out_grd.ww3 > $d/out_grd.reference; fi
     mv restart001.ww3 $d/restart001.reference'
 bash scripts/rust_in_ref.sh ww3_shel "/work/pair/$tag" 2>&1 | tail -2 | grep -E 'panicked|rror' || true
 bad=0
-for f in out_pnt restart001; do
+for f in out_grd out_pnt restart001; do
   ref="work/pair/$tag/$f.reference"
   ours="work/pair/$tag/$f.ww3"
   [ -f "$ref" ] || continue

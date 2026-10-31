@@ -41,6 +41,13 @@ longer history; its facts are at NOAA's pin.
 - A fault that changes nothing may be a weak fault, not a blind spot: `CFAC=1` discards the clamped
   `QCN`, and all transparencies are 1 without obstructions. Say which, and find one that reaches.
 
+- `UST` starts at `1.E-5` (`W3DIMW`), not 0: a run with source terms hides it, a restart without them
+  shows it.
+- `W3IOGO` blanks fields to `UNDEF` at dry points and, for some, at `MAPSTA = 2`, and it writes `UST` back.
+- `W3FLDH`'s fallback tests `TFN`, not `TF0`, so a first input after the start time leaves `TF0` at -1.
+- On Vulkan, `/` and contraction both break bits: use `div()` and `spirv_exact`. Testing one alone shows
+  nothing changing.
+
 ## Memory
 
 - Fortran bounds survive translation: `SIG(0:NK+1)`, `CG(0:NK+1,0:NSEA)`. Index through a named

@@ -119,9 +119,13 @@ rest is unattributed ⚠: the exact fused operations depend on `(a+b)-a`, which 
 simplify without `NoContraction`. `W3SNL1` stays bit-identical there. On PTX all 5 959 float
 operations are `.rn` and nothing fuses.
 
-So Rust-CUDA can reach the CPU's bits with the right builder settings, and rust-gpu on Vulkan
-cannot, by specification, until its compiler decorates `NoContraction` and even then not through
-`/`. ADR-0005 turns this into verdicts.
+So Rust-CUDA can reach the CPU's bits with the right builder settings. On Vulkan two things stand in
+the way, and neither is final. `rust/tools/spirv_exact` adds `NoContraction` to every float operation of
+the module. Division is done in `f64` and rounded to `f32`: a quotient of two `f32` never comes closer than
+`2^-49` to an `f32` rounding tie, which is more than a 2.5 ULP error in `f64`, so the result is the
+correctly rounded `f32` on any conforming device. It needs `shaderFloat64`. With both, `W3XYP3` and
+`W3KTP3` are byte-identical on lavapipe over whole runs, and with either removed every case differs
+(v, `rust/port_report/W3PRO3.md`). Lavapipe is one implementation: a real device is not yet measured ⚠.
 
 ## Memory and files
 

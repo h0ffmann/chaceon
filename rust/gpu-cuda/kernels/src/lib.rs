@@ -281,15 +281,15 @@ pub unsafe fn srce(
     w3srce(p, &t, &points[point], spec, wn1, cg1, &mut w, out, point);
 }
 
-/// One spectral component per launch for now: `vq` and the work arrays hold one component.
+/// One thread per spectral component: `vq` and the work arrays hold a block per component.
 ///
 /// # Safety
-/// Each pointer holds its length, and one thread runs.
+/// Each pointer holds its length, and each thread writes only its own block.
 #[kernel]
 #[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
 pub unsafe fn xyp3(
     p: &Xyp3Params,
-    isp: i32,
+    comps: u32,
     yfirst: u32,
     dtg: Real,
     sig: &[Real],
@@ -297,6 +297,7 @@ pub unsafe fn xyp3(
     esin: &[Real],
     mapsf: &[i32],
     mapsta: &[i32],
+    mapstx: &[i32],
     mapaxy: &[i32],
     mapcxy: &[i32],
     mapx2: &[i32],
@@ -309,6 +310,8 @@ pub unsafe fn xyp3(
     dqdy: &[Real],
     gsqrt: &[Real],
     cg: &[Real],
+    cx: &[Real],
+    cy: &[Real],
     atrnx: &[Real],
     atrny: &[Real],
     vq: *mut Real,
@@ -329,8 +332,6 @@ pub unsafe fn xyp3(
     rdi3_len: usize,
     rdi4: *mut Real,
     rdi4_len: usize,
-    mapstx: *mut i32,
-    mapstx_len: usize,
     vlcflx: *mut Real,
     vlcflx_len: usize,
     vlcfly: *mut Real,
@@ -344,7 +345,8 @@ pub unsafe fn xyp3(
     fla: *mut Real,
     fla_len: usize,
 ) {
-    if thread::index_1d() != 0 {
+    let comp = thread::index_1d() as usize;
+    if comp as u32 >= comps {
         return;
     }
     let vq = unsafe { core::slice::from_raw_parts_mut(vq, vq_len) };
@@ -356,27 +358,26 @@ pub unsafe fn xyp3(
     let rdi2 = unsafe { core::slice::from_raw_parts_mut(rdi2, rdi2_len) };
     let rdi3 = unsafe { core::slice::from_raw_parts_mut(rdi3, rdi3_len) };
     let rdi4 = unsafe { core::slice::from_raw_parts_mut(rdi4, rdi4_len) };
-    let mapstx = unsafe { core::slice::from_raw_parts_mut(mapstx, mapstx_len) };
     let vlcflx = unsafe { core::slice::from_raw_parts_mut(vlcflx, vlcflx_len) };
     let vlcfly = unsafe { core::slice::from_raw_parts_mut(vlcfly, vlcfly_len) };
     let cxtot = unsafe { core::slice::from_raw_parts_mut(cxtot, cxtot_len) };
     let cytot = unsafe { core::slice::from_raw_parts_mut(cytot, cytot_len) };
     let aq = unsafe { core::slice::from_raw_parts_mut(aq, aq_len) };
     let fla = unsafe { core::slice::from_raw_parts_mut(fla, fla_len) };
-    let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, atrnx, atrny };
-    let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, mapstx, vlcflx, vlcfly, cxtot, cytot, aq, fla };
-    w3xyp3(p, &t, isp, dtg, yfirst != 0, vq, &mut w);
+    let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapstx, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, cx, cy, atrnx, atrny };
+    let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, vlcflx, vlcfly, cxtot, cytot, aq, fla };
+    w3xyp3(p, &t, comp as i32 + 1, dtg, yfirst != 0, comp, vq, &mut w);
 }
 
-/// One sea point per launch for now, as `xyp3`.
+/// One thread per active sea point.
 ///
 /// # Safety
-/// Each pointer holds its length, and one thread runs.
+/// Each pointer holds its length, and each thread writes only its own block.
 #[kernel]
 #[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
 pub unsafe fn ktp3(
     p: &Ktp3Params,
-    q: &Ktp3Point,
+    points: &[Ktp3Point],
     sig: &[Real],
     dsip: &[Real],
     ecos: &[Real],
@@ -412,7 +413,8 @@ pub unsafe fn ktp3(
     fla: *mut Real,
     fla_len: usize,
 ) {
-    if thread::index_1d() != 0 {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
         return;
     }
     let va = unsafe { core::slice::from_raw_parts_mut(va, va_len) };
@@ -428,5 +430,5 @@ pub unsafe fn ktp3(
     let fla = unsafe { core::slice::from_raw_parts_mut(fla, fla_len) };
     let t = Ktp3Tables { sig, dsip, ecos, esin, ec2, esc, es2, mapwn, mapth2, mapwn2 };
     let mut w = Ktp3Work { dsdd, frk, frg, fkc, vq, db, dm, vcflt, cflk, fla };
-    w3ktp3(p, &t, q, cg, wn, va, &mut w);
+    w3ktp3(p, &t, &points[point], point, cg, wn, va, &mut w);
 }
