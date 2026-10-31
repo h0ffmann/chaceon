@@ -4,7 +4,7 @@ The Discrete Interaction Approximation. Translated from `model/src/w3snl1md.F90:
 `:467-770` at metocean/WW3 `92e2cf66`. Kernel: `rust/crates/ww3-kernels/src/snl1.rs`. Setup, on the
 host: `rust/crates/ww3-host/src/insnl1.rs`.
 
-**Status: `routine`** (ADR-0007). No whole-file verdict yet, and it has run on no GPU ⚠.
+**Status: `host`**, through `just ts1-pair` and `just tp-all`, and bit-identical as SPIR-V on lavapipe on every capture. It has run on no GPU ⚠.
 
 ## Comparison with the reference
 

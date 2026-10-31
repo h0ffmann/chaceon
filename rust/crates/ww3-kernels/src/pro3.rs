@@ -369,7 +369,7 @@ pub fn w3xyp3(
     }
     let cgn = cgx.abs().max(cgy.abs()).max(cxc).max(cyc).max(0.001 * cg0);
 
-    let ntloc = 1 + dtg / (p.dtcfl * cg0 / cgn) as i32;
+    let ntloc = 1 + (dtg / (p.dtcfl * cg0 / cgn)) as i32;
     let dtloc = dtg / ntloc as Real;
     let mut dtrad = dtloc;
     if flagll {
