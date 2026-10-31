@@ -2,6 +2,7 @@
 //! Reads what `regtests/capture/snl1.py` recorded from the reference.
 
 use crate::insnl1::{Snl1Tables, insnl1};
+use ww3_kernels::sds4::{Sds4Params, Sds4Point};
 use ww3_kernels::snl1::Snl1Params;
 
 /// One `W3SNL1` call: its inputs and the reference's outputs.
@@ -89,5 +90,134 @@ impl Snl1Capture {
             ..Default::default()
         };
         insnl1(given, f[2], f[1], f[0], &self.sig)
+    }
+}
+
+/// `first extent, count, data`, as `regtests/capture/common.py` writes an array.
+pub struct Table<T> {
+    pub extent: i32,
+    pub data: Vec<T>,
+}
+
+/// One `W3SDS4` call: its inputs and the reference's outputs.
+pub struct Sds4Call {
+    pub point: Sds4Point,
+    pub whitecap_in: Vec<f32>,
+    pub a: Vec<f32>,
+    pub k: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub srhs: Vec<f32>,
+    pub ddiag: Vec<f32>,
+    pub brlambda: Vec<f32>,
+    pub whitecap: Vec<f32>,
+}
+
+pub struct Sds4Capture {
+    pub params: Sds4Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub ec2: Vec<f32>,
+    pub es2: Vec<f32>,
+    pub esc: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub satindices: Vec<i32>,
+    pub satweights: Vec<f32>,
+    pub cumulw: Vec<f32>,
+    pub iktab: Vec<i32>,
+    pub dcki: Vec<f32>,
+    pub qbi: Vec<f32>,
+    pub calls: Vec<Sds4Call>,
+}
+
+impl Reader {
+    fn table_i(&mut self) -> Table<i32> {
+        let h = self.ints(2);
+        Table { extent: h[0], data: self.ints(h[1] as usize) }
+    }
+    fn table_r(&mut self) -> Table<f32> {
+        let h = self.ints(2);
+        Table { extent: h[0], data: self.reals(h[1] as usize) }
+    }
+}
+
+impl Sds4Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS4");
+        let i = r.ints(11);
+        let ssdsc = r.table_r().data;
+        let ssdsbm = r.table_r().data;
+        let f = r.reals(7);
+        let sig = r.table_r().data;
+        let dden = r.table_r().data;
+        let (ec2, es2, esc) = (r.table_r().data, r.table_r().data, r.table_r().data);
+        let (ecos, esin) = (r.table_r().data, r.table_r().data);
+        let satindices = r.table_i();
+        let satweights = r.table_r();
+        let cumulw = r.table_r();
+        let iktab = r.table_i();
+        let dcki = r.table_r();
+        let qbi = r.table_r();
+        assert_eq!(dden.len(), i[0] as usize);
+        let mut params = Sds4Params {
+            nk: i[0],
+            nth: i[1],
+            nspec: i[2],
+            dikcumul: i[3],
+            ssdsbrfdf: i[4],
+            ssdsiso: i[5],
+            nkhs: i[6],
+            nkd: i[7],
+            ndtab: i[8],
+            flogrd57: i[9] as u32,
+            flogrd58: i[10] as u32,
+            sat_n: satindices.extent,
+            cumul_n: cumulw.extent,
+            ssdsbr: f[0],
+            ssdsbt: f[1],
+            ssdsp: f[2],
+            ssdsdth: f[3],
+            dth: f[4],
+            aairgb: f[5],
+            aaircmin: f[6],
+            ..Default::default()
+        };
+        params.ssdsc.copy_from_slice(&ssdsc);
+        params.ssdsbm.copy_from_slice(&ssdsbm);
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let s = r.reals(5);
+            let point = Sds4Point { ustar: s[0], usdir: s[1], depth: s[2], dair: s[3], dlwmean: s[4] };
+            calls.push(Sds4Call {
+                point,
+                whitecap_in: r.reals(4),
+                a: r.reals(nspec),
+                k: r.reals(nk),
+                cg: r.reals(nk),
+                srhs: r.reals(nspec),
+                ddiag: r.reals(nspec),
+                brlambda: r.reals(nspec),
+                whitecap: r.reals(4),
+            });
+        }
+        Self {
+            params,
+            sig,
+            dden,
+            ec2,
+            es2,
+            esc,
+            ecos,
+            esin,
+            satindices: satindices.data,
+            satweights: satweights.data,
+            cumulw: cumulw.data,
+            iktab: iktab.data,
+            dcki: dcki.data,
+            qbi: qbi.data,
+            calls,
+        }
     }
 }

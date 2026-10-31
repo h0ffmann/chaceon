@@ -1,5 +1,32 @@
+# syntax=docker/dockerfile:1
 # CPU Vulkan (Mesa lavapipe), to execute compiled SPIR-V without a GPU. Same Debian as the reference.
+#
+# Built from source for one reason: llvmpipe ends every loop once a whole shader invocation has made
+# LP_MAX_TGSI_LOOP_ITERATIONS (65535) back-edges, silently, and W3SDS4 makes more. A real GPU has no
+# such limit. This is the only change to Mesa.
+FROM debian:bookworm-slim AS build
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential meson ninja-build \
+      pkg-config python3-mako bison flex glslang-tools llvm-15-dev libclang-15-dev libelf-dev \
+      libdrm-dev libzstd-dev zlib1g-dev libexpat1-dev libvulkan-dev curl ca-certificates xz-utils \
+ && rm -rf /var/lib/apt/lists/*
+RUN curl -sSfL -o /mesa.tar.xz https://archive.mesa3d.org/older-versions/22.x/mesa-22.3.6.tar.xz \
+ && echo "4ec8ec65dbdb1ee9444dba72970890128a19543a58cf05931bd6f54f124e117f  /mesa.tar.xz" | sha256sum -c - \
+ && tar xf /mesa.tar.xz -C / \
+ && sed -i 's/#define LP_MAX_TGSI_LOOP_ITERATIONS 65535/#define LP_MAX_TGSI_LOOP_ITERATIONS 2147483647/' \
+      /mesa-22.3.6/src/gallium/auxiliary/gallivm/lp_bld_limits.h \
+ && grep -q 'LOOP_ITERATIONS 2147483647' /mesa-22.3.6/src/gallium/auxiliary/gallivm/lp_bld_limits.h
+RUN cd /mesa-22.3.6 && meson setup /b -Dbuildtype=release -Dplatforms= -Dgallium-drivers=swrast \
+      -Dvulkan-drivers=swrast -Dllvm=enabled -Dshared-llvm=enabled -Dglx=disabled -Degl=disabled \
+      -Dgbm=disabled -Dopengl=false -Dgles1=disabled -Dgles2=disabled -Ddri3=disabled \
+      -Dshared-glapi=disabled -Dvalgrind=disabled -Dlibunwind=disabled -Dzstd=enabled \
+ && ninja -C /b src/gallium/targets/lavapipe/libvulkan_lvp.so \
+ && mkdir -p /out && cp /b/src/gallium/targets/lavapipe/libvulkan_lvp.so /out/
+
 FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers \
- && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libvulkan1 libllvm15 libdrm2 \
+      libelf1 libzstd1 libexpat1 zlib1g && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/libvulkan_lvp.so /usr/lib/libvulkan_lvp.so
+RUN mkdir -p /etc/vulkan/icd.d && printf '{"file_format_version":"1.0.0","ICD":{"library_path":"/usr/lib/libvulkan_lvp.so","api_version":"1.3.230"}}\n' > /etc/vulkan/icd.d/lvp.json
+ENV VK_ICD_FILENAMES=/etc/vulkan/icd.d/lvp.json

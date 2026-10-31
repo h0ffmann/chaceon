@@ -20,7 +20,7 @@ Case: `ww3_ts1`, `NK=36`, `NTH=24`, `LAM=0.25`, with the case's depth changed in
 `INSNL1`: 979 real and 29 184 integer table values, 0 differ.
 
 ```bash
-just capture 2500 && just snl1-cmp 2500 && just spirv && just spirv-replay 2500
+just capture snl1 default 2500 && just snl1-cmp 2500 && just spirv && just spirv-replay snl1 default 2500
 just libm-bits   # expf: 4 294 967 296 inputs, 0 differ
 ```
 
@@ -46,6 +46,7 @@ just libm-bits   # expf: 4 294 967 296 inputs, 0 differ
   they capture. The arithmetic is unchanged, and the replay shows it.
 - `x**11` is GCC's power tree, `XFR**IFRP` is libgcc's `__powisf2`.
 - `expf` needs no fused multiply-add: the plain Rust form equals aarch64 glibc on every input.
+- `W3SNL1` stays bit-identical on lavapipe, unlike `W3SDS4`: its only math call is `expf`, its divisions are by variables, and its sums have no error-free tricks to simplify.
 
 ## Not covered ⚠
 

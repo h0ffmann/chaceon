@@ -35,6 +35,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "sds4_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "snl1_cmp"
 version = "0.0.0"
 dependencies = [

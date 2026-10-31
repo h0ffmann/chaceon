@@ -19,5 +19,6 @@
 | sm_89, sm_90 | NVIDIA shader models: RTX 4090, H100 |
 | SPIR-V | Khronos' binary shader language, what Vulkan consumes |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
+| round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |

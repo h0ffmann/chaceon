@@ -43,12 +43,23 @@ longer history; its facts are at NOAA's pin.
 - A kernel that needs `f64` declares it, and the host checks the device before starting.
 - Never run on a device without the owner.
 
+## ww3-libm
+
+- A fused site is read from the reference's `libm.so.6` with `objdump`, never predicted. GCC fuses a
+  product with one use, but `atanf` also fuses `s1+s2`, and it shares `x*(s1+s2)` between branches.
+- Take a constant from fdlibm's decimal, not its hex comment: `aT[0]` says `0x3eaaaaaa`, and the
+  decimal, like the machine code, is `0x3eaaaaab`.
+- Sweep every `f32`: `sin` differed on 12 inputs of 2^32, and `powf` on 1 pair in 10^9.
+
 ## Parity by capture
 
 - `regtests/capture/` records a routine's real arguments from the running reference with gdb.
   Nothing is linked into WW3 and no Fortran is written (ADR-0007).
 - Run a fault through the comparison before believing its zeros, and make the fault large enough to
   reach `f32`: the last bit of an `f64` coefficient reached nothing and proved nothing.
+- A host replay with zero offsets cannot see an offset bug: also replay in one buffer, as a device does.
+- If every loop of a shader stops after one pass from some point on, suspect llvmpipe's limit, which
+  `docker/Dockerfile.lavapipe` raises.
 - A case can hide a branch. `ww3_ts1` is 2500 m deep, where `EXP(X2)` in `W3SNL1` vanishes: a wrong
   `expf` still matched there, and only a shallow run caught it. Ask what each input never reaches.
 
