@@ -112,7 +112,7 @@ are the expansion of the three `div.rn.f32`: one `div.rn.f32` alone gives 17. No
 bit-identical. Most values are within a few ULP, and single values reach 12 288 ULP where terms
 nearly cancel. Division by a constant accounts for part of `BRLAMBDA` (`pb / TWO_PI2`, 2 ULP). The
 rest is unattributed ⚠: the exact fused operations depend on `(a+b)-a`, which Vulkan compilers may
-simplify without `NoContraction`. `W3SNL1` stays bit-identical there. On PTX all 5 962 float
+simplify without `NoContraction`. `W3SNL1` stays bit-identical there. On PTX all 5 959 float
 operations are `.rn` and nothing fuses.
 
 So Rust-CUDA can reach the CPU's bits with the right builder settings, and rust-gpu on Vulkan

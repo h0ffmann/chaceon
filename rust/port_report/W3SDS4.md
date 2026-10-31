@@ -47,7 +47,7 @@ just spirv && just spirv-replay sds4 strain 20
 ## GPU code
 
 - SPIR-V: 473 KB with `W3SNL1`, passes `spirv-val`. Needs `Float64` and `Int64`.
-- PTX, 668 KB with `W3SNL1`: 5 962 float operations, all `.rn`; no `fma`, no libdevice, no `ftz`.
+- PTX, 668 KB with `W3SNL1`: 5 959 float operations, all `.rn`; no `fma`, no libdevice, no `ftz`.
 
 ## Translation notes
 
