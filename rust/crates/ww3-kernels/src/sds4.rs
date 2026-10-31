@@ -9,6 +9,7 @@
 
 use crate::constants::{DWAT, GRAV, PI, TPI};
 use crate::real::Real;
+use crate::util::{floor, nint, pow3, pow5, sign};
 use ww3_libm::{atan2f, expf, logf, powf, sincosf, sqrtf, tanhf};
 
 const KHSMAX: Real = 2.;
@@ -70,46 +71,6 @@ pub struct Sds4Point {
 pub fn work_len(p: &Sds4Params) -> (usize, usize) {
     let (nk, nth, nspec) = (p.nk as usize, p.nth as usize, p.nspec as usize);
     (14 * nk + 4 * nspec + 5 * nk + 2 * nk * nth + 2 * nth, 4 * nk)
-}
-
-/// gfortran's `NINT`: nearest, ties away from zero.
-#[inline]
-fn nint(x: Real) -> i32 {
-    let t = x as i32;
-    let frac = x - t as Real;
-    if frac >= 0.5 {
-        t + 1
-    } else if frac <= -0.5 {
-        t - 1
-    } else {
-        t
-    }
-}
-
-#[inline]
-fn floor(x: Real) -> i32 {
-    let t = x as i32;
-    if (t as Real) > x { t - 1 } else { t }
-}
-
-/// Fortran `SIGN(A, B)`.
-#[inline]
-fn sign(a: Real, b: Real) -> Real {
-    f32::from_bits((a.to_bits() & 0x7fffffff) | (b.to_bits() & 0x80000000))
-}
-
-#[inline]
-fn pow3(x: Real) -> Real {
-    let x2 = x * x;
-    x2 * x
-}
-
-/// `x**5` as GCC's power tree expands it.
-#[inline]
-fn pow5(x: Real) -> Real {
-    let x2 = x * x;
-    let x3 = x2 * x;
-    x3 * x2
 }
 
 /// One spectrum. `sig` is `SIG(0:NK+1)`, indexed by `IFR`. `a`, `srhs`, `ddiag` and `brlambda` start
@@ -250,18 +211,6 @@ pub fn w3sds4(
             w[o_msslong + (($ik - 1) + ($ith - 1) * nk) as usize]
         };
     }
-    // Inclusive loop, as a Fortran DO with step 1.
-    macro_rules! each {
-        ($i:ident, $lo:expr, $hi:expr, $body:block) => {
-            let mut $i = $lo;
-            let hi_ = $hi;
-            while $i <= hi_ {
-                $body
-                $i += 1;
-            }
-        };
-    }
-
     // 0.  Pre-Initialization
     each!(i, 0, unk - 1, {
         iw[o_nsmooth + i] = 0;

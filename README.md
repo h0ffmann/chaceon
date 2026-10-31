@@ -5,9 +5,9 @@ and [rust-gpu](https://github.com/Rust-GPU/rust-gpu). It is compared with
 [metocean/WW3](https://github.com/metocean/WW3) 7.14 (`7.14.mos-92e2cf6`), and it follows the
 discipline of [ww3-gpu](https://github.com/h0ffmann/ww3-gpu) without Kokkos.
 
-**State, 2026-10-31:** WW3's constants, `W3SNL1` with its setup, and `W3SDS4` are translated and match
-the reference bit for bit on every captured call on the host. As compiled SPIR-V on CPU Vulkan,
-`W3SNL1` is bit-identical and `W3SDS4` differs slightly. The PTX builds. No model runs yet, and
+**State, 2026-10-31:** WW3's constants, `W3SNL1` and all of ST4 with its setup tables are translated and
+match the reference bit for bit on every captured call on the host. As compiled SPIR-V on CPU
+Vulkan, `W3SNL1` is bit-identical and ST4 differs slightly. The PTX builds. No model runs yet, and
 nothing has run on a GPU ⚠.
 
 | Read | For |

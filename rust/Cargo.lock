@@ -60,6 +60,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "st4_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -70,6 +78,7 @@ name = "ww3-host"
 version = "0.0.0"
 dependencies = [
  "ww3-kernels",
+ "ww3-libm",
 ]
 
 [[package]]

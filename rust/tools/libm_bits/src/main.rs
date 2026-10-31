@@ -7,6 +7,8 @@ use std::thread;
 unsafe extern "C" {
     fn expf(x: f32) -> f32;
     fn logf(x: f32) -> f32;
+    fn log10f(x: f32) -> f32;
+    fn cosf(x: f32) -> f32;
     fn sqrtf(x: f32) -> f32;
     fn tanhf(x: f32) -> f32;
     fn expm1f(x: f32) -> f32;
@@ -125,6 +127,8 @@ fn main() {
     let mut bad = 0;
     bad += sweep("expf", ww3_libm::expf, |x| unsafe { expf(x) });
     bad += sweep("logf", ww3_libm::logf, |x| unsafe { logf(x) });
+    bad += sweep("log10f", ww3_libm::log10f, |x| unsafe { log10f(x) });
+    bad += sweep("cosf", |x| ww3_libm::sincosf(x).1, |x| unsafe { cosf(x) });
     bad += sweep("sqrtf", ww3_libm::sqrtf, |x| unsafe { sqrtf(x) });
     bad += sweep("expm1f", ww3_libm::expm1f, |x| unsafe { expm1f(x) });
     bad += sweep("tanhf", ww3_libm::tanhf, |x| unsafe { tanhf(x) });

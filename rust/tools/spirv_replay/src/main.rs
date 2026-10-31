@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4> <capture>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4> <capture>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
 use std::ffi::CStr;
-use ww3_host::capture::{Sds4Capture, Snl1Capture};
+use ww3_host::capture::{Sds4Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr4Call, Spr4Capture};
 use ww3_kernels::{sds4, snl1};
 
 struct Buffer {
@@ -207,6 +207,15 @@ fn compare(name: &str, ours: &[u8], theirs: &[f32]) -> bool {
         .collect();
     let ulp = bad.iter().map(|(x, y)| (x.to_bits() as i64 - y.to_bits() as i64).unsigned_abs()).max();
     println!("{name:9}{:>9} values, {} differ, max {} ULP", ours.len(), bad.len(), ulp.unwrap_or(0));
+    // ULP says little where a term nearly cancels, so also the error against the array's scale.
+    let scale = theirs.iter().fold(0_f32, |m, x| m.max(x.abs()));
+    let (mut rel, mut abs) = (0_f64, 0_f64);
+    for (x, y) in &bad {
+        let d = (*x as f64 - *y as f64).abs();
+        abs = abs.max(d);
+        rel = rel.max(d / (y.abs() as f64).max(1e-300));
+    }
+    println!("         max |diff| {abs:.3e}, {:.3e} of the array's peak; max relative {rel:.3e}", abs / scale as f64);
     if let Some((x, y)) = bad.first() {
         println!("         first: ours {x:e}, reference {y:e}");
     }
@@ -296,6 +305,76 @@ fn sds4_run(code: &[u8], path: &str) -> bool {
         & compare("WHITECAP", &out[21], &rw)
 }
 
+fn sin4_run(code: &[u8], path: &str) -> bool {
+    let c = Sin4Capture::read(path);
+    let p = c.params();
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let concat = |f: fn(&Sin4Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, k) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.k));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd) = (concat(|x| &x.s), concat(|x| &x.d));
+    let rl: Vec<u32> = c.calls.iter().flat_map(|x| x.llws.iter().copied()).collect();
+    let ro: Vec<f32> =
+        c.calls.iter().flat_map(|x| [x.out.tauwx, x.out.tauwy, x.out.tauwnx, x.out.tauwny]).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.dden2)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.fwtable)),
+        Slot::In(bytes(&c.tauhft)),
+        Slot::In(bytes(&c.tauhft2)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * 16),
+    ];
+    let out = dispatch(code, c"sin4", &slots, points);
+    let llws = out[16].chunks_exact(4).map(|b| u32::from_le_bytes(b.try_into().unwrap()));
+    let bad = llws.zip(rl.iter()).filter(|(a, b)| a != *b).count();
+    println!("LLWS     {bad} differ");
+    compare("S", &out[14], &rs) & compare("D", &out[15], &rd) & compare("TAUW", &out[17], &ro) & (bad == 0)
+}
+
+fn spr4_run(code: &[u8], path: &str) -> bool {
+    let c = Spr4Capture::read(path);
+    let p = c.params;
+    let points = c.calls.len();
+    let concat = |f: fn(&Spr4Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, wn, ro) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.wn), concat(|x| &x.out));
+    let llws: Vec<u32> = c.calls.iter().flat_map(|x| x.llws.iter().copied()).collect();
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.taut)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::In(bytes(&llws)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * 2 * p.nk as usize * 4),
+        Slot::Out(points * 48),
+    ];
+    let out = dispatch(code, c"spr4", &slots, points);
+    compare("W3SPR4", &out[12], &ro)
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let (spv, kernel, path) =
@@ -304,6 +383,8 @@ fn main() {
     let ok = match kernel.as_str() {
         "snl1" => snl1_run(&code, &path),
         "sds4" => sds4_run(&code, &path),
+        "sin4" => sin4_run(&code, &path),
+        "spr4" => spr4_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });

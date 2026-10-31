@@ -20,6 +20,8 @@ ADR-0002. The owner, 2026-10-30: "port next routines from pure fortran to rust o
   compiled SPIR-V on lavapipe, a CPU Vulkan implementation, which is not a device.
 - **Status.** All calls equal gives `routine`, which is not `host`, `cuda` or `spirv`.
 - **Fault run.** A comparison is believed once a fault big enough to reach `f32` has failed it.
+- **Poke.** Where no run reaches a line, gdb writes the input at the real routine's entry and restores
+  it at exit. The Fortran itself runs that line, on data no run would give it.
 - **Math.** A kernel calls `ww3-libm`, proved against glibc over every `f32` input, with a sample of
   8 * 10^9 pairs for a function of two. Fused sites use exact software operations built on IEEE `+`
   and `*`, so a kernel needs no fused instruction from a device.

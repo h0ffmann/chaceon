@@ -8,3 +8,4 @@ publish.workspace = true
 
 [dependencies]
 ww3-kernels = { path = "../ww3-kernels" }
+ww3-libm = { path = "../ww3-libm" }
