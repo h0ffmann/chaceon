@@ -70,6 +70,10 @@ spirv:
 spirv-replay kernel="snl1" variant="default" depth="2500":
     bash scripts/spirv_replay.sh {{kernel}} capture/{{kernel}}_{{variant}}_{{depth}}m.bin
 
+# ww3-libm in SPIR-V against the same source on the host, on random inputs; at most 3900000 per function
+spirv-libm inputs="2000000":
+    bash scripts/spirv_replay.sh libm {{inputs}}
+
 # Compiles the kernels to PTX and assembles sm_89 and sm_90 binaries
 ptx:
     bash scripts/ptx.sh

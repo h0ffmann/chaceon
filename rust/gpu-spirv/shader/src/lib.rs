@@ -312,3 +312,36 @@ pub fn ktp3(
     let q = points[point];
     w3ktp3(p, &t, &q, point, cg, wn, va, &mut w);
 }
+
+/// Each `ww3-libm` function alone, so `spirv_replay libm` can compare it with the host's build.
+#[spirv(compute(threads(64)))]
+pub fn libm_probe(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] which: &u32,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] x: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] y: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] r: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] r2: &mut [Real],
+) {
+    let i = id.x as usize;
+    if i >= x.len() {
+        return;
+    }
+    let (a, b) = (x[i], y[i]);
+    r[i] = match *which {
+        0 => ww3_libm::expf(a),
+        1 => ww3_libm::logf(a),
+        2 => ww3_libm::powf(a, b),
+        3 => {
+            let (s, c) = ww3_libm::sincosf(a);
+            r2[i] = c;
+            s
+        }
+        4 => ww3_libm::tanhf(a),
+        5 => ww3_libm::atan2f(a, b),
+        6 => ww3_libm::log10f(a),
+        7 => ww3_libm::sqrtf(a),
+        8 => ww3_libm::atanf(a),
+        _ => ww3_libm::expm1f(a),
+    };
+}

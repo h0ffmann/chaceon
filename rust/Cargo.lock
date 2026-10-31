@@ -69,6 +69,7 @@ dependencies = [
  "ash",
  "ww3-host",
  "ww3-kernels",
+ "ww3-libm",
 ]
 
 [[package]]

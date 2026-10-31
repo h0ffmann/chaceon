@@ -10,3 +10,4 @@ publish.workspace = true
 ash = "0.38"
 ww3-host = { path = "../../crates/ww3-host" }
 ww3-kernels = { path = "../../crates/ww3-kernels" }
+ww3-libm = { path = "../../crates/ww3-libm" }
