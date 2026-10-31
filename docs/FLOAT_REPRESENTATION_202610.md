@@ -103,6 +103,11 @@ converts, one `as` per Fortran conversion.
 | `exp`, `log`, `pow` | glibc | **libdevice by default**: `override_libm: true`, "likely to not be deterministic" (`cuda_builder/src/lib.rs`, doc of `override_libm`) (v). Set `false` and call `ww3-libm` | `GLSL.std.450`, a ULP bound, not glibc's bits (v, `libm_intrinsics.rs:84-85`, `:146-147`). Call `ww3-libm` |
 | Subnormals | kept | `ftz: false` is the default (v); set it explicitly | "may" be flushed unless the execution mode says otherwise ⚠, to settle in Batch 0 |
 
+**Measured on `W3SNL1`'s PTX, 2026-10-30 (v, `just ptx`):** no `fma` or float `mad`, no libdevice
+call, and every float operation `.rn`. `ptxas` fuses a plain `mul`, `add` pair by default but leaves
+`mul.rn`, `add.rn` alone with or without `--fmad=false`. The 27 FMA-class instructions in the binary
+are the expansion of the three `div.rn.f32`: one `div.rn.f32` alone gives 17. None has run on a device ⚠.
+
 So Rust-CUDA can reach the CPU's bits with the right builder settings, and rust-gpu on Vulkan
 cannot, by specification, until its compiler decorates `NoContraction` and even then not through
 `/`. ADR-0005 turns this into verdicts.

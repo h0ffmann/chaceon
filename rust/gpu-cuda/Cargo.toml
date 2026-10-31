@@ -1,0 +1,14 @@
+# Its own workspace: Rust-CUDA needs this exact nightly, the host workspace does not.
+[workspace]
+resolver = "2"
+members = ["kernels", "builder"]
+
+[workspace.package]
+edition = "2024"
+version = "0.0.0"
+publish = false
+license = "MPL-2.0"
+
+[workspace.dependencies]
+cuda_std = { git = "https://github.com/Rust-GPU/rust-cuda", rev = "3a82c35a7196731fb60eebdac2a40d2b1bf0ba95" }
+cuda_builder = { git = "https://github.com/Rust-GPU/rust-cuda", rev = "3a82c35a7196731fb60eebdac2a40d2b1bf0ba95", default-features = false, features = ["rustc_codegen_nvvm"] }

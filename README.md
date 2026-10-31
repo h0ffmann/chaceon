@@ -5,7 +5,9 @@ and [rust-gpu](https://github.com/Rust-GPU/rust-gpu). It is compared with
 [metocean/WW3](https://github.com/metocean/WW3) 7.14 (`7.14.mos-92e2cf6`), and it follows the
 discipline of [ww3-gpu](https://github.com/h0ffmann/ww3-gpu) without Kokkos.
 
-**State, 2026-10-30:** a scaffold. WW3's constants are translated; nothing runs yet ⚠.
+**State, 2026-10-30:** WW3's constants and `W3SNL1` with its setup are translated, and match the
+reference bit for bit on every captured call, on the host and as compiled SPIR-V on CPU Vulkan. The
+PTX builds. No model runs yet, and nothing has run on a GPU ⚠.
 
 | Read | For |
 |---|---|

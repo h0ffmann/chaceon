@@ -1,0 +1,18 @@
+# Its own workspace: rust-gpu needs this exact nightly, the host workspace does not.
+[workspace]
+resolver = "2"
+members = ["shader", "builder"]
+
+[workspace.package]
+edition = "2024"
+version = "0.0.0"
+publish = false
+license = "MPL-2.0"
+
+[workspace.dependencies]
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "60d1e2541ea55c82e1024b8d6969573736f062a5" }
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu", rev = "60d1e2541ea55c82e1024b8d6969573736f062a5" }
+
+[profile.release.build-override]
+opt-level = 3
+codegen-units = 16

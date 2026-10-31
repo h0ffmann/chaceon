@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Translated from `model/src/constants.F90:61-82` at metocean/WW3 `92e2cf66`: the `REAL, PARAMETER`
 //! scalars. Bits checked against gfortran's folding (`docs/log/2026-10-30-scaffold.md`).
-#![allow(clippy::excessive_precision)]
+#![allow(clippy::excessive_precision, clippy::approx_constant)]
 
 use crate::real::Real;
 
