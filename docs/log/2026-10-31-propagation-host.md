@@ -18,8 +18,8 @@ the last step, since `out_grd.ww3` is not ported and a restart holds the whole s
 - **`CLATS` is `(0:NSEA)`.** It was read from 1, so each sea point had its neighbour's latitude. `ww3_tp1.1`
   matched byte for byte with this bug, on the equator. `ww3_tp1.2` differed by about 0.1%. Running only the
   first case would have shipped it.
-- **A wrong record length misled the first reading.** `NSPEC` was taken as 42, and the difference looked like
-  a tail at the limiter for an hour of reasoning. `NSPEC` is 12 there.
+- **A wrong record length misled the first reading.** `NSPEC` was taken as 42 when decoding the restart, and
+  the difference looked like a tail at the limiter. `NSPEC` is 12 there.
 - **`ICLOSE_NONE` is -1**, not 1, and `MAPSF(:,3)` is filled on read, not stored.
 - **`GETPQR`'s rounding reaches `PTIFAC`:** `ww3_tp2.4` differed by one ulp in the point weights until the
   Newton step was translated.
