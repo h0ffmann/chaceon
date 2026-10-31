@@ -94,6 +94,18 @@ f64-census:
 strt-pair case suffix="":
     bash scripts/strt_pair.sh {{case}} {{suffix}}
 
+# Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
+grid-pair case suffix="":
+    bash scripts/grid_pair.sh {{case}} {{suffix}}
+
+# Every regtest ww3_grid is judged on
+grid-all:
+    bash scripts/grid_all.sh
+
+# The mod_def.ww3 writer alone: Rust reads each work/grid/<tag>/mod_def.reference, writes it again, cmp judges
+iogr-roundtrip *dirs:
+    bash scripts/iogr_roundtrip.sh {{dirs}}
+
 # Runtime MPI: ww3_shel under mpirun for R of 1 to 4, byte-compared with the reference
 mpi-pair *cases:
     bash scripts/mpi_pair.sh {{cases}}

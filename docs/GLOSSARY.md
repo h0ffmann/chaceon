@@ -33,6 +33,13 @@
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |
+| `mod_def.ww3` | WW3's model definition file: grid, spectral discretisation, namelist constants and the source-term tables, written by `ww3_grid` and read by every other program |
+| `W3GRID`, `W3IOGR` | The grid preprocessor's subroutine (`w3gridmd.F90`) and the routine that writes and reads `mod_def.ww3` (`w3iogrmd.F90`) |
+| `READNL` | `W3GRID`'s scan of the namelist file `GRID%NML` for a group named `&SIN4`, `&MISC` and so on |
+| `INA2R`, `INA2I` | WW3's reads of a real or integer array from a file, by layout (`IDLA`) and format (`IDFM`) indicators |
+| `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points |
+| `ICLOSE` | Grid closure: none (-1), simple (2) or tripole (8) |
+| `TRFLAG` | Obstruction-transparency flag of `&MISC FLAGTR`: 0 none, odd between grid points, even at grid points |
 | MPI, rank | Message Passing Interface; a rank is one of the processes `mpirun -n R` starts |
 | `DIST`, `SHRD`, `OMPG` | WW3 switches for distributed memory (MPI), shared memory and OpenMP over grid points; picked at compile time there, at run time here |
 | `IAPPRO` | WW3's table from spectral component to the rank that propagates it (`W3INIT`, `w3initmd.F90:853`) |

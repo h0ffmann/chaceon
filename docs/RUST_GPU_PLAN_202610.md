@@ -146,6 +146,10 @@ the device, reading only what an output needs.
 `w3gsrumd`. Exit: a regtest from namelists to NetCDF, Rust only, whose `mod_def.ww3` equals the
 Fortran's byte for byte. `ww3_grid` also writes `ST4TABUHF2.bin`, so the tables must match too.
 
+Status on 2026-10-31: `ww3_strt` and `ww3_grid` have Rust ports, byte-identical on the regtests of
+`rust/port_report/WW3_STRT.md` and `WW3_GRID.md`. Rust's `ww3_grid` does not write `ST4TABUHF2.bin`, the cache
+that only `ww3_grid` reads back, and stops on unstructured and SMC grids.
+
 ### Batch 6: speed
 
 No new physics. Whole-spectrum copies per step become zero, kernels are grouped to cut dispatch

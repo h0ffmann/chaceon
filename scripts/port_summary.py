@@ -24,7 +24,7 @@ AREAS = [
     ("Coupling and other", r".*"),
 ]
 # What still needs a Fortran program for a run, and what it writes.
-PREPROCESSORS = ["ww3_grid", "w3gridmd", "ww3_prep"]
+PREPROCESSORS = ["ww3_prep"]
 
 
 def code_lines(text):
@@ -113,9 +113,10 @@ def build():
           f"| `routine`: every captured call identical | {fmt(done['routine'])} |",
           f"| `translated`: exists, not fully reached | {fmt(done['translated'])} |", ""]
     o += ["**What still depends on Fortran.** No Rust binary links Fortran. A run still reads files that Fortran "
-          f"programs wrote: `mod_def.ww3` from `ww3_grid`, always, and `current.ww3` from `ww3_prep` when a case has a "
-          f"current file. `restart.ww3` can come from Rust's `ww3_strt`, except for start type 2. "
-          f"Those programs and `w3gridmd` are {fmt(prep)} lines, {pct(prep, total['lines'])} of `model/src`. Every verdict "
+          "programs wrote where Rust stops: `current.ww3` from `ww3_prep` when a case has a current file, and "
+          "`mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or unformatted data files (`IDFM` 2 "
+          "and 3), the old `ww3_grid.inp` and tripole closure. `restart.ww3` can come from Rust's `ww3_strt`, except "
+          f"for start type 2. `ww3_prep` is {fmt(prep)} lines, {pct(prep, total['lines'])} of `model/src`. Every verdict "
           "also needs the Fortran reference, by design: it is what Rust is compared with.", "", END]
     return "\n".join(o)
 
