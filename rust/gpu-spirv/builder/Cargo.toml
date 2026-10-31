@@ -1,0 +1,10 @@
+[package]
+name = "chaceon-spirv-builder"
+description = "Compiles the shader crate to SPIR-V"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+spirv-builder = { workspace = true }

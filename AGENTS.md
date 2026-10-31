@@ -73,7 +73,8 @@ just ref-build    # the Fortran reference, linux/arm64 image
 
 | You changed | Run |
 |---|---|
-| `rust/` | `just check`, and for a translated routine the comparison its batch names |
+| `rust/` | `just check`, and for a translated routine `just snl1-cmp`-style replays on every capture |
+| `rust/crates/ww3-kernels`, `ww3-libm`, `rust/gpu-*` | also `just spirv`, `just ptx`, `just spirv-replay`; `just libm-bits` for `ww3-libm` |
 | `*.sh`, `justfile` | `just lint-sh` |
 | A comparison, a tolerance | stop: a person reviews it |
 
@@ -94,6 +95,11 @@ A missing tool is a reason to install it, not to skip the gate.
   source for all three targets. Nothing physical lives in `gpu-cuda` or `gpu-spirv`.
 - **Rust-CUDA settings are part of the physics:** `fma_contraction(false)`, `override_libm(false)`,
   `ftz(false)`, `fast_sqrt(false)`, `fast_div(false)`. The defaults of the first two are wrong for us.
+  The H100 and RTX 4090 need its LLVM 7 backend: LLVM 21 output is accepted for sm_100 and later
+  only. Assemble with `ptxas --fmad=false` and load the binary, as `just ptx` does (ADR-0007).
+- **Evidence before a whole model runs** is a capture of the routine from the running reference, a
+  replay on the host and on the compiled SPIR-V, and a fault run through the comparison
+  (ADR-0007). It gives the status `routine`, never `host`, `cuda` or `spirv`.
 - **Every routine** has a row in `rust/ports.tsv` and a report in `rust/port_report/<ROUTINE>.md`:
   what was translated, its comparison, its timing. `translated` never means `host`.
 - **Licence.** Every file, translated or not, starts with `// SPDX-License-Identifier: MPL-2.0`
@@ -101,7 +107,8 @@ A missing tool is a reason to install it, not to skip the gate.
 
 ## Running on the GPU
 
-Never run on a device without the owner supervising that run. Compiling for a device is allowed.
+Never run on a device without the owner supervising that run. Compiling for a device is allowed,
+and so is running SPIR-V on a CPU Vulkan implementation: `spirv_replay` refuses any other device.
 The verdict an agent can reach alone is `host`. This is ww3-gpu's rule, carried over.
 
 ## Third-party issues

@@ -2,7 +2,7 @@
 # nightly in rust-toolchain.toml, because Rust-CUDA and rust-gpu pin different nightlies.
 [workspace]
 resolver = "3"
-members = ["crates/ww3-kernels"]
+members = ["crates/*", "tools/*"]
 
 [workspace.package]
 edition = "2024"

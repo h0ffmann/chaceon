@@ -10,3 +10,4 @@ An ADR is Proposed until the owner accepts it, and an accepted ADR is superseded
 | [0004](ADR-0004-float-representation.md) | Rust's floats follow Fortran's kinds | Accepted |
 | [0005](ADR-0005-three-verdicts.md) | The `host`, `cuda` and `spirv` verdicts, on Apple Silicon | Accepted |
 | [0006](ADR-0006-licence.md) | Translated files are MPL-2.0 | Accepted |
+| [0007](ADR-0007-routine-parity-by-capture.md) | Routine parity by capture, and how GPU code is built | Proposed |

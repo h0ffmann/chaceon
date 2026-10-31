@@ -1,0 +1,10 @@
+[package]
+name = "chaceon-cuda-builder"
+description = "Compiles the kernels crate to PTX with the parity settings"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[dependencies]
+cuda_builder = { workspace = true }

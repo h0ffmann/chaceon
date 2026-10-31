@@ -1,0 +1,17 @@
+[package]
+name = "chaceon-shader"
+description = "Compute entry points over ww3-kernels for rust-gpu: no physics here"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["dylib", "lib"]
+
+[dependencies]
+spirv-std = { workspace = true }
+ww3-kernels = { path = "../../crates/ww3-kernels" }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow" }

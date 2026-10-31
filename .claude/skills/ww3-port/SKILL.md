@@ -34,15 +34,28 @@ longer history; its facts are at NOAA's pin.
 
 ## Device
 
+- No closures in a kernel: one that captures a local by reference is a pointer to a pointer, and
+  SPIR-V validation refuses it. Use a plain function or a local macro.
+- No sub-slices either: pass the whole buffer and an offset.
 - No allocation, `std`, formatting or panic that depends on data inside a kernel. Keep slices
   bounds-checked in `host` builds and read the cost before removing a check.
 - Math goes through `ww3-libm`. Never `cuda_std`'s `GpuFloat`, never `spirv-std`'s `GLSL.std.450`.
 - A kernel that needs `f64` declares it, and the host checks the device before starting.
 - Never run on a device without the owner.
 
+## Parity by capture
+
+- `regtests/capture/` records a routine's real arguments from the running reference with gdb.
+  Nothing is linked into WW3 and no Fortran is written (ADR-0007).
+- Run a fault through the comparison before believing its zeros, and make the fault large enough to
+  reach `f32`: the last bit of an `f64` coefficient reached nothing and proved nothing.
+- A case can hide a branch. `ww3_ts1` is 2500 m deep, where `EXP(X2)` in `W3SNL1` vanishes: a wrong
+  `expf` still matched there, and only a shallow run caught it. Ask what each input never reaches.
+
 ## Before claiming a verdict
 
-`translated` means the code exists. `host` means `cmp` and `test.comp` passed on the regtest the
+`translated` means the code exists. `routine` means every captured call matched bit for bit, which
+does not cover the configurations the capture did not run. `host` means `cmp` and `test.comp` passed on the regtest the
 batch names, in the reference's linux/arm64 image on Apple Silicon, against the same commit of the
 reference. A zero difference
 from a run that never reached the routine proves nothing: check it ran.

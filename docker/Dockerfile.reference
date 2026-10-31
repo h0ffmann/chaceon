@@ -30,3 +30,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends libnetcdff7 lib
  && rm -rf /var/lib/apt/lists/*
 COPY --from=build /opt/ww3/bin/ /usr/local/bin/
 COPY --from=build /opt/ww3/BUILD_INFO /usr/local/share/ww3/BUILD_INFO
+
+# just capture: gdb reads W3SNL1's arguments from the running reference. Not the default target.
+FROM dist AS capture
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends gdb python3 \
+ && rm -rf /var/lib/apt/lists/*

@@ -1,0 +1,5 @@
+# CPU Vulkan (Mesa lavapipe), to execute compiled SPIR-V without a GPU. Same Debian as the reference.
+FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends libvulkan1 mesa-vulkan-drivers \
+ && rm -rf /var/lib/apt/lists/*

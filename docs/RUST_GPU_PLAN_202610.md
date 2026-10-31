@@ -53,12 +53,16 @@ The first five batches give a working forecast for the target switch,
 Nothing else is worth starting until these hold, because the two compilers are the plan's largest
 risk: both projects call themselves early-stage (v, their READMEs, 2026-10-30).
 
+**Done, 2026-10-30:** both compilers build a real kernel (`W3SNL1`), `ww3-libm` has `expf`, and
+capture and replay work (ADR-0007, [log](log/2026-10-30-snl1-parity.md)). **Open:** items 2 and 3
+beyond `ww3_ts1`, the rest of `ww3-libm`, the device audit of item 6, `ww3cmp`.
+
 1. Build the reference with `just ref-build`: native linux/arm64 on Apple Silicon, contraction off.
 2. Run `ww3_ts1` ST4, `ww3_tp2.4` and `ww3_tp2.15` on it, twice, to learn which files WW3 itself
    does not reproduce. Keep the outputs by checksum.
 3. Profile the reference at this pin. ww3-gpu's profiles are NOAA's pin, and MetOcean's ST4 differs.
 4. Add `rust/gpu-cuda/` and `rust/gpu-spirv/`, each a workspace with its own nightly, each building
-   `ww3-kernels`. Rust-CUDA uses `ubuntu24-cuda13-llvm21` in its `container/`.
+   `ww3-kernels`. Rust-CUDA uses its LLVM 7 backend, because LLVM 21 reaches sm_100 and later only.
 5. Write `ww3-libm`: `no_std` copies of glibc's `expf`, `logf`, `powf`, `tanhf`, `sincosf` and the
    `f64` functions `W3SDB1` needs, translated from ww3-gpu's `libm_device.hpp`, whose device bits
    were never run there either ⚠.
@@ -142,7 +146,8 @@ to C MPI, or GPU-aware transport.
 | glibc's math is platform-specific ⚠ | macOS libm is not the reference's | `host` runs inside the reference's linux/arm64 image, against its glibc (ADR-0005) |
 | gfortran on arm64 fuses `a*b+c` by default (v, probe) | Default reference differs from Rust's arithmetic | The reference is built with `-ffp-contract=off` (ADR-0005) |
 | An arm64 reference is not LabECO's operational x86_64 build | Bits proved here are this reference's | Contraction off keeps the arithmetic IEEE; libm results may still differ ⚠ |
-| `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac | Stop with a message; no demotion |
+| `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac, and no `W3SNL1` either: `ww3-libm`'s `expf` needs `f64` and `i64` | Stop with a message; no demotion |
+| Rust-CUDA's LLVM 7 path is its legacy one (v) | A language or `core` change may stop building | Pinned nightly; kept plain; cuda-oxide is the fallback |
 | Licence | A translation of LGPL code under MPL-2.0 | The owner's decision, ADR-0006; to revisit before distribution |
 
 ## Open for the owner

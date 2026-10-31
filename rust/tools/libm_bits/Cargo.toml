@@ -1,0 +1,10 @@
+[package]
+name = "libm_bits"
+description = "Compares ww3-libm with the platform libm over every f32"
+license = "MPL-2.0"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ww3-libm = { path = "../../crates/ww3-libm" }
