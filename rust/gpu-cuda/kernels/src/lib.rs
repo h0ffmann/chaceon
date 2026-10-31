@@ -3,6 +3,9 @@
 //! point's ranges of the buffers.
 
 use cuda_std::prelude::*;
+use ww3_kernels::pro3::{
+    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3,
+};
 use ww3_kernels::real::Real;
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
@@ -276,4 +279,154 @@ pub unsafe fn srce(
     let spec = unsafe { core::slice::from_raw_parts_mut(spec, n * nspec) };
     let out = unsafe { core::slice::from_raw_parts_mut(out, n) };
     w3srce(p, &t, &points[point], spec, wn1, cg1, &mut w, out, point);
+}
+
+/// One spectral component per launch for now: `vq` and the work arrays hold one component.
+///
+/// # Safety
+/// Each pointer holds its length, and one thread runs.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn xyp3(
+    p: &Xyp3Params,
+    isp: i32,
+    yfirst: u32,
+    dtg: Real,
+    sig: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    mapsf: &[i32],
+    mapsta: &[i32],
+    mapaxy: &[i32],
+    mapcxy: &[i32],
+    mapx2: &[i32],
+    mapy2: &[i32],
+    maptrn: &[u32],
+    clats: &[Real],
+    dpdx: &[Real],
+    dpdy: &[Real],
+    dqdx: &[Real],
+    dqdy: &[Real],
+    gsqrt: &[Real],
+    cg: &[Real],
+    atrnx: &[Real],
+    atrny: &[Real],
+    vq: *mut Real,
+    vq_len: usize,
+    iixy1: *mut i32,
+    iixy1_len: usize,
+    iixy2: *mut i32,
+    iixy2_len: usize,
+    iixy3: *mut i32,
+    iixy3_len: usize,
+    iixy4: *mut i32,
+    iixy4_len: usize,
+    rdi1: *mut Real,
+    rdi1_len: usize,
+    rdi2: *mut Real,
+    rdi2_len: usize,
+    rdi3: *mut Real,
+    rdi3_len: usize,
+    rdi4: *mut Real,
+    rdi4_len: usize,
+    mapstx: *mut i32,
+    mapstx_len: usize,
+    vlcflx: *mut Real,
+    vlcflx_len: usize,
+    vlcfly: *mut Real,
+    vlcfly_len: usize,
+    cxtot: *mut Real,
+    cxtot_len: usize,
+    cytot: *mut Real,
+    cytot_len: usize,
+    aq: *mut Real,
+    aq_len: usize,
+    fla: *mut Real,
+    fla_len: usize,
+) {
+    if thread::index_1d() != 0 {
+        return;
+    }
+    let vq = unsafe { core::slice::from_raw_parts_mut(vq, vq_len) };
+    let iixy1 = unsafe { core::slice::from_raw_parts_mut(iixy1, iixy1_len) };
+    let iixy2 = unsafe { core::slice::from_raw_parts_mut(iixy2, iixy2_len) };
+    let iixy3 = unsafe { core::slice::from_raw_parts_mut(iixy3, iixy3_len) };
+    let iixy4 = unsafe { core::slice::from_raw_parts_mut(iixy4, iixy4_len) };
+    let rdi1 = unsafe { core::slice::from_raw_parts_mut(rdi1, rdi1_len) };
+    let rdi2 = unsafe { core::slice::from_raw_parts_mut(rdi2, rdi2_len) };
+    let rdi3 = unsafe { core::slice::from_raw_parts_mut(rdi3, rdi3_len) };
+    let rdi4 = unsafe { core::slice::from_raw_parts_mut(rdi4, rdi4_len) };
+    let mapstx = unsafe { core::slice::from_raw_parts_mut(mapstx, mapstx_len) };
+    let vlcflx = unsafe { core::slice::from_raw_parts_mut(vlcflx, vlcflx_len) };
+    let vlcfly = unsafe { core::slice::from_raw_parts_mut(vlcfly, vlcfly_len) };
+    let cxtot = unsafe { core::slice::from_raw_parts_mut(cxtot, cxtot_len) };
+    let cytot = unsafe { core::slice::from_raw_parts_mut(cytot, cytot_len) };
+    let aq = unsafe { core::slice::from_raw_parts_mut(aq, aq_len) };
+    let fla = unsafe { core::slice::from_raw_parts_mut(fla, fla_len) };
+    let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, atrnx, atrny };
+    let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, mapstx, vlcflx, vlcfly, cxtot, cytot, aq, fla };
+    w3xyp3(p, &t, isp, dtg, yfirst != 0, vq, &mut w);
+}
+
+/// One sea point per launch for now, as `xyp3`.
+///
+/// # Safety
+/// Each pointer holds its length, and one thread runs.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn ktp3(
+    p: &Ktp3Params,
+    q: &Ktp3Point,
+    sig: &[Real],
+    dsip: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    ec2: &[Real],
+    esc: &[Real],
+    es2: &[Real],
+    mapwn: &[i32],
+    mapth2: &[i32],
+    mapwn2: &[i32],
+    cg: &[Real],
+    wn: &[Real],
+    va: *mut Real,
+    va_len: usize,
+    dsdd: *mut Real,
+    dsdd_len: usize,
+    frk: *mut Real,
+    frk_len: usize,
+    frg: *mut Real,
+    frg_len: usize,
+    fkc: *mut Real,
+    fkc_len: usize,
+    vq: *mut Real,
+    vq_len: usize,
+    db: *mut Real,
+    db_len: usize,
+    dm: *mut Real,
+    dm_len: usize,
+    vcflt: *mut Real,
+    vcflt_len: usize,
+    cflk: *mut Real,
+    cflk_len: usize,
+    fla: *mut Real,
+    fla_len: usize,
+) {
+    if thread::index_1d() != 0 {
+        return;
+    }
+    let va = unsafe { core::slice::from_raw_parts_mut(va, va_len) };
+    let dsdd = unsafe { core::slice::from_raw_parts_mut(dsdd, dsdd_len) };
+    let frk = unsafe { core::slice::from_raw_parts_mut(frk, frk_len) };
+    let frg = unsafe { core::slice::from_raw_parts_mut(frg, frg_len) };
+    let fkc = unsafe { core::slice::from_raw_parts_mut(fkc, fkc_len) };
+    let vq = unsafe { core::slice::from_raw_parts_mut(vq, vq_len) };
+    let db = unsafe { core::slice::from_raw_parts_mut(db, db_len) };
+    let dm = unsafe { core::slice::from_raw_parts_mut(dm, dm_len) };
+    let vcflt = unsafe { core::slice::from_raw_parts_mut(vcflt, vcflt_len) };
+    let cflk = unsafe { core::slice::from_raw_parts_mut(cflk, cflk_len) };
+    let fla = unsafe { core::slice::from_raw_parts_mut(fla, fla_len) };
+    let t = Ktp3Tables { sig, dsip, ecos, esin, ec2, esc, es2, mapwn, mapth2, mapwn2 };
+    let mut w = Ktp3Work { dsdd, frk, frg, fkc, vq, db, dm, vcflt, cflk, fla };
+    w3ktp3(p, &t, q, cg, wn, va, &mut w);
 }

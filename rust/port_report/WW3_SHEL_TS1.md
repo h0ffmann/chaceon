@@ -41,16 +41,15 @@ The match came on the first run, so it was checked:
 
 | Reached | Not reached ⚠ |
 |---|---|
-| `W3SRCE` and all its kernels, chained | Propagation: `RUN%FLSOU` only |
+| `W3SRCE` and all its kernels, chained | Propagation here: see [`W3PRO3.md`](W3PRO3.md) |
 | `mod_def.ww3`, read | `mod_def.ww3` written: it still comes from `ww3_grid` |
 | `W3UWND`, `W3FLDH` winds, homogeneous | Wind fields, currents, water levels, ice |
 | `TICK21`, `DSEC21`, standard calendar | Other calendars |
 | `WAVNU1`, `DISTAB` | |
 | `W3IOPE`, `W3IOPO`, write, one point | `out_grd.ww3`, which the reference also writes: not produced yet |
-| `W3WAVE`, the time and output logic | Restart input and output, more than one sea point |
+| `W3WAVE`, the time and output logic | More than one sea point here: see `W3PRO3.md` |
 
-The binary refuses what it does not implement: another grid type, more than one sea point, or any
-propagation flag stops it with a message. It reads only the namelist keys these cases use.
+The binary refuses what it does not implement, with a message. It reads only the namelist keys these cases use.
 
 `test.comp` was not run, since `cmp` on the only file produced says more. A full ADR-0005 verdict
 for `ww3_ts1` also needs `out_grd.ww3` ⚠.

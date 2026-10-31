@@ -5,9 +5,9 @@ and [rust-gpu](https://github.com/Rust-GPU/rust-gpu). It is compared with
 [metocean/WW3](https://github.com/metocean/WW3) 7.14 (`7.14.mos-92e2cf6`), and it follows the
 discipline of [ww3-gpu](https://github.com/h0ffmann/ww3-gpu) without Kokkos.
 
-**State, 2026-10-31:** on the CPU, Rust writes `out_pnt.ww3` for `ww3_ts1` byte-identical to the
-reference on 18 cases, the first whole-file result. That case has one sea point and no propagation,
-and it still takes `mod_def.ww3` from the Fortran. As compiled SPIR-V on CPU Vulkan, `W3SNL1` is
+**State, 2026-10-31:** on the CPU, Rust runs 12 propagation regtests and `ww3_ts1` from the Fortran's
+`mod_def.ww3` and `restart.ww3`, and `out_pnt.ww3` and a last-step restart are byte-identical to the
+reference. The propagation kernels build for both GPU targets and have not run on any device. As compiled SPIR-V on CPU Vulkan, `W3SNL1` is
 bit-identical, and ST4 and `W3SRCE` differ slightly. The PTX builds. No model runs yet, and
 nothing has run on a GPU ⚠.
 

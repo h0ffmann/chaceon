@@ -36,10 +36,18 @@ fn main() {
     let p = pairs(&std::fs::read_to_string(format!("{dir}/ww3_shel.nml")).unwrap());
     let get = |k: &str| p.iter().find(|(a, _)| a == k).map(|(_, b)| b.clone());
     let date = |k: &str, dflt: &str| time(&quoted(&get(k).unwrap_or(format!("'{dflt}'")))[0]);
-    assert_eq!(get("INPUT%FORCING%WINDS").as_deref().map(|s| s.trim_matches('\'')), Some("H"), "only H winds");
-    let span = |k: &str| {
-        let q = quoted(&get(k).unwrap());
-        (time(&q[0]), q[1].parse::<i32>().unwrap(), time(&q[2]))
+    for (k, v) in &p {
+        let on = !v.contains("'F'");
+        assert!(!k.starts_with("INPUT%") || k == "INPUT%FORCING%WINDS" || !on, "{k} is not implemented");
+    }
+    let winds_mode = get("INPUT%FORCING%WINDS").map_or("F".to_string(), |s| s.trim_matches('\'').to_string());
+    assert!(winds_mode == "H" || winds_mode == "F", "only homogeneous winds are implemented");
+    let span = |k: &str| match get(k) {
+        Some(v) => {
+            let q = quoted(&v);
+            (time(&q[0]), q[1].parse::<i32>().unwrap(), time(&q[2]))
+        }
+        None => ([19000101, 0], 0, [29001231, 0]),
     };
 
     let n: usize = get("HOMOG_COUNT%N_CUR").map_or(0, |s| s.parse().unwrap())
@@ -54,21 +62,30 @@ fn main() {
         winds.push_back((date(&k("DATE"), "19680606 000000"), num("VALUE1"), num("VALUE2"), num("VALUE3")));
     }
 
-    let list = quoted(&get("TYPE%POINT%FILE").unwrap());
-    let path = format!("{dir}/{}", list[0]);
-    let line = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let mut w = line.split_whitespace();
-    let (xpt, ypt) = (w.next().unwrap().parse().unwrap(), w.next().unwrap().parse().unwrap());
+    let mut points = Vec::new();
+    if let Some(f) = get("TYPE%POINT%FILE") {
+        let path = format!("{dir}/{}", quoted(&f)[0]);
+        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+        for line in text.lines().filter(|l| !l.trim().is_empty() && !l.trim().starts_with('$')) {
+            let name = quoted(line).first().cloned().unwrap_or_default();
+            if name == "STOPSTRING" {
+                break;
+            }
+            let mut w = line.split_whitespace();
+            let x: f32 = w.next().unwrap().parse().unwrap();
+            points.push((x, w.next().unwrap().parse().unwrap(), name));
+        }
+    }
     let fields = get("TYPE%FIELD%LIST").unwrap_or_default();
     let r = Run {
         time0: date("DOMAIN%START", "19680606 000000"),
         timen: date("DOMAIN%STOP", "19680607 000000"),
         field: span("DATE%FIELD"),
         point: span("DATE%POINT"),
+        restart: span("DATE%RESTART"),
+        flwind: winds_mode == "H",
         winds,
-        xpt,
-        ypt,
-        pname: quoted(&line).first().cloned().unwrap_or_default(),
+        points,
         flogrd: (fields.contains("WCC"), fields.contains("WCF")),
     };
     run(&m, r, &dir);

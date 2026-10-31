@@ -38,6 +38,14 @@ st4-cmp routine="sin4" variant="default" depth="2500":
 ts1-pair variant="default" depth="2500":
     bash scripts/ts1_pair.sh {{variant}} {{depth}}
 
+# Host verdict on a propagation regtest: out_pnt.ww3 and a last-step restart, by cmp
+tp-pair case suffix="":
+    bash scripts/tp_pair.sh {{case}} {{suffix}}
+
+# Every propagation regtest the host driver implements
+tp-all:
+    bash scripts/tp_all.sh
+
 # Compares the mod_def reader with the reference's memory, for a case with captures
 moddef-cmp mod_def tag="default_2500m":
     bash scripts/rust_in_ref.sh moddef_cmp {{mod_def}} {{tag}}
