@@ -2,8 +2,8 @@
 # Runs WW3's ww3_ts1 in the reference under gdb and records one routine.
 # Usage: capture.sh <routine> <variant> [depth] [stride]. Writes work/capture/<routine>_<variant>_<depth>m.bin.
 # A variant only changes the case's namelists, never WW3: ww3_ts1 at 2500 m reaches one branch of
-# W3SDS4, and the rest need other settings. calm and light change the wind: at 12 m/s USTAR never
-# reaches MetOcean's floors. poke writes rare inputs at the real routine's entry (sin4.py).
+# W3SDS4, and the rest need other settings. calm, light and storm change the wind: at 12 m/s USTAR
+# never reaches MetOcean's floors, and shallow water never reaches depth-limited breaking. poke writes rare inputs at the real routine's entry (sin4.py).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 routine="$1"
@@ -22,6 +22,7 @@ case "$variant" in
   circle) sds4='&SDS4 SDSDTH=180. /' ;;
   poke) poke=1; limit=500 ;;
   calm) wind=0 ;;
+  storm) wind=30 ;;
   light) wind=6 ;;
   noshelter) sds4='&SIN4 TAUWSHELTER=0. /' ;;
   flatswell) sds4='&SIN4 SWELLF2=0., SWELLF3=0.02, SWELLF4=0., SWELLF6=1., SWELLF7=0. /' ;;

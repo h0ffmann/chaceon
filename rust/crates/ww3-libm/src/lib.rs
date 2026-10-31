@@ -7,7 +7,7 @@
 //! `sysdeps/ieee754/flt-32/`. `tanhf`, `expm1f`, `atan2f`, `atanf`, `sqrtf`: glibc's fdlibm code.
 //! Results are glibc's, so its error flags, `errno` and rounding-mode branches are left out.
 #![no_std]
-#![allow(clippy::excessive_precision)]
+#![allow(clippy::excessive_precision, clippy::approx_constant)]
 
 mod tables;
 use tables::*;
@@ -729,4 +729,262 @@ pub fn sqrtf(x: f32) -> f32 {
     }
     let ix = (q >> 1) + 0x3f000000 + (m << 23);
     f32::from_bits(ix as u32)
+}
+
+/// `2^e`, for a normal result.
+#[inline]
+fn pow2_f64(e: i64) -> f64 {
+    f64::from_bits(((e + 1023) as u64) << 52)
+}
+
+/// `s*t + s`, for `s` of any size: [`fma64`] needs its operands near 1, so the exponent of `s` is
+/// taken off first. Putting it back is exact while the result is normal, which the callers ensure.
+#[inline]
+fn scaled_fma(t: f64, sbits: u64) -> f64 {
+    let e = ((sbits >> 52) & 0x7ff) as i64 - 1023;
+    let s1 = f64::from_bits((sbits & 0x000f_ffff_ffff_ffff) | (1023 << 52));
+    fma64(t, s1, s1) * pow2_f64(e)
+}
+
+/// glibc 2.36 `exp`.
+#[inline]
+pub fn exp(x: f64) -> f64 {
+    let top = |v: f64| (v.to_bits() >> 52) as u32;
+    let mut abstop = top(x) & 0x7ff;
+    let lo12 = top(f64::from_bits(0x3c90000000000000)); // 0x1p-54
+    if abstop.wrapping_sub(lo12) >= top(512.0) - lo12 {
+        if abstop.wrapping_sub(lo12) >= 0x80000000 {
+            return 1.0 + x;
+        }
+        if abstop >= top(1024.0) {
+            if x.to_bits() == f64::NEG_INFINITY.to_bits() {
+                return 0.0;
+            }
+            if abstop >= top(f64::INFINITY) {
+                return 1.0 + x;
+            }
+            return if x.to_bits() >> 63 != 0 { 0.0 } else { f64::INFINITY };
+        }
+        abstop = 0;
+    }
+    let z = fb(EXP_INVLN2N) * x;
+    let ki = round_to_int(z);
+    let kd = ki as f64;
+    let r = fma64(fb(EXP_NEGLN2HI), kd, x);
+    let r = fma64(fb(EXP_NEGLN2LO), kd, r);
+    let idx = 2 * ((ki as u64) % 128) as usize;
+    let top_bits = (ki as u64) << (52 - 7);
+    let tail = fb(EXP_TAB[idx]);
+    let sbits = EXP_TAB[idx + 1].wrapping_add(top_bits);
+    let p23 = fma64(fb(EXP_POLY[1]), r, fb(EXP_POLY[0]));
+    let p45 = fma64(fb(EXP_POLY[3]), r, fb(EXP_POLY[2]));
+    let r2 = r * r;
+    let tmp = fma64(p23, r2, tail + r);
+    let tmp = fma64(r2 * r2, p45, tmp);
+    if abstop == 0 {
+        return exp_special(tmp, sbits, ki as u64);
+    }
+    scaled_fma(tmp, sbits)
+}
+
+/// `specialcase` of glibc's `exp`: `|x| >= 512`.
+#[inline]
+fn exp_special(tmp: f64, sbits: u64, ki: u64) -> f64 {
+    if ki & 0x80000000 == 0 {
+        let sbits = sbits.wrapping_sub(1009 << 52);
+        return f64::from_bits(0x7f00000000000000) * scaled_fma(tmp, sbits);
+    }
+    let sbits = sbits.wrapping_add(1022 << 52);
+    let scale = f64::from_bits(sbits);
+    let st = scale * tmp;
+    let mut y = scale + st;
+    if y < 1.0 {
+        let lo = scale - y + st;
+        let hi = 1.0 + y;
+        let lo = 1.0 - hi + y + lo;
+        y = (hi + lo) - 1.0;
+        if y == 0.0 {
+            y = 0.0;
+        }
+    }
+    f64::from_bits(0x0010000000000000) * y
+}
+
+#[inline]
+fn add_high(y: f64, k: i32) -> f64 {
+    f64::from_bits(y.to_bits().wrapping_add(((k as i64) << 52) as u64))
+}
+
+/// glibc 2.36 `expm1`, fdlibm's.
+#[inline]
+pub fn expm1(x0: f64) -> f64 {
+    const LN2_HI: f64 = 6.93147180369123816490e-01;
+    const LN2_LO: f64 = 1.90821492927058770002e-10;
+    const INVLN2: f64 = 1.44269504088896338700e+00;
+    const Q1: f64 = -3.33333333333331316428e-02;
+    const Q2: f64 = 1.58730158725481460165e-03;
+    const Q3: f64 = -7.93650757867487942473e-05;
+    const Q4: f64 = 4.00821782732936239552e-06;
+    const Q5: f64 = -2.01099218183624371326e-07;
+    let mut x = x0;
+    let bits = x.to_bits();
+    let negative = bits >> 63 != 0;
+    let hx = ((bits >> 32) as u32) & 0x7fffffff;
+    if hx >= 0x4043687A {
+        if hx >= 0x40862E42 {
+            if hx >= 0x7ff00000 {
+                if (bits & 0x000f_ffff_ffff_ffff) != 0 {
+                    return x + x;
+                }
+                return if negative { -1.0 } else { x };
+            }
+            if x > 7.09782712893383973096e+02 {
+                return f64::INFINITY;
+            }
+        }
+        if negative {
+            return 1.0e-300 - 1.0;
+        }
+    }
+    let (c, k);
+    if hx > 0x3fd62e42 {
+        let (hi, lo);
+        if hx < 0x3FF0A2B2 {
+            if !negative {
+                hi = x - LN2_HI;
+                lo = LN2_LO;
+                k = 1;
+            } else {
+                hi = x + LN2_HI;
+                lo = -LN2_LO;
+                k = -1;
+            }
+        } else {
+            k = (INVLN2 * x + if negative { -0.5 } else { 0.5 }) as i32;
+            let t = k as f64;
+            hi = fma64(-t, LN2_HI, x);
+            lo = t * LN2_LO;
+        }
+        x = hi - lo;
+        c = (hi - x) - lo;
+    } else if hx < 0x3c900000 {
+        return x;
+    } else {
+        k = 0;
+        c = 0.0;
+    }
+    let hfx = 0.5 * x;
+    let hxs = x * hfx;
+    let r2 = fma64(hxs, Q3, Q2);
+    let r1 = fma64(hxs, Q1, 1.0);
+    let h2 = hxs * hxs;
+    let r3 = fma64(hxs, Q5, Q4);
+    let h4 = h2 * h2;
+    let r1 = fma64(h2, r2, r1);
+    let r1 = fma64(h4, r3, r1);
+    let t = fma64(-hfx, r1, 3.0);
+    let d = fma64(-x, t, 6.0);
+    let mut e = hxs * ((r1 - t) / d);
+    if k == 0 {
+        return x - fma64(x, e, -hxs);
+    }
+    e = fma64(x, e - c, -c);
+    e -= hxs;
+    if k == -1 {
+        return 0.5 * (x - e) - 0.5;
+    }
+    if k == 1 {
+        return if x < -0.25 { -2.0 * (e - (x + 0.5)) } else { 1.0 + 2.0 * (x - e) };
+    }
+    if k <= -2 || k > 56 {
+        return add_high(1.0 - (e - x), k) - 1.0;
+    }
+    if k < 20 {
+        let t = f64::from_bits((0x3ff00000u64 - (0x200000u64 >> k)) << 32);
+        add_high(t - (e - x), k)
+    } else {
+        let t = f64::from_bits(((0x3ff - k) as u64) << 52);
+        add_high((x - (e + t)) + 1.0, k)
+    }
+}
+
+/// glibc 2.36 `tanh`.
+#[inline]
+pub fn tanh(x: f64) -> f64 {
+    let bits = x.to_bits();
+    let jx = (bits >> 32) as i32;
+    let lx = bits as u32;
+    let ix = jx & 0x7fffffff;
+    if ix >= 0x7ff00000 {
+        return if jx >= 0 { 1.0 / x + 1.0 } else { 1.0 / x - 1.0 };
+    }
+    let z;
+    if ix < 0x40360000 {
+        if (ix as u32 | lx) == 0 {
+            return x;
+        }
+        if ix < 0x3c800000 {
+            return x * (1.0 + x);
+        }
+        let ax = f64::from_bits(bits & 0x7fff_ffff_ffff_ffff);
+        if ix >= 0x3ff00000 {
+            let t = expm1(2.0 * ax);
+            z = 1.0 - 2.0 / (t + 2.0);
+        } else {
+            let t = expm1(-2.0 * ax);
+            z = -t / (t + 2.0);
+        }
+    } else {
+        z = 1.0 - 1.0e-300;
+    }
+    if jx >= 0 { z } else { -z }
+}
+
+/// Correctly rounded `f64` square root by digit recurrence, as [`sqrtf`].
+#[inline]
+pub fn sqrt(x: f64) -> f64 {
+    let bits = x.to_bits();
+    if (bits >> 52) & 0x7ff == 0x7ff {
+        return x * x + x;
+    }
+    if bits << 1 == 0 {
+        return x;
+    }
+    if bits >> 63 != 0 {
+        return f64::NAN;
+    }
+    let mut m = ((bits >> 52) & 0x7ff) as i64;
+    let mut ix = (bits & 0x000f_ffff_ffff_ffff) as i64;
+    if m == 0 {
+        let mut i = 0;
+        while ix & (1 << 52) == 0 {
+            ix <<= 1;
+            i += 1;
+        }
+        m -= i - 1;
+        ix &= (1 << 52) - 1;
+    }
+    m -= 1023;
+    ix |= 1 << 52;
+    if m & 1 != 0 {
+        ix += ix;
+    }
+    m >>= 1;
+    ix += ix;
+    let (mut q, mut s) = (0i64, 0i64);
+    let mut r = 1i64 << 53;
+    while r != 0 {
+        let t = s + r;
+        if t <= ix {
+            s = t + r;
+            ix -= t;
+            q += r;
+        }
+        ix += ix;
+        r >>= 1;
+    }
+    if ix != 0 {
+        q += q & 1;
+    }
+    f64::from_bits(((q >> 1) + (0x3fe << 52) + (m << 52)) as u64)
 }

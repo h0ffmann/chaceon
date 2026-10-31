@@ -90,9 +90,9 @@ NVIDIA's cuda-oxide, which ADR-0003 keeps as the fallback.
 
 ### Batch 2: source terms on the device
 
-In the order the profile sets, pending Batch 0's new one: `W3SNL1`, `W3SDS4`, `W3SIN4`, `W3SPR4`, `CALC_USTAR`
-(all `routine`, with `INSIN4` and the `TABU_` tables), then `W3SRCE`, `W3SDB1`, `W3SBT1`, `W3SLN1`,
-`W3SBT4`. All of ST4 is translated.
+In the order the profile sets, pending Batch 0's new one: `W3SNL1`, `W3SDS4`, `W3SIN4`, `W3SPR4`, `CALC_USTAR`,
+`W3SRCE`, `W3SDB1`, `W3SBT1`, `W3SLN1`: all `routine`, with `INSIN4` and the `TABU_` tables. `W3SBT4`
+remains, for MetOcean's switch.
 
 - Source: the Fortran at the pin, never ww3-gpu's C++, which translates NOAA's ST4 and misses
   MetOcean's `USTAR` floors and `ISNAN` guards (`w3src4md.F90:680`, `:780`, `:835`, `:1683`;
@@ -150,6 +150,7 @@ to C MPI, or GPU-aware transport.
 | An arm64 reference is not LabECO's operational x86_64 build | Bits proved here are this reference's | Contraction off keeps the arithmetic IEEE; libm results may still differ ⚠ |
 | `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac, and no `W3SNL1` either: `ww3-libm`'s `expf` needs `f64` and `i64` | Stop with a message; no demotion |
 | SPIR-V is not bit-identical on `W3SDS4` (v), and the cause is partly unattributed ⚠ | `spirv` needs tolerances that a large difference may not fit | Measure on a real device before fixing tolerances; `NoContraction` through inline assembly is untried |
+| 52 storage buffers in `W3SRCE` ⚠ | A device with a low limit cannot bind them | Read `maxPerStageDescriptorStorageBuffers` on the device; pack tables if needed |
 | Soft `fma64` and `sqrtf` are slow on a device ⚠ | Wall time | Replace them on PTX in Batch 6, once `fma.rn` and `sqrt.rn` are shown to give the same bits |
 | Rust-CUDA's LLVM 7 path is its legacy one (v) | A language or `core` change may stop building | Pinned nightly; kept plain; cuda-oxide is the fallback |
 | Licence | A translation of LGPL code under MPL-2.0 | The owner's decision, ADR-0006; to revisit before distribution |

@@ -34,6 +34,10 @@ sds4-cmp variant="default" depth="2500":
 st4-cmp routine="sin4" variant="default" depth="2500":
     bash scripts/rust_in_ref.sh st4_cmp {{routine}} /work/capture/{{routine}}_{{variant}}_{{depth}}m.bin
 
+# Replays W3SRCE calls of a case, every bit; needs that case's snl1, sds4, sin4 and spr4 captures
+srce-cmp tag="default_2500m":
+    bash scripts/rust_in_ref.sh srce_cmp {{tag}}
+
 # ww3-libm against the reference's glibc: every f32, and samples for two arguments
 libm-bits samples="8000000000":
     bash scripts/rust_in_ref.sh libm_bits {{samples}}

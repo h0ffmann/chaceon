@@ -16,3 +16,7 @@ w3src4md:tabu_tauhf2	model/src/w3src4md.F90:1495-1720	226	routine	TAUHFT and TAU
 constants:tabu_fw	model/src/constants.F90:119-212	94	routine	FWTABLE equal; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 constants:kzeone	model/src/constants.F90:243-406	164	routine	through FWTABLE; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 w3dispmd:wavnu2	model/src/w3dispmd.F90:203-344	142	routine	through IKTAB, positive frequency only; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
+w3srcemd:w3srce	model/src/w3srcemd.F90	2692	routine	just srce-cmp on 11 captures: 7931 calls, 0 of 7082383 values differ, for switch_chaceon_shrd; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3sln1md:w3sln1	model/src/w3sln1md.F90	216	routine	through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3sbt1md:w3sbt1	model/src/w3sbt1md.F90	246	routine	through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3sdb1md:w3sdb1	model/src/w3sdb1md.F90	343	routine	through W3SRCE on filipot and storm, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs

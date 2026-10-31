@@ -16,6 +16,10 @@ unsafe extern "C" {
     fn sincosf(x: f32, s: *mut f32, c: *mut f32);
     fn powf(x: f32, y: f32) -> f32;
     fn atan2f(y: f32, x: f32) -> f32;
+    fn exp(x: f64) -> f64;
+    fn expm1(x: f64) -> f64;
+    fn tanh(x: f64) -> f64;
+    fn sqrt(x: f64) -> f64;
 }
 
 fn sin_libm(x: f32) -> f32 {
@@ -122,9 +126,55 @@ fn pairs(name: &str, samples: u64, ours: fn(f32, f32) -> f32, theirs: fn(f32, f3
     bad
 }
 
+/// `f64` by sample: half over every bit pattern, half across the exponents `W3SDB1` meets.
+fn sample64(name: &str, samples: u64, ours: fn(f64) -> f64, theirs: fn(f64) -> f64) -> u64 {
+    let n = threads();
+    let (bad, first) = thread::scope(|sc| {
+        sum((0..n)
+            .map(|t| {
+                sc.spawn(move || {
+                    let (mut bad, mut first) = (0, None);
+                    let mut s = 0xd1b54a32d192ed03u64.wrapping_mul(t + 1);
+                    for i in 0..samples / n {
+                        s ^= s << 13;
+                        s ^= s >> 7;
+                        s ^= s << 17;
+                        let x = if i & 1 == 0 {
+                            f64::from_bits(s)
+                        } else {
+                            let e = 1000 + (s >> 52) % 60;
+                            f64::from_bits((s & 0x800f_ffff_ffff_ffff) | (e << 52))
+                        };
+                        let (a, c) = (ours(x), theirs(x));
+                        if a.to_bits() != c.to_bits() && !(a.is_nan() && c.is_nan()) {
+                            bad += 1;
+                            first.get_or_insert(format!(
+                                "x {:016x} ours {:016x} libm {:016x}",
+                                x.to_bits(),
+                                a.to_bits(),
+                                c.to_bits()
+                            ));
+                        }
+                    }
+                    (bad, first)
+                })
+            })
+            .collect())
+    });
+    println!("{name:8} {samples} samples, {bad} differ {}", first.unwrap_or_default());
+    bad
+}
+
 fn main() {
     let samples = std::env::args().nth(1).map_or(1 << 34, |s| s.parse().unwrap());
     let mut bad = 0;
+    bad += sample64("exp", samples, ww3_libm::exp, |x| unsafe { exp(x) });
+    bad += sample64("expm1", samples, ww3_libm::expm1, |x| unsafe { expm1(x) });
+    bad += sample64("tanh", samples, ww3_libm::tanh, |x| unsafe { tanh(x) });
+    bad += sample64("sqrt", samples, ww3_libm::sqrt, |x| unsafe { sqrt(x) });
+    if std::env::var_os("LIBM_F64_ONLY").is_some() {
+        std::process::exit((bad != 0) as i32);
+    }
     bad += sweep("expf", ww3_libm::expf, |x| unsafe { expf(x) });
     bad += sweep("logf", ww3_libm::logf, |x| unsafe { logf(x) });
     bad += sweep("log10f", ww3_libm::log10f, |x| unsafe { log10f(x) });

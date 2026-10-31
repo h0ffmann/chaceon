@@ -45,6 +45,10 @@ routine, not the census.
 | `w3profsmd.F90`, `w3profsmd_pdlib.F90`, `w3triamd.F90` | 211 | 214 | 8 | Unstructured solvers, device side, the largest f64 load on a GPU |
 | `w3snl4md.F90`, `w3sic3md.F90`, `w3tidemd.F90` | 81 | 140 | 7 | Other physics switches |
 
+**Measured, 2026-10-31 (v):** dropping one `W3SDB1` value to `f32` (`DSQRT` of `8.d0*DBLE(EMEAN)`)
+changes about 170 000 values of the integrated spectrum on the storm and filipot cases. The `f64` in
+`W3SDB1` is not cosmetic.
+
 ## What the device must do
 
 | Backend | f32 | f64 | What follows |

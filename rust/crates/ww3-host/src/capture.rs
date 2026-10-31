@@ -5,6 +5,7 @@ use crate::insnl1::{Snl1Tables, insnl1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Params, Spr4Point};
 use ww3_kernels::snl1::Snl1Params;
+use ww3_kernels::srce::{SrceParams, SrcePoint};
 
 /// One `W3SNL1` call: its inputs and the reference's outputs.
 pub struct Snl1Call {
@@ -379,5 +380,97 @@ impl Spr4Capture {
             calls.push(Spr4Call { point, a, cg, wn, llws, out: r.reals(12) });
         }
         Self { params, sig, dden, ecos, esin, taut, calls }
+    }
+}
+
+/// One `W3SRCE` call: its inputs and the reference's outputs. `out` holds USTAR USTDIR DTDYN FCUT TAUWX
+/// TAUWY TAUOX TAUOY TAUWIX TAUWIY TAUWNX TAUWNY PHIAW CHARN TWS PHIOC PHIBBL TAUBBL(2) TAUICE(2) PHICE
+/// TAUOCX TAUOCY WNMEAN, 25 in all.
+pub struct SrceCall {
+    pub point: SrcePoint,
+    pub spec: Vec<f32>,
+    pub wn1: Vec<f32>,
+    pub cg1: Vec<f32>,
+    pub spec_out: Vec<f32>,
+    pub out: Vec<f32>,
+    pub whitecap: Vec<f32>,
+}
+
+pub struct SrceCapture {
+    pub ints: Vec<i32>,
+    pub reals: Vec<f32>,
+    pub icescales: Vec<f32>,
+    pub calls: Vec<SrceCall>,
+}
+
+impl SrceCapture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SRCE");
+        let ints = r.ints(5);
+        let reals = r.reals(19);
+        let icescales = r.table_r().data;
+        let (nk, nspec) = (ints[0] as usize, ints[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let i = r.ints(2);
+            let f = r.reals(9);
+            let point = SrcePoint {
+                srce_call: i[0],
+                it: i[1],
+                d_inp: f[0],
+                u10abs: f[1],
+                u10dir: f[2],
+                ustar: f[3],
+                ustdir: f[4],
+                ice: f[5],
+                dtg: f[6],
+                dair: f[7],
+                coef: f[8],
+            };
+            let (spec, wn1, cg1) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let spec_out = r.reals(nspec);
+            let out = r.reals(25);
+            let whitecap = r.reals(4);
+            calls.push(SrceCall { point, spec, wn1, cg1, spec_out, out, whitecap });
+        }
+        Self { ints, reals, icescales, calls }
+    }
+
+    pub fn params(&self, snl: Snl1Params, sds: Sds4Params, sin: Sin4Params, spr: Spr4Params) -> SrceParams {
+        let (i, f) = (&self.ints, &self.reals);
+        let mut p = SrceParams {
+            nk: i[0],
+            nth: i[1],
+            nspec: i[2],
+            fdonly: i[3] as u32,
+            inflags2_4: i[4] as u32,
+            dmin: f[0],
+            dtmax: f[1],
+            dtmin: f[2],
+            facti1: f[3],
+            facti2: f[4],
+            fachfa: f[5],
+            facp: f[6],
+            xflt: f[7],
+            xrel: f[8],
+            fhmax: f[9],
+            ffxfm: f[10],
+            ffxpm: f[11],
+            ffxfa: f[12],
+            slnc1: f[13],
+            fspm: f[14],
+            fshf: f[15],
+            sbtc1: f[16],
+            sdbc1: f[17],
+            sdbc2: f[18],
+            snl,
+            sds,
+            sin,
+            spr,
+            ..Default::default()
+        };
+        p.icescales.copy_from_slice(&self.icescales);
+        p
     }
 }
