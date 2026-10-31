@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
-//! Runs a case with `W3XYP3` and `W3KTP3` in the SPIR-V that rust-gpu built. It only accepts a CPU Vulkan
-//! implementation: `AGENTS.md`, "Running on the GPU". Usage: spirv_shel <spv> <case directory>.
+//! Runs a case with `W3XYP3`, `W3KTP3` and `W3SRCE` in the SPIR-V that rust-gpu built, and `VA` resident in
+//! one device buffer. It only accepts a CPU Vulkan implementation: `AGENTS.md`, "Running on the GPU".
+//! Usage: spirv_shel <spv> <case directory>.
 
 use ash::vk;
 use std::ffi::CStr;
@@ -8,6 +9,8 @@ use ww3_host::nml::read_case;
 use ww3_host::shel::{Device, run};
 use ww3_kernels::pro3::{Ktp3Params, Ktp3Point, Ktp3Tables, Xyp3Params, Xyp3Tables};
 use ww3_kernels::real::Real;
+use ww3_kernels::sin4::{Sin4Out, Spr4Out};
+use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, work_lens, work_small};
 
 fn bytes<T>(v: &[T]) -> &[u8] {
     unsafe { std::slice::from_raw_parts(v.as_ptr().cast(), size_of_val(v)) }
@@ -36,7 +39,21 @@ struct Gpu {
     fence: vk::Fence,
     xyp3: Pipe,
     ktp3: Pipe,
+    srce: Pipe,
+    va: Option<Buffer>,
+    /// Tables that only need one upload, by pipeline.
+    tables: [bool; 3],
     dispatches: u64,
+    /// `VA` bytes moved, host to device and device to host.
+    up: u64,
+    down: u64,
+}
+
+#[derive(Clone, Copy)]
+enum Which {
+    Xyp3,
+    Ktp3,
+    Srce,
 }
 
 unsafe fn pipe(device: &ash::Device, module: vk::ShaderModule, name: &CStr, n: u32) -> Pipe {
@@ -107,8 +124,9 @@ impl Gpu {
                 .unwrap();
             let memory = instance.get_physical_device_memory_properties(phys);
             let module = device.create_shader_module(&vk::ShaderModuleCreateInfo::default().code(&words), None).unwrap();
-            let xyp3 = pipe(&device, module, c"xyp3", 40);
-            let ktp3 = pipe(&device, module, c"ktp3", 25);
+            let xyp3 = pipe(&device, module, c"xyp3", 41);
+            let ktp3 = pipe(&device, module, c"ktp3", 26);
+            let srce = pipe(&device, module, c"srce", 54);
             let pool = device
                 .create_command_pool(
                     &vk::CommandPoolCreateInfo::default()
@@ -122,7 +140,39 @@ impl Gpu {
                 .unwrap()[0];
             let fence = device.create_fence(&vk::FenceCreateInfo::default(), None).unwrap();
             let queue = device.get_device_queue(family, 0);
-            Self { device, memory, queue, cmd, fence, xyp3, ktp3, dispatches: 0 }
+            Self { device, memory, queue, cmd, fence, xyp3, ktp3, srce, va: None, tables: [false; 3], dispatches: 0, up: 0, down: 0 }
+        }
+    }
+
+    /// A host-visible storage buffer.
+    unsafe fn make(device: &ash::Device, memory: &vk::PhysicalDeviceMemoryProperties, size: usize) -> Buffer {
+        unsafe {
+            let info = vk::BufferCreateInfo::default().size(size as u64).usage(vk::BufferUsageFlags::STORAGE_BUFFER);
+            let buffer = device.create_buffer(&info, None).unwrap();
+            let req = device.get_buffer_memory_requirements(buffer);
+            let wanted = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+            let index = (0..memory.memory_type_count)
+                .find(|t| {
+                    req.memory_type_bits & (1 << t) != 0 && memory.memory_types[*t as usize].property_flags.contains(wanted)
+                })
+                .unwrap();
+            let alloc = vk::MemoryAllocateInfo::default().allocation_size(req.size).memory_type_index(index);
+            let mem = device.allocate_memory(&alloc, None).unwrap();
+            device.bind_buffer_memory(buffer, mem, 0).unwrap();
+            let map = device.map_memory(mem, 0, req.size, vk::MemoryMapFlags::empty()).unwrap().cast();
+            Buffer { buffer, memory: mem, size, map }
+        }
+    }
+
+    unsafe fn bind(device: &ash::Device, set: vk::DescriptorSet, i: usize, buffer: vk::Buffer, size: usize) {
+        unsafe {
+            let info = [vk::DescriptorBufferInfo { buffer, offset: 0, range: size as u64 }];
+            let write = vk::WriteDescriptorSet::default()
+                .dst_set(set)
+                .dst_binding(i as u32)
+                .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                .buffer_info(&info);
+            device.update_descriptor_sets(&[write], &[]);
         }
     }
 
@@ -134,130 +184,205 @@ impl Gpu {
                     device.destroy_buffer(b.buffer, None);
                     device.free_memory(b.memory, None);
                 }
-                let info = vk::BufferCreateInfo::default().size(size as u64).usage(vk::BufferUsageFlags::STORAGE_BUFFER);
-                let buffer = device.create_buffer(&info, None).unwrap();
-                let req = device.get_buffer_memory_requirements(buffer);
-                let wanted = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-                let index = (0..memory.memory_type_count)
-                    .find(|t| {
-                        req.memory_type_bits & (1 << t) != 0
-                            && memory.memory_types[*t as usize].property_flags.contains(wanted)
-                    })
-                    .unwrap();
-                let alloc = vk::MemoryAllocateInfo::default().allocation_size(req.size).memory_type_index(index);
-                let mem = device.allocate_memory(&alloc, None).unwrap();
-                device.bind_buffer_memory(buffer, mem, 0).unwrap();
-                let map = device.map_memory(mem, 0, req.size, vk::MemoryMapFlags::empty()).unwrap().cast();
-                p.buffers[i] = Some(Buffer { buffer, memory: mem, size, map });
-                let info = [vk::DescriptorBufferInfo { buffer, offset: 0, range: size as u64 }];
-                let write = vk::WriteDescriptorSet::default()
-                    .dst_set(p.set)
-                    .dst_binding(i as u32)
-                    .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                    .buffer_info(&info);
-                device.update_descriptor_sets(&[write], &[]);
+                let b = Self::make(device, memory, size);
+                Self::bind(device, p.set, i, b.buffer, size);
+                p.buffers[i] = Some(b);
             }
             p.buffers[i].as_ref().unwrap().map
         }
     }
 
-    fn put(&mut self, kt: bool, i: usize, data: &[u8]) {
-        let p = if kt { &mut self.ktp3 } else { &mut self.xyp3 };
+    /// The one resident `VA`, bound into all three pipelines.
+    fn va_bind(&mut self, size: usize) {
+        if self.va.is_some() {
+            return;
+        }
         unsafe {
-            let map = Self::slot(&self.device, &self.memory, p, i, data.len().max(4));
+            let b = Self::make(&self.device, &self.memory, size);
+            Self::bind(&self.device, self.xyp3.set, 40, b.buffer, size);
+            Self::bind(&self.device, self.ktp3.set, 14, b.buffer, size);
+            Self::bind(&self.device, self.srce.set, 26, b.buffer, size);
+            self.va = Some(b);
+        }
+    }
+
+    fn pipe_of(&mut self, w: Which) -> &mut Pipe {
+        match w {
+            Which::Xyp3 => &mut self.xyp3,
+            Which::Ktp3 => &mut self.ktp3,
+            Which::Srce => &mut self.srce,
+        }
+    }
+
+    fn put(&mut self, w: Which, i: usize, data: &[u8]) {
+        let (device, memory) = (self.device.clone(), self.memory);
+        let p = self.pipe_of(w);
+        unsafe {
+            let map = Self::slot(&device, &memory, p, i, data.len().max(4));
             std::ptr::copy_nonoverlapping(data.as_ptr(), map, data.len());
         }
     }
 
-    fn scratch(&mut self, kt: bool, i: usize, size: usize) {
-        let p = if kt { &mut self.ktp3 } else { &mut self.xyp3 };
+    fn scratch(&mut self, w: Which, i: usize, size: usize) {
+        let (device, memory) = (self.device.clone(), self.memory);
+        let p = self.pipe_of(w);
         unsafe {
-            Self::slot(&self.device, &self.memory, p, i, size.max(4));
+            Self::slot(&device, &memory, p, i, size.max(4));
         }
     }
 
-    fn get(&self, kt: bool, i: usize, out: &mut [Real]) {
-        let p = if kt { &self.ktp3 } else { &self.xyp3 };
+    fn get<T>(&mut self, w: Which, i: usize, out: &mut [T]) {
+        let p = self.pipe_of(w);
         let b = p.buffers[i].as_ref().unwrap();
-        unsafe { std::ptr::copy_nonoverlapping(b.map, out.as_mut_ptr().cast(), size_of_val(out)) }
+        unsafe { std::ptr::copy_nonoverlapping(b.map, out.as_mut_ptr().cast::<u8>(), size_of_val(out)) }
     }
 
-    fn run(&mut self, kt: bool, n: usize) {
-        let p = if kt { &self.ktp3 } else { &self.xyp3 };
-        let d = &self.device;
+    fn run(&mut self, w: Which, n: usize) {
+        let (cmd, queue, fence) = (self.cmd, self.queue, self.fence);
+        let d = self.device.clone();
+        let p = self.pipe_of(w);
+        let (pipeline, layout, set) = (p.pipeline, p.layout, p.set);
         unsafe {
-            d.reset_command_buffer(self.cmd, vk::CommandBufferResetFlags::empty()).unwrap();
-            d.begin_command_buffer(self.cmd, &vk::CommandBufferBeginInfo::default()).unwrap();
-            d.cmd_bind_pipeline(self.cmd, vk::PipelineBindPoint::COMPUTE, p.pipeline);
-            d.cmd_bind_descriptor_sets(self.cmd, vk::PipelineBindPoint::COMPUTE, p.layout, 0, &[p.set], &[]);
-            d.cmd_dispatch(self.cmd, n.div_ceil(64) as u32, 1, 1);
-            d.end_command_buffer(self.cmd).unwrap();
-            let cmds = [self.cmd];
-            d.queue_submit(self.queue, &[vk::SubmitInfo::default().command_buffers(&cmds)], self.fence).unwrap();
-            d.wait_for_fences(&[self.fence], true, u64::MAX).unwrap();
-            d.reset_fences(&[self.fence]).unwrap();
+            d.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty()).unwrap();
+            d.begin_command_buffer(cmd, &vk::CommandBufferBeginInfo::default()).unwrap();
+            d.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::COMPUTE, pipeline);
+            d.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::COMPUTE, layout, 0, &[set], &[]);
+            d.cmd_dispatch(cmd, n.div_ceil(64) as u32, 1, 1);
+            d.end_command_buffer(cmd).unwrap();
+            let cmds = [cmd];
+            d.queue_submit(queue, &[vk::SubmitInfo::default().command_buffers(&cmds)], fence).unwrap();
+            d.wait_for_fences(&[fence], true, u64::MAX).unwrap();
+            d.reset_fences(&[fence]).unwrap();
         }
         self.dispatches += 1;
     }
 }
 
 impl Device for Gpu {
-    fn xyp3(&mut self, p: &Xyp3Params, t: &Xyp3Tables, dtg: Real, yfirst: bool, comps: usize, vq: &mut [Real]) {
-        let (nx, ny, nsea) = (p.nx as usize, p.ny as usize, p.nsea as usize);
-        self.put(false, 0, bytes(std::slice::from_ref(p)));
-        self.put(false, 1, bytes(&[comps as i32, yfirst as i32]));
-        self.put(false, 2, bytes(&[dtg]));
-        let tables: [&[u8]; 22] = [
-            bytes(t.sig), bytes(t.ecos), bytes(t.esin), bytes(t.mapsf), bytes(t.mapsta), bytes(t.mapstx),
-            bytes(t.mapaxy), bytes(t.mapcxy), bytes(t.mapx2), bytes(t.mapy2), bytes(t.maptrn), bytes(t.clats),
-            bytes(t.dpdx), bytes(t.dpdy), bytes(t.dqdx), bytes(t.dqdy), bytes(t.gsqrt), bytes(t.cg), bytes(t.cx),
-            bytes(t.cy), bytes(t.atrnx), bytes(t.atrny),
-        ];
-        for (i, b) in tables.iter().enumerate() {
-            self.put(false, 3 + i, b);
-        }
-        self.put(false, 25, bytes(vq));
-        for i in 26..34 {
-            self.scratch(false, i, 4 * nsea * comps);
-        }
-        self.scratch(false, 34, 4 * (nx + 1) * ny * comps);
-        self.scratch(false, 35, 4 * (nx + 1) * ny * comps);
-        self.scratch(false, 36, 4 * (nx + 1) * ny * comps);
-        self.scratch(false, 37, 4 * nx * ny * comps);
-        self.scratch(false, 38, 4 * (nx + 3) * ny * comps);
-        self.scratch(false, 39, 4 * (nx + 1) * ny * comps);
-        self.run(false, comps);
-        self.get(false, 25, vq);
+    fn va_write(&mut self, va: &[Real]) {
+        self.va_bind(size_of_val(va));
+        let b = self.va.as_ref().unwrap();
+        unsafe { std::ptr::copy_nonoverlapping(va.as_ptr().cast::<u8>(), b.map, size_of_val(va)) };
+        self.up += size_of_val(va) as u64;
     }
 
-    fn ktp3(&mut self, p: &Ktp3Params, t: &Ktp3Tables, pts: &[Ktp3Point], cg: &[Real], wn: &[Real], va: &mut [Real]) {
-        if pts.is_empty() {
-            return;
+    fn va_read(&mut self, va: &mut [Real]) {
+        let b = self.va.as_ref().unwrap();
+        unsafe { std::ptr::copy_nonoverlapping(b.map, va.as_mut_ptr().cast::<u8>(), size_of_val(va)) };
+        self.down += size_of_val(va) as u64;
+    }
+
+    fn whitecap_read(&mut self, w: &mut [Real]) {
+        if self.srce.buffers[50].is_some() {
+            self.get(Which::Srce, 50, w);
         }
+    }
+
+    fn xyp3(&mut self, p: &Xyp3Params, t: &Xyp3Tables, dtg: Real, yfirst: bool, nspec: usize) {
+        let (nx, ny, nsea) = (p.nx as usize, p.ny as usize, p.nsea as usize);
+        let w = Which::Xyp3;
+        self.put(w, 0, bytes(std::slice::from_ref(p)));
+        self.put(w, 1, bytes(&[nspec as i32, yfirst as i32]));
+        self.put(w, 2, bytes(&[dtg]));
+        self.put(w, 21, bytes(t.cx));
+        self.put(w, 22, bytes(t.cy));
+        if !self.tables[0] {
+            self.tables[0] = true;
+            let tables: [(usize, &[u8]); 20] = [
+                (3, bytes(t.sig)), (4, bytes(t.ecos)), (5, bytes(t.esin)), (6, bytes(t.mapsf)), (7, bytes(t.mapsta)),
+                (8, bytes(t.mapstx)), (9, bytes(t.mapaxy)), (10, bytes(t.mapcxy)), (11, bytes(t.mapx2)),
+                (12, bytes(t.mapy2)), (13, bytes(t.maptrn)), (14, bytes(t.clats)), (15, bytes(t.dpdx)),
+                (16, bytes(t.dpdy)), (17, bytes(t.dqdx)), (18, bytes(t.dqdy)), (19, bytes(t.gsqrt)), (20, bytes(t.cg)),
+                (23, bytes(t.atrnx)), (24, bytes(t.atrny)),
+            ];
+            for (i, b) in tables {
+                self.put(w, i, b);
+            }
+            self.scratch(w, 25, 4 * (nx + 3) * ny * nspec);
+            for i in 26..34 {
+                self.scratch(w, i, 4 * nsea * nspec);
+            }
+            self.scratch(w, 34, 4 * (nx + 1) * ny * nspec);
+            self.scratch(w, 35, 4 * (nx + 1) * ny * nspec);
+            self.scratch(w, 36, 4 * (nx + 1) * ny * nspec);
+            self.scratch(w, 37, 4 * nx * ny * nspec);
+            self.scratch(w, 38, 4 * (nx + 3) * ny * nspec);
+            self.scratch(w, 39, 4 * (nx + 1) * ny * nspec);
+        }
+        self.run(w, nspec);
+    }
+
+    fn ktp3(&mut self, p: &Ktp3Params, t: &Ktp3Tables, pts: &[Ktp3Point], active: &[u32], cg: &[Real], wn: &[Real]) {
         let (nk, nth, n) = (p.nk as usize, p.nth as usize, pts.len());
         let nk2 = nk + 2;
-        self.put(true, 0, bytes(std::slice::from_ref(p)));
-        self.put(true, 1, bytes(pts));
-        let tables: [&[u8]; 12] = [
-            bytes(t.sig), bytes(t.dsip), bytes(t.ecos), bytes(t.esin), bytes(t.ec2), bytes(t.esc), bytes(t.es2),
-            bytes(t.mapwn), bytes(t.mapth2), bytes(t.mapwn2), bytes(cg), bytes(wn),
-        ];
-        for (i, b) in tables.iter().enumerate() {
-            self.put(true, 2 + i, b);
+        let w = Which::Ktp3;
+        self.put(w, 0, bytes(std::slice::from_ref(p)));
+        self.put(w, 1, bytes(pts));
+        if !self.tables[1] {
+            self.tables[1] = true;
+            let tables: [&[u8]; 12] = [
+                bytes(t.sig), bytes(t.dsip), bytes(t.ecos), bytes(t.esin), bytes(t.ec2), bytes(t.esc), bytes(t.es2),
+                bytes(t.mapwn), bytes(t.mapth2), bytes(t.mapwn2), bytes(cg), bytes(wn),
+            ];
+            for (i, b) in tables.iter().enumerate() {
+                self.put(w, 2 + i, b);
+            }
+            self.put(w, 25, bytes(active));
+            self.scratch(w, 15, 4 * nk2 * n);
+            self.scratch(w, 16, 4 * nk * n);
+            self.scratch(w, 17, 4 * nk * n);
+            self.scratch(w, 18, 4 * nth * n);
+            self.scratch(w, 19, 4 * nk2 * (nth + 3) * n);
+            self.scratch(w, 20, 4 * nk2 * (nth + 1) * n);
+            self.scratch(w, 21, 4 * nk2 * (nth + 2) * n);
+            self.scratch(w, 22, 4 * nk2 * (nth + 1) * n);
+            self.scratch(w, 23, 4 * nk2 * nth * n);
+            self.scratch(w, 24, 4 * nk2 * (nth + 1) * n);
         }
-        self.put(true, 14, bytes(va));
-        self.scratch(true, 15, 4 * nk2 * n);
-        self.scratch(true, 16, 4 * nk * n);
-        self.scratch(true, 17, 4 * nk * n);
-        self.scratch(true, 18, 4 * nth * n);
-        self.scratch(true, 19, 4 * nk2 * (nth + 3) * n);
-        self.scratch(true, 20, 4 * nk2 * (nth + 1) * n);
-        self.scratch(true, 21, 4 * nk2 * (nth + 2) * n);
-        self.scratch(true, 22, 4 * nk2 * (nth + 1) * n);
-        self.scratch(true, 23, 4 * nk2 * nth * n);
-        self.scratch(true, 24, 4 * nk2 * (nth + 1) * n);
-        self.run(true, n);
-        self.get(true, 14, va);
+        self.run(w, n);
+    }
+
+    fn srce(
+        &mut self,
+        p: &SrceParams,
+        t: &SrceTables,
+        pts: &[SrcePoint],
+        active: &[u32],
+        wn1: &[Real],
+        cg1: &[Real],
+        out: &mut [SrceOut],
+    ) {
+        let (n, nspec) = (pts.len(), p.nspec as usize);
+        let w = Which::Srce;
+        self.put(w, 23, bytes(pts));
+        if !self.tables[2] {
+            self.tables[2] = true;
+            let (l_snl, l_sds, l_ids) = work_lens(p);
+            let tables: [(usize, &[u8]); 26] = [
+                (0, bytes(std::slice::from_ref(p))), (1, bytes(t.sig)), (2, bytes(t.sig2)), (3, bytes(t.dden)),
+                (4, bytes(t.dden2)), (5, bytes(t.ec2)), (6, bytes(t.es2)), (7, bytes(t.esc)), (8, bytes(t.ecos)),
+                (9, bytes(t.esin)), (10, bytes(t.af11)), (11, bytes(t.pm)), (12, bytes(t.ic)),
+                (13, bytes(t.satindices)), (14, bytes(t.satweights)), (15, bytes(t.cumulw)), (16, bytes(t.iktab)),
+                (17, bytes(t.dcki)), (18, bytes(t.qbi)), (19, bytes(t.fwtable)), (20, bytes(t.tauhft)),
+                (21, bytes(t.tauhft2)), (22, bytes(t.taut)), (24, bytes(wn1)), (25, bytes(cg1)), (53, bytes(active)),
+            ];
+            for (i, b) in tables {
+                self.put(w, i, b);
+            }
+            self.scratch(w, 27, n * size_of::<SrceOut>());
+            for i in 28..46 {
+                self.scratch(w, i, n * nspec * 4);
+            }
+            self.scratch(w, 46, n * l_snl * 4);
+            self.scratch(w, 47, n * l_sds * 4);
+            self.scratch(w, 48, n * l_ids * 4);
+            self.scratch(w, 49, n * work_small(p) * 4);
+            self.scratch(w, 50, n * 16);
+            self.scratch(w, 51, n * size_of::<Sin4Out>());
+            self.scratch(w, 52, n * size_of::<Spr4Out>());
+        }
+        self.run(w, n);
+        self.get(w, 27, out);
     }
 }
 
@@ -268,4 +393,5 @@ fn main() {
     let (m, r) = read_case(&dir);
     run(&m, r, &dir, Some(&mut gpu));
     println!("{} dispatches", gpu.dispatches);
+    println!("VA moved: {} bytes to the device, {} bytes to the host", gpu.up, gpu.down);
 }

@@ -6,7 +6,7 @@
 use spirv_std::glam::UVec3;
 use spirv_std::spirv;
 use ww3_kernels::pro3::{
-    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3,
+    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
@@ -205,9 +205,10 @@ pub fn srce(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 50)] whitecap: &mut [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 51)] sin_out: &mut [Sin4Out],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 52)] spr_out: &mut [Spr4Out],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 53)] active: &[u32],
 ) {
     let point = id.x as usize;
-    if point >= points.len() {
+    if point >= points.len() || active[point] == 0 {
         return;
     }
     let pt = points[point];
@@ -262,6 +263,7 @@ pub fn xyp3(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 37)] cytot: &mut [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 38)] aq: &mut [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 39)] fla: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 40)] va: &mut [Real],
 ) {
     let comp = id.x as usize;
     if comp as i32 >= call[0] {
@@ -269,7 +271,7 @@ pub fn xyp3(
     }
     let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapstx, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, cx, cy, atrnx, atrny };
     let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, vlcflx, vlcfly, cxtot, cytot, aq, fla };
-    w3xyp3(p, &t, comp as i32 + 1, *dtg, call[1] != 0, comp, vq, &mut w);
+    w3xyp3_va(p, &t, comp as i32 + 1, *dtg, call[1] != 0, comp, call[0] as usize, 0, va, vq, &mut w);
 }
 
 /// One thread per active sea point.
@@ -302,9 +304,10 @@ pub fn ktp3(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 22)] vcflt: &mut [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 23)] cflk: &mut [Real],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 24)] fla: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 25)] active: &[u32],
 ) {
     let point = id.x as usize;
-    if point >= points.len() {
+    if point >= points.len() || active[point] == 0 {
         return;
     }
     let t = Ktp3Tables { sig, dsip, ecos, esin, ec2, esc, es2, mapwn, mapth2, mapwn2 };

@@ -8,7 +8,7 @@
 //! The kernels run on the CPU here, or propagation runs through a `Device`.
 
 use crate::grid::{Maps, Metrics, unpack, w3dzxy, w3map3, w3mapt, w3utrn};
-use crate::insin4::wavnu2_cg;
+use crate::disp::Dispersion;
 use crate::iogo::{self, Grd, Input};
 use crate::iors::{self, State};
 use crate::moddef::{ModDef, Records};
@@ -19,15 +19,13 @@ use std::io::{BufWriter, Write};
 use ww3_kernels::constants::{DAIR, DERA, GRAV, PI, RADIUS, TPI, TPIINV};
 use ww3_kernels::nint;
 use ww3_kernels::pro3::{
-    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3,
+    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3, w3xyp3_va,
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sin4::{Sin4Out, Spr4Out};
-use ww3_kernels::srce::{SRCE_DIRECT, SrceOut, SrcePoint, SrceWork, w3srce, work_lens, work_small};
+use ww3_kernels::srce::{SRCE_DIRECT, SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce, work_lens, work_small};
 use ww3_libm::{atan2f, atanf, sincosf, sqrtf};
 
-const NAR1D: usize = 121;
-const DFAC: Real = 6.;
 const UNDEF: Real = -999.9;
 const U10MIN: Real = 1.;
 const U10MAX: Real = 20.;
@@ -48,45 +46,132 @@ pub struct Run {
     pub flogrd: (bool, bool),
     /// `TYPE%FIELD%LIST`.
     pub fields: String,
+    /// `--threads`: how many CPU threads share the per-point and per-component loops. 1 takes the serial path.
+    pub threads: usize,
 }
 
-/// `DISTAB`'s tables and `WAVNU1`.
-struct Dispersion {
-    dsie: Real,
-    n1max: i32,
-    ewn1: Vec<Real>,
-    ecg1: Vec<Real>,
+/// Hands `items` to `scratch.len()` threads round-robin, each with its own scratch, and joins them.
+/// Every item is a sea point or a component whose results land in its own slices, so the result does not
+/// depend on the thread count.
+fn spread<S: Send, T: Send>(scratch: &mut [S], items: impl Iterator<Item = T>, f: impl Fn(&mut S, T) + Sync) {
+    let n = scratch.len();
+    let mut bins: Vec<Vec<T>> = (0..n).map(|_| Vec::new()).collect();
+    for (i, it) in items.enumerate() {
+        bins[i % n].push(it);
+    }
+    let f = &f;
+    std::thread::scope(|sc| {
+        for (w, bin) in scratch.iter_mut().zip(bins) {
+            sc.spawn(move || {
+                for it in bin {
+                    f(w, it);
+                }
+            });
+        }
+    });
 }
 
-impl Dispersion {
-    fn new() -> Self {
-        let n1max = NAR1D as i32 - 1;
-        let simax = sqrtf(GRAV * DFAC);
-        let dsie = simax / n1max as Real;
-        let (mut ewn1, mut ecg1) = (vec![0.; NAR1D + 1], vec![0.; NAR1D + 1]);
-        ecg1[0] = sqrtf(GRAV);
-        for i in 1..=n1max + 1 {
-            let (k, cg) = wavnu2_cg(i as Real * dsie, 1., 1.0e-7, 15);
-            ewn1[i as usize] = k;
-            ecg1[i as usize] = cg;
-        }
-        Self { dsie, n1max, ewn1, ecg1 }
-    }
+/// One thread's `W3KTP3` work arrays.
+struct KtpScratch {
+    dsdd: Vec<Real>,
+    frk: Vec<Real>,
+    frg: Vec<Real>,
+    fkc: Vec<Real>,
+    vq: Vec<Real>,
+    db: Vec<Real>,
+    dm: Vec<Real>,
+    vcflt: Vec<Real>,
+    cflk: Vec<Real>,
+    fla: Vec<Real>,
+}
 
-    fn wavnu1(&self, si: Real, h: Real) -> (Real, Real) {
-        let sqrth = sqrtf(h);
-        let six = si * sqrth;
-        let i1 = (six / self.dsie) as i32;
-        if i1 <= self.n1max && i1 >= 1 {
-            let i2 = i1 + 1;
-            let r1 = six / self.dsie - i1 as Real;
-            let r2 = 1. - r1;
-            let (a, b) = (i1 as usize, i2 as usize);
-            ((r2 * self.ewn1[a] + r1 * self.ewn1[b]) / h, (r2 * self.ecg1[a] + r1 * self.ecg1[b]) * sqrth)
-        } else {
-            (si * si / GRAV, 0.5 * GRAV / si)
+impl KtpScratch {
+    fn new(nk: usize, nth: usize) -> Self {
+        let nk2 = nk + 2;
+        Self {
+            dsdd: vec![0.; nk2],
+            frk: vec![0.; nk],
+            frg: vec![0.; nk],
+            fkc: vec![0.; nth],
+            vq: vec![0.; nk2 * (nth + 3)],
+            db: vec![0.; nk2 * (nth + 1)],
+            dm: vec![0.; nk2 * (nth + 2)],
+            vcflt: vec![0.; nk2 * (nth + 1)],
+            cflk: vec![0.; nk2 * nth],
+            fla: vec![0.; nk2 * (nth + 1)],
         }
     }
+}
+
+/// One thread's `W3XYP3` work arrays and its gathered field.
+struct XypScratch {
+    iixy: [Vec<i32>; 4],
+    rdi: [Vec<Real>; 4],
+    vlcflx: Vec<Real>,
+    vlcfly: Vec<Real>,
+    cxtot: Vec<Real>,
+    cytot: Vec<Real>,
+    field: Vec<Real>,
+    aq: Vec<Real>,
+    fla: Vec<Real>,
+}
+
+impl XypScratch {
+    fn new(nx: usize, ny: usize, nsea: usize) -> Self {
+        Self {
+            iixy: std::array::from_fn(|_| vec![0; nsea]),
+            rdi: std::array::from_fn(|_| vec![0.; nsea]),
+            vlcflx: vec![0.; (nx + 1) * ny],
+            vlcfly: vec![0.; (nx + 1) * ny],
+            cxtot: vec![0.; (nx + 1) * ny],
+            cytot: vec![0.; nx * ny],
+            field: vec![0.; ny * (nx + 3)],
+            aq: vec![0.; ny * (nx + 3)],
+            fla: vec![0.; ny * (nx + 1)],
+        }
+    }
+}
+
+/// One thread's `W3SRCE` scratch.
+struct SrceScratch {
+    bufs: Vec<Vec<Real>>,
+    llws: Vec<u32>,
+    w_snl: Vec<Real>,
+    w_sds: Vec<Real>,
+    iw_sds: Vec<i32>,
+    w_small: Vec<Real>,
+    sin_out: [Sin4Out; 1],
+    spr_out: [Spr4Out; 1],
+    out: [SrceOut; 1],
+}
+
+impl SrceScratch {
+    fn new(p: &SrceParams, nspec: usize) -> Self {
+        let (l_snl, l_sds, l_ids) = work_lens(p);
+        Self {
+            bufs: (0..17).map(|_| vec![0.; nspec]).collect(),
+            llws: vec![0u32; nspec],
+            w_snl: vec![0.; l_snl],
+            w_sds: vec![0.; l_sds],
+            iw_sds: vec![0i32; l_ids],
+            w_small: vec![0.; work_small(p)],
+            sin_out: [Sin4Out::default()],
+            spr_out: [Spr4Out::default()],
+            out: [SrceOut::default()],
+        }
+    }
+}
+
+/// One sea point of `W3SRCE` with the slices it writes.
+struct SrceTask<'a> {
+    isea: usize,
+    spec: &'a mut [Real],
+    whitecap: &'a mut [Real],
+    ust: &'a mut Real,
+    ustdir: &'a mut Real,
+    dtdyn: &'a mut Real,
+    fcut: &'a mut Real,
+    src: &'a mut SrceOut,
 }
 
 /// Where a forcing field comes from.
@@ -403,6 +488,12 @@ fn iopp(m: &ModDef, mapsta: &[i32], pts: &[(Real, Real, String)]) -> Vec<Point> 
     v
 }
 
+/// Which sea points `W3KTP3` and `W3SRCE` act on.
+fn active_of(m: &ModDef, mapsta: &[i32]) -> Vec<u32> {
+    let nsea = m.nsea as usize;
+    (0..nsea).map(|i| (mapsta[(m.mapsf[i + 2 * nsea] - 1) as usize] == 1) as u32).collect()
+}
+
 /// `MAPSTX`: `MAPSTA` with two ghost columns on each side.
 fn mapstx_fill(m: &ModDef, mapsta: &[i32], x: &mut [i32]) {
     let (nx, ny) = (m.nx as usize, m.ny as usize);
@@ -493,12 +584,27 @@ fn odd_step(time: Time, dtg: Real) -> i32 {
     nint(dttst as Real / dtg) % 2
 }
 
-/// Runs propagation somewhere other than the CPU. `xyp3` advances every component, `vq` holding
-/// `Q(1-NY:NY*(NX+2))` of each in turn; `ktp3` advances every sea point of `pts`, with one block per point
-/// in `cg`, `wn` and `va`.
+/// Runs the spectrum's kernels somewhere other than the CPU, with `VA` resident there. `va` is
+/// `(NSPEC,1:NSEA)`, and `cg`, `wn`, `cg1`, `wn1` and every point list have one block per sea point; an
+/// entry of `active` is 0 where `MAPSTA` is not 1.
 pub trait Device {
-    fn xyp3(&mut self, p: &Xyp3Params, t: &Xyp3Tables, dtg: Real, yfirst: bool, comps: usize, vq: &mut [Real]);
-    fn ktp3(&mut self, p: &Ktp3Params, t: &Ktp3Tables, pts: &[Ktp3Point], cg: &[Real], wn: &[Real], va: &mut [Real]);
+    fn va_write(&mut self, va: &[Real]);
+    fn va_read(&mut self, va: &mut [Real]);
+    fn whitecap_read(&mut self, w: &mut [Real]);
+    fn xyp3(&mut self, p: &Xyp3Params, t: &Xyp3Tables, dtg: Real, yfirst: bool, nspec: usize);
+    #[allow(clippy::too_many_arguments)]
+    fn ktp3(&mut self, p: &Ktp3Params, t: &Ktp3Tables, pts: &[Ktp3Point], active: &[u32], cg: &[Real], wn: &[Real]);
+    #[allow(clippy::too_many_arguments)]
+    fn srce(
+        &mut self,
+        p: &SrceParams,
+        t: &SrceTables,
+        pts: &[SrcePoint],
+        active: &[u32],
+        wn1: &[Real],
+        cg1: &[Real],
+        out: &mut [SrceOut],
+    );
 }
 
 /// Runs the case. Writes `out_grd.ww3`, `out_pnt.ww3` and `restartNNN.ww3` into `dir`.
@@ -591,7 +697,15 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
     let (mut db, mut dm) = (vec![0.; nk2 * (nth + 1)], vec![0.; nk2 * (nth + 2)]);
     let (mut vcflt, mut cflk) = (vec![0.; nk2 * (nth + 1)], vec![0.; nk2 * nth]);
     let mut fla_k = vec![0.; nk2 * (nth + 1)];
-    let mut all: Vec<Real> = Vec::new();
+
+    // `--threads`: one scratch set per thread; the serial path above stays the one `--threads 1` takes.
+    let par = r.threads > 1 && device.is_none();
+    let nthr = if par { r.threads } else { 0 };
+    let mut ktp_s: Vec<KtpScratch> = (0..nthr).map(|_| KtpScratch::new(nk, nth)).collect();
+    let mut xyp_s: Vec<XypScratch> = (0..nthr).map(|_| XypScratch::new(nx, ny, nsea)).collect();
+    let mut srce_s: Vec<SrceScratch> = (0..nthr).map(|_| SrceScratch::new(&p, nspec)).collect();
+    // The components of `W3XYP3`, one column of `NSEA` values each, between its gather and its scatter.
+    let mut xyp_cols: Vec<Real> = vec![0.; if par { nsea * nspec } else { 0 }];
 
     let mut mp = Maps::default();
     let (mut atrnx, mut atrny) = (vec![1.; 3 * nxy], vec![1.; 3 * nxy]);
@@ -599,6 +713,14 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
     let (mut dddx, mut dddy) = (vec![0.; nxy], vec![0.; nxy]);
 
     // W3INIT's output timing, for J = 1, 2, 4. J = 1 writes nothing here, but it splits the time loop.
+    if let Some(d) = device.as_deref_mut() {
+        d.va_write(&s.va[nspec..]);
+    }
+    let (mut wn1, mut cg1) = (Vec::with_capacity(nk * nsea), Vec::with_capacity(nk * nsea));
+    for isea in 1..=nsea {
+        wn1.extend_from_slice(&wn[nk2 * isea + 1..nk2 * isea + nk + 1]);
+        cg1.extend_from_slice(&cg[nk2 * isea + 1..nk2 * isea + nk + 1]);
+    }
     let mut time = r.time0;
     const JS: [usize; 3] = [1, 2, 4];
     let mut tonext = [r.field.0, r.point.0, r.restart.0];
@@ -773,6 +895,9 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                 if fliwnd {
                     w3uini(m, &metrics, &u10, &u10d, &cg, &mut s.va);
                     fliwnd = false;
+                    if let Some(d) = device.as_deref_mut() {
+                        d.va_write(&s.va[nspec..]);
+                    }
                 }
                 if flmap {
                     mapstx_fill(m, &mapsta, &mut mapstx);
@@ -815,14 +940,38 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                     let mut spectral = |va: &mut [Real], n: i32, device: &mut Option<&mut dyn Device>| {
                         for _ in 0..n {
                             if let Some(d) = device.as_deref_mut() {
-                                let (mut pts, mut ids) = (Vec::new(), Vec::new());
-                                let (mut cgb, mut wnb, mut vab) = (Vec::new(), Vec::new(), Vec::new());
-                                for isea in 1..=nsea {
+                                let pts: Vec<_> = (1..=nsea)
+                                    .map(|isea| {
+                                        let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                        Ktp3Point {
+                                            itime,
+                                            facth,
+                                            fack,
+                                            cthg0: m.cthg0s[isea - 1],
+                                            dw: m.dmin.max(dw[isea]),
+                                            dddx: dddx[c],
+                                            dddy: dddy[c],
+                                            cx: cx[isea],
+                                            cy: cy[isea],
+                                            dcxdx: dcxdx[c],
+                                            dcxdy: dcxdy[c],
+                                            dcydx: dcydx[c],
+                                            dcydy: dcydy[c],
+                                        }
+                                    })
+                                    .collect();
+                                let act = active_of(m, &mapsta);
+                                d.ktp3(&kp, &kt, &pts, &act, &cg[nk2..], &wn[nk2..]);
+                                continue;
+                            }
+                            if par {
+                                let tasks = va.chunks_mut(nspec).enumerate().skip(1).take(nsea);
+                                spread(&mut ktp_s, tasks, |sc, (isea, spec)| {
                                     let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
                                     if mapsta[c] != 1 {
-                                        continue;
+                                        return;
                                     }
-                                    pts.push(Ktp3Point {
+                                    let q = Ktp3Point {
                                         itime,
                                         facth,
                                         fack,
@@ -836,17 +985,30 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                                         dcxdy: dcxdy[c],
                                         dcydx: dcydx[c],
                                         dcydy: dcydy[c],
-                                    });
-                                    ids.push(isea);
-                                    cgb.extend_from_slice(&cg[nk2 * isea..nk2 * (isea + 1)]);
-                                    wnb.extend_from_slice(&wn[nk2 * isea..nk2 * (isea + 1)]);
-                                    vab.extend_from_slice(&va[nspec * isea..nspec * (isea + 1)]);
-                                }
-                                d.ktp3(&kp, &kt, &pts, &cgb, &wnb, &mut vab);
-                                for (b, isea) in ids.iter().enumerate() {
-                                    va[nspec * isea..nspec * (isea + 1)]
-                                        .copy_from_slice(&vab[nspec * b..nspec * (b + 1)]);
-                                }
+                                    };
+                                    let mut w = Ktp3Work {
+                                        dsdd: &mut sc.dsdd,
+                                        frk: &mut sc.frk,
+                                        frg: &mut sc.frg,
+                                        fkc: &mut sc.fkc,
+                                        vq: &mut sc.vq,
+                                        db: &mut sc.db,
+                                        dm: &mut sc.dm,
+                                        vcflt: &mut sc.vcflt,
+                                        cflk: &mut sc.cflk,
+                                        fla: &mut sc.fla,
+                                    };
+                                    w3ktp3(
+                                        &kp,
+                                        &kt,
+                                        &q,
+                                        0,
+                                        &cg[nk2 * isea..nk2 * (isea + 1)],
+                                        &wn[nk2 * isea..nk2 * (isea + 1)],
+                                        spec,
+                                        &mut w,
+                                    );
+                                });
                                 continue;
                             }
                             for isea in 1..=nsea {
@@ -934,57 +1096,76 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                             atrnx: &atrnx,
                             atrny: &atrny,
                         };
-                        let base = ny - 1;
                         if let Some(d) = device.as_deref_mut() {
-                            let lq = ny * (nx + 3);
-                            all.resize(lq * nspec, 0.);
-                            all.fill(0.);
-                            for isea in 1..=nsea {
-                                let ixy = m.mapsf[isea - 1 + 2 * nsea] as usize;
-                                for ispec in 0..nspec {
-                                    all[lq * ispec + ixy + base] = s.va[ispec + nspec * isea];
+                            d.xyp3(&px, &tb, dtg, yfirst, nspec);
+                        } else if par {
+                            // W3GATH, W3XYP3 and W3SCAT of `w3xyp3_va`, split so that no thread writes
+                            // `va` by component: each thread gathers its components from `va` (read only)
+                            // and leaves the result in its own column; then each sea point takes its
+                            // values from the columns.
+                            let ny_i = m.ny as usize;
+                            let va_r: &[Real] = &s.va;
+                            let cols = xyp_cols.chunks_mut(nsea).enumerate();
+                            spread(&mut xyp_s, cols, |sc, (ispec, col)| {
+                                sc.field.fill(0.);
+                                for isea in 1..=nsea {
+                                    let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                    sc.field[c + ny_i] = va_r[ispec + nspec * isea];
                                 }
-                            }
-                            d.xyp3(&px, &tb, dtg, yfirst, nspec, &mut all);
-                            for isea in 1..=nsea {
-                                let ixy = m.mapsf[isea - 1 + 2 * nsea] as usize;
-                                if mapsta[ixy - 1] != 0 {
-                                    for ispec in 0..nspec {
-                                        s.va[ispec + nspec * isea] = all[lq * ispec + ixy + base];
+                                let [iixy1, iixy2, iixy3, iixy4] = sc.iixy.each_mut().map(|v| v.as_mut_slice());
+                                let [rdi1, rdi2, rdi3, rdi4] = sc.rdi.each_mut().map(|v| v.as_mut_slice());
+                                let mut w = Xyp3Work {
+                                    iixy1,
+                                    iixy2,
+                                    iixy3,
+                                    iixy4,
+                                    rdi1,
+                                    rdi2,
+                                    rdi3,
+                                    rdi4,
+                                    vlcflx: &mut sc.vlcflx,
+                                    vlcfly: &mut sc.vlcfly,
+                                    cxtot: &mut sc.cxtot,
+                                    cytot: &mut sc.cytot,
+                                    aq: &mut sc.aq,
+                                    fla: &mut sc.fla,
+                                };
+                                w3xyp3(&px, &tb, ispec as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w);
+                                for isea in 1..=nsea {
+                                    let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                    col[isea - 1] = sc.field[c + ny_i];
+                                }
+                            });
+                            let cols = &xyp_cols;
+                            let tasks = s.va.chunks_mut(nspec).enumerate().skip(1).take(nsea);
+                            spread(&mut xyp_s, tasks, |_, (isea, spec)| {
+                                let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                                if mapsta[c] != 0 {
+                                    for (ispec, v) in spec.iter_mut().enumerate() {
+                                        *v = cols[ispec * nsea + isea - 1];
                                     }
                                 }
-                            }
-                        }
-                        for ispec in 0..if device.is_some() { 0 } else { nspec } {
-                            // W3GATH.
-                            field.fill(0.);
-                            for isea in 1..=nsea {
-                                let ixy = m.mapsf[isea - 1 + 2 * nsea] as usize;
-                                field[ixy + base] = s.va[ispec + nspec * isea];
-                            }
-                            let mut w = Xyp3Work {
-                                iixy1: &mut iixy1,
-                                iixy2: &mut iixy2,
-                                iixy3: &mut iixy3,
-                                iixy4: &mut iixy4,
-                                rdi1: &mut rdi1,
-                                rdi2: &mut rdi2,
-                                rdi3: &mut rdi3,
-                                rdi4: &mut rdi4,
-                                vlcflx: &mut vlcflx,
-                                vlcfly: &mut vlcfly,
-                                cxtot: &mut cxtot,
-                                cytot: &mut cytot,
-                                aq: &mut aq,
-                                fla: &mut fla,
-                            };
-                            w3xyp3(&px, &tb, ispec as i32 + 1, dtg, yfirst, 0, &mut field, &mut w);
-                            // W3SCAT.
-                            for isea in 1..=nsea {
-                                let ixy = m.mapsf[isea - 1 + 2 * nsea] as usize;
-                                if mapsta[ixy - 1] != 0 {
-                                    s.va[ispec + nspec * isea] = field[ixy + base];
-                                }
+                            });
+                        } else {
+                            for ispec in 0..nspec {
+                                let mut w = Xyp3Work {
+                                    iixy1: &mut iixy1,
+                                    iixy2: &mut iixy2,
+                                    iixy3: &mut iixy3,
+                                    iixy4: &mut iixy4,
+                                    rdi1: &mut rdi1,
+                                    rdi2: &mut rdi2,
+                                    rdi3: &mut rdi3,
+                                    rdi4: &mut rdi4,
+                                    vlcflx: &mut vlcflx,
+                                    vlcfly: &mut vlcfly,
+                                    cxtot: &mut cxtot,
+                                    cytot: &mut cytot,
+                                    aq: &mut aq,
+                                    fla: &mut fla,
+                                };
+                                let isp = ispec as i32 + 1;
+                                w3xyp3_va(&px, &tb, isp, dtg, yfirst, 0, nspec, nspec, &mut s.va, &mut field, &mut w);
                             }
                         }
                     }
@@ -995,7 +1176,102 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                 }
 
                 if flsou {
-                    for isea in 1..=nsea {
+                    let point = |isea: usize, s: &State| SrcePoint {
+                        srce_call: SRCE_DIRECT,
+                        it,
+                        d_inp: dw[isea],
+                        u10abs: u10[isea],
+                        u10dir: u10d[isea],
+                        ustar: s.ust[isea],
+                        ustdir: s.ustdir[isea],
+                        ice: 0.,
+                        dtg,
+                        dair: DAIR,
+                        coef: 1.,
+                    };
+                    if let Some(d) = device.as_deref_mut() {
+                        let pts: Vec<_> = (1..=nsea).map(|i| point(i, &s)).collect();
+                        let act = active_of(m, &mapsta);
+                        d.srce(&p, &tables, &pts, &act, &wn1, &cg1, &mut src[1..]);
+                        for isea in 1..=nsea {
+                            if act[isea - 1] != 0 {
+                                (s.ust[isea], s.ustdir[isea]) = (src[isea].ustar, src[isea].ustdir);
+                                (dtdyn[isea], fcut[isea]) = (src[isea].dtdyn, src[isea].fcut);
+                            } else {
+                                (s.ust[isea], s.ustdir[isea], dtdyn[isea], fcut[isea]) = (UNDEF, UNDEF, UNDEF, UNDEF);
+                                src[isea] = SrceOut::default();
+                            }
+                        }
+                    }
+                    if par {
+                        let tasks = s
+                            .va
+                            .chunks_mut(nspec)
+                            .zip(whitecap.chunks_mut(4))
+                            .zip(s.ust.iter_mut())
+                            .zip(s.ustdir.iter_mut())
+                            .zip(dtdyn.iter_mut())
+                            .zip(fcut.iter_mut())
+                            .zip(src.iter_mut())
+                            .enumerate()
+                            .skip(1)
+                            .take(nsea)
+                            .map(|(isea, ((((((spec, whitecap), ust), ustdir), dtdyn), fcut), src))| SrceTask {
+                                isea,
+                                spec,
+                                whitecap,
+                                ust,
+                                ustdir,
+                                dtdyn,
+                                fcut,
+                                src,
+                            });
+                        spread(&mut srce_s, tasks, |sc, t| {
+                            let isea = t.isea;
+                            let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+                            if mapsta[c] != 1 {
+                                *t.ust = UNDEF;
+                                *t.ustdir = UNDEF;
+                                *t.dtdyn = UNDEF;
+                                *t.fcut = UNDEF;
+                                return;
+                            }
+                            let q = SrcePoint {
+                                srce_call: SRCE_DIRECT,
+                                it,
+                                d_inp: dw[isea],
+                                u10abs: u10[isea],
+                                u10dir: u10d[isea],
+                                ustar: *t.ust,
+                                ustdir: *t.ustdir,
+                                ice: 0.,
+                                dtg,
+                                dair: DAIR,
+                                coef: 1.,
+                            };
+                            let [specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda] =
+                                sc.bufs.iter_mut().map(|b| b.as_mut_slice()).collect::<Vec<_>>().try_into().ok().unwrap();
+                            let mut w = SrceWork {
+                                specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda,
+                                llws: &mut sc.llws,
+                                w_snl: &mut sc.w_snl,
+                                w_sds: &mut sc.w_sds,
+                                iw_sds: &mut sc.iw_sds,
+                                w_small: &mut sc.w_small,
+                                whitecap: t.whitecap,
+                                sin_out: &mut sc.sin_out,
+                                spr_out: &mut sc.spr_out,
+                            };
+                            let (a, b) = (1 + nk2 * isea, nk2 * isea + nk + 1);
+                            w3srce(&p, &tables, &q, t.spec, &wn[a..b], &cg[a..b], &mut w, &mut sc.out, 0);
+                            *t.ust = sc.out[0].ustar;
+                            *t.ustdir = sc.out[0].ustdir;
+                            *t.dtdyn = sc.out[0].dtdyn;
+                            *t.fcut = sc.out[0].fcut;
+                            *t.src = sc.out[0];
+                        });
+                    }
+                    for isea in 1..=if device.is_some() || par { 0 } else { nsea } {
                         let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
                         if mapsta[c] != 1 {
                             s.ust[isea] = UNDEF;
@@ -1004,19 +1280,7 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                             fcut[isea] = UNDEF;
                             continue;
                         }
-                        let q = SrcePoint {
-                            srce_call: SRCE_DIRECT,
-                            it,
-                            d_inp: dw[isea],
-                            u10abs: u10[isea],
-                            u10dir: u10d[isea],
-                            ustar: s.ust[isea],
-                            ustdir: s.ustdir[isea],
-                            ice: 0.,
-                            dtg,
-                            dair: DAIR,
-                            coef: 1.,
-                        };
+                        let q = point(isea, &s);
                         let [specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda] =
                             bufs.iter_mut().map(|b| b.as_mut_slice()).collect::<Vec<_>>().try_into().ok().unwrap();
                         let mut w = SrceWork {
@@ -1046,6 +1310,15 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
             let dt1 = if tofrst[0] == -1 { 1. } else { dsec21(time, tofrst) };
             let dt2 = if tdn[0] == -1 { 1. } else { dsec21(time, tdn) };
             if dt1 <= 0. && dt2 != 0. {
+                // The only reads of the resident spectrum: what an output due now needs.
+                if let Some(d) = device.as_deref_mut() {
+                    if (0..3).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
+                        d.va_read(&mut s.va[nspec..]);
+                        if flout[0] && (5..=10).any(|j| flags.on(5, j)) {
+                            d.whitecap_read(&mut whitecap[4..]);
+                        }
+                    }
+                }
                 tofrst = [-1, 0];
                 for j in 0..3 {
                     if !flout[j] {
@@ -1091,7 +1364,14 @@ pub fn run(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device
                         } else if JS[j] == 4 {
                             let path = format!("{dir}/restart{ifile:03}.ww3");
                             ifile += 1;
+                            let before = s.va.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
                             iors::write(&path, m, &mut s, time, &mapsta, &mapst2);
+                            // W3IORS ends with VA = MAX(0.,VA).
+                            if s.va.iter().zip(&before).any(|(x, b)| x.to_bits() != *b) {
+                                if let Some(d) = device.as_deref_mut() {
+                                    d.va_write(&s.va[nspec..]);
+                                }
+                            }
                         }
                         tick21(&mut tonext[j], dtout[j]);
                         flout[j] = dsec21(tonext[j], tolast[j]) >= 0.;

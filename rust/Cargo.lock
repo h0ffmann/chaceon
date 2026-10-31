@@ -129,3 +129,10 @@ dependencies = [
  "ww3-host",
  "ww3-kernels",
 ]
+
+[[package]]
+name = "ww3_strt"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+]

@@ -193,3 +193,26 @@ pub fn write(path: &str, m: &ModDef, s: &mut State, time: Time, mapsta: &[i32], 
         *v = v.max(0.);
     }
 }
+
+/// `W3IORS ('COLD' | 'WIND' | 'CALM', ...)`, as `ww3_strt` calls it. `WIND` and `CALM` return after
+/// the header (`w3iorsmd.F90:610-624`), so `va` is read only for `COLD`, with `(NSPEC, 0:NSEA)` layout.
+/// `COLD` writes no time record: the bytes of record 2 stay as the header left them, or zero.
+pub fn write_start(path: &str, m: &ModDef, kind: &str, va: &[Real]) {
+    assert!(matches!(kind, "COLD" | "WIND" | "CALM"), "W3IORS: {kind} is not a start type");
+    let (nsea, ns) = (m.nsea as usize, (m.nk * m.nth) as usize);
+    let l = lrecl(ns);
+    let mut f = Stream { b: Vec::new() };
+    let mut h = pad(IDSTR, 26);
+    h.extend(pad(VERINI, 10));
+    h.extend(pad(&m.gname, 30));
+    h.extend(pad(kind, 4));
+    h.extend(ibytes(&[nsea as i32, ns as i32]));
+    h.extend(vec![0; FLOGRR * 4]);
+    f.record(1, l, &h);
+    if kind == "COLD" {
+        for isea in 1..=nsea {
+            f.record(isea + 2, l, &bytes(&va[ns * isea..ns * (isea + 1)]));
+        }
+    }
+    std::fs::write(path, &f.b).unwrap();
+}

@@ -148,6 +148,7 @@ pub struct ModDef {
     pub esc: Vec<f32>,
     pub ec2: Vec<f32>,
     pub xfr: f32,
+    pub fr1: f32,
     pub sig: Vec<f32>,
     pub sig2: Vec<f32>,
     pub dsip: Vec<f32>,
@@ -333,7 +334,7 @@ impl ModDef {
         m.esc = c.fs(nfull);
         m.ec2 = c.fs(nfull);
         m.xfr = c.f();
-        c.f(); // FR1
+        m.fr1 = c.f();
         m.sig = c.fs(nk + 2);
         m.sig2 = c.fs(nspec);
         m.dsip = c.fs(nk + 2);

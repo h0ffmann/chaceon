@@ -6,8 +6,9 @@ ST4's wind input and mean parameters. Kernels in `rust/crates/ww3-kernels/src/si
 (`:1188-1720`), `TABU_FW`, `KZEONE`, `KERKEI` (`constants.F90:119-440`), `WAVNU2` (`w3dispmd.F90:203-344`).
 All at metocean/WW3 `92e2cf66`, built for `STAB0` and `FLX0`.
 
-**Status: `host`**, through `just ts1-pair` and `just tp-all`, and bit-identical as SPIR-V on lavapipe on every
-capture (`docs/log/2026-10-31-spirv-bit-parity.md`). It has run on no GPU ⚠.
+**Status: `spirv`** in `rust/ports.tsv`: byte-identical whole runs with this kernel chained in the time loop on
+lavapipe, with `VA` resident (`scripts/spirv_pair.sh`, `rust/port_report/W3PRO3.md`), and bit-identical on every
+capture. It has run on no GPU ⚠.
 
 ## Comparison with the reference
 

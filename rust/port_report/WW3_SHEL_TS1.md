@@ -56,6 +56,16 @@ for `ww3_ts1` also needs `out_grd.ww3` ⚠.
 
 Bits hold on the arm64 reference with contraction off (ADR-0005), for `NK=36`, `NTH=24`.
 
+`ww3_shel <case dir> [--threads N]` (default 1) shares the per-sea-point loops of `W3SRCE` and `W3KTP3` and the
+per-component loop of `W3XYP3` over N threads, each with its own scratch; `W3XYP3` gathers its components from
+`va` in parallel, and each sea point scatters its own values back, so no thread writes `va` by component. The
+kernels and their arithmetic are unchanged, and `--threads 1` takes the serial path. (v) For `ww3_tp1.1`, `ww3_tp1.4`,
+`ww3_tp2.3`, `ww3_tp1.8`, `ww3_tp1.6`, `ww3_tp2.15`, `default_2500m` and `storm_6m`, run with
+`scripts/rust_in_ref.sh ww3_shel /work/pair/<case> --threads N` for N of 1, 2, 4 and 8, `cmp` finds `out_grd.ww3`,
+`out_pnt.ww3` and `restart001.ww3` (where a `.reference` exists) identical to the reference, with the outputs deleted
+before each run; a deliberate fault in the threaded scatter made `ww3_tp1.1` differ at N of 2 and not at 1. ⚠ Only
+8 threads on an 8-core Docker laptop were tried, and no case is large enough to show a speed-up.
+
 ## Timing
 
 None: this is a laptop in Docker, and a timing needs a named machine and three runs.

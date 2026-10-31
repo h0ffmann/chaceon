@@ -5,8 +5,9 @@ Translated from `model/src/w3srcemd.F90`, `w3sln1md.F90`, `w3sbt1md.F90` and `w3
 `92e2cf66`, **as `switch_chaceon_shrd` builds them**: the text of `gfortran -E -cpp -P` with the
 switches defined, about 400 lines of the 2692.
 
-**Status: `host`** in `rust/ports.tsv`, through `ww3_ts1`; `routine` (ADR-0007) on the captures below. Bit-identical
-as SPIR-V on lavapipe, call by call: yes (v). No whole-file SPIR-V verdict, no GPU run ⚠.
+**Status: `spirv`** in `rust/ports.tsv`: byte-identical whole runs with this kernel chained in the time loop on
+lavapipe, with `VA` resident (`scripts/spirv_pair.sh`, `rust/port_report/W3PRO3.md`), and bit-identical on every
+capture. It has run on no GPU ⚠.
 
 ## Comparison with the reference
 

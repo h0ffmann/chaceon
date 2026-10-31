@@ -2,6 +2,8 @@
 
 One dated entry per thing tried, negative results included. Append; never rewrite.
 
+- [2026-10-31: ww3_strt byte-identical on 16 regtests](2026-10-31-strt-parity.md)
+- [2026-10-31: the whole model core on one resident spectrum](2026-10-31-resident-spectrum.md)
 - [2026-10-31: SPIR-V bit-identical on lavapipe; spirv-opt ran before NoContraction](2026-10-31-spirv-bit-parity.md)
 - [2026-10-31: whole runs, and SPIR-V byte-identical on lavapipe](2026-10-31-whole-runs-spirv.md)
 - [2026-10-31: propagation on the host, 12 regtests](2026-10-31-propagation-host.md)
