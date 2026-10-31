@@ -691,6 +691,7 @@ pub fn w3srce(
             let factor2 = factor * GRAV * wn!(ik) / sg!(ik);
             each!(ith, 1, nth, {
                 let is = ith + (ik - 1) * nth;
+                #[allow(clippy::eq_op)] // SPEC(IS)-SPEC2(IS), with ATT = 1.
                 let same = sp!(is) - sp!(is);
                 phice = phice + same * factor;
                 tauice1 = tauice1 - same * factor2 * t.ecos[ix!(0, is)];
