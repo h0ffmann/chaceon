@@ -1,85 +1,117 @@
 # W3PRO3 and W3UQCK: propagation
 
 `rust/crates/ww3-kernels/src/pro3.rs` translates `W3XYP3`, `W3KTP3` and `W3QCK1`, `W3QCK2`, `W3QCK3` for the
-`PR3 UQ` switches. `rust/crates/ww3-host/src/{grid,iors,shel}.rs` add the maps, gradients, restart file,
-`W3GATH`, `W3SCAT`, `W3IOPP` and many sea points.
+`PR3 UQ` switches. `rust/crates/ww3-host/src/{grid,iors,shel}.rs` add the maps, the grid metrics, gradients,
+the restart file, forcing, `W3GATH`, `W3SCAT`, `W3IOPP` and the time loop for many sea points.
 
-**Status: `host`** (ADR-0005) on the cases below. The kernels run on the CPU in this driver. Their SPIR-V and
-PTX build, and neither has run anywhere ⚠.
+**Status: `spirv`** (ADR-0005) on lavapipe, CPU Vulkan, and `host`. Nothing has run on a GPU, and the PTX
+has not executed ⚠.
 
 ## Result
 
-The reference and Rust run the regtest's own namelists under `switch_chaceon_shrd`, with one restart added at
-the last time step. That restart holds every sea point's spectrum, so it is the whole-state comparison.
+The reference and Rust run the regtest's namelists under `switch_chaceon_shrd`, with one restart added at the
+last time step, which holds every sea point's spectrum. `cmp` judges each file. CPU is `just tp-all`, SPIR-V
+is `scripts/spirv_pair.sh`, which runs `W3XYP3` and `W3KTP3` as compiled shaders inside the time loop. The other
+kernels, `W3SRCE` included, stay on the CPU in those runs.
 
-| Regtest | Sea points × `NSPEC` | Active | `out_pnt.ww3` bytes | restart bytes | Verdict |
+| Regtest | Sea points × `NSPEC` | Active | Bytes compared | CPU | SPIR-V |
 |---|---|---|---|---|---|
-| `ww3_tp1.1` | 360 × 12 | `FLCX`, closed | 62 902 | 44 100 | identical |
-| `ww3_tp1.2` | 121 × 12 | `FLCY`, spherical | none | 23 772 | identical |
-| `ww3_tp1.3` | 42 × 12 | `FLCX`, shoaling | none | 5 544 | identical |
-| `ww3_tp1.4` | 11 × 72 | `FLCX FLCTH` | 193 804 | 6 624 | identical |
-| `ww3_tp1.5` | 11 × 72 | `FLCY FLCTH` | 193 804 | 9 504 | identical |
-| `ww3_tp1.7` | 25 × 720 | `FLCX FLCY FLCTH FLSOU` | 5 329 030 | 106 560 | identical |
-| `ww3_tp1.8` | 49 × 2700 | `FLCX FLCTH FLSOU` | 76 312 | 658 800 | identical |
-| `ww3_tp1.9` | 270 × 6300 | `FLCX FLSOU` | 404 789 | 7 106 400 | identical |
-| `ww3_tp1.10` | 49 × 2880 | `FLCX FLSOU` | 3 825 607 | 702 720 | identical |
-| `ww3_tp2.1` | 973 × 72 | `FLCX FLCY`, land | none | 317 664 | identical |
-| `ww3_tp2.3` | 1656 × 360 | `FLCX FLCY`, averaging | none | 2 486 880 | identical |
-| `ww3_tp2.4` | 14548 × 360 | `FLCX FLCY FLCTH`, land | 47 392 | 21 460 320 | identical |
+| `ww3_tp1.1` | 360 × 12 | `FLCX`, closed | 276 908 | identical | identical |
+| `ww3_tp1.2` | 121 × 12 | `FLCY`, spherical | 62 774 | identical | identical |
+| `ww3_tp1.3` | 42 × 12 | `FLCX`, shoaling | 115 606 | identical | identical |
+| `ww3_tp1.4` | 11 × 72 | `FLCX FLCTH` | 265 998 | identical | identical |
+| `ww3_tp1.5` | 11 × 72 | `FLCY FLCTH` | 271 426 | identical | identical |
+| `ww3_tp1.6` | | `FLCX FLCK`, `current.ww3` | 1 242 187 | identical | identical |
+| `ww3_tp1.7` | 25 × 720 | `FLCX FLCY FLCTH FLSOU` | 8 336 692 | identical | identical |
+| `ww3_tp1.8` | 49 × 2700 | `FLCX FLCTH FLSOU` | 856 318 | identical | identical |
+| `ww3_tp1.9` | 270 × 6300 | `FLCX FLSOU` | 7 527 143 | identical | identical |
+| `ww3_tp1.10` | 49 × 2880 | `FLCX FLSOU` | 4 652 073 | identical | identical |
+| `ww3_tp2.1` | 973 × 72 | `FLCX FLCY`, land | 1 542 790 | identical | identical |
+| `ww3_tp2.2` | 17381 × 216 | `FLCX FLCY FLCTH`, wind, current | 20 412 156 | identical | identical |
+| `ww3_tp2.3` | 1656 × 360 | `FLCX FLCY`, averaging | 3 292 282 | identical | identical |
+| `ww3_tp2.4` | 14548 × 360 | `FLCX FLCY FLCTH`, land | 23 057 514 | identical | identical |
+| `ww3_tp2.4` `curv` | | curvilinear | 4 485 226 | identical | identical |
+| `ww3_tp2.15` | | see below | 2 492 258 | identical | identical |
+| `ww3_tp2.15` two legs | | full restart read | 4 404 550 | identical | not run |
 
-20 files, 43 062 528 bytes, 0 differ. `ww3_ts1` still passes through the new driver.
+CPU: 50 files, 83 293 901 bytes, 0 differ. SPIR-V: 44 files, 78 889 351 bytes, 0 differ. All 18 `ww3_ts1`
+variants pass `just ts1-pair` through this driver, on `out_grd.ww3` and `out_pnt.ww3`.
 
 ```bash
 just tp-all
-just tp-pair ww3_tp2.4
+just spirv-pair ww3_tp2.4
 ```
 
-`FLCK` is set in some of these grids, and `W3INIT` clears it, since they have no currents. `FLSOU` here runs
-with no wind.
+### Two regtests are changed to run here
+
+- **`ww3_tp2.15`:** its `wind.nc` is not in the regtest's input, so `scripts/tp215_wind.sed` gives it three
+  homogeneous winds. Grid, obstructions, `ST4 NL1 BT1 DB1 LN1`, `W3UINI` and the field list are the regtest's.
+- **`ww3_tp2.2`:** `scripts/tp22_no_track.sed` drops `DATE%TRACK`, since `W3IOTR` is not ported.
 
 ## Why to believe it
 
-`ww3_tp2.4`'s final restart has 1 878 425 nonzero values of 5 237 280, and 1 879 201 changed since the start.
-On each case a fault changes bytes, then restoring it gives 0 (restart bytes differ):
+The first pass found real bugs, so a match here means something: `ww3_tp1.2` caught `CLATS` read one sea point
+off, which `ww3_tp1.1` hides on the equator.
 
-| Fault | Case | Bytes |
-|---|---|---|
-| `QBN` cap 1 to 0.9999999 | `ww3_tp1.1`, `ww3_tp2.4` | 1 176, 2 762 320 |
-| `DQNZ` floor 1e-15 to 1e-14 | `ww3_tp1.2`, `ww3_tp2.4` | 130, 6 060 641 |
-| 1e-7 in the `QB` blend | `ww3_tp1.1` | 1 288 |
-| 1e-7 on the averaging weights | `ww3_tp2.3` | 510 839 |
-| 1e-7 on `W3KTP3`'s depth refraction | `ww3_tp1.4`, `ww3_tp2.4` | 77, 14 164 |
-| 1e-7 on `W3KTP3`'s great circle term | `ww3_tp2.4` | 1 070 959 |
+Every fault below changes bytes, and the rebuild without it gives 0 (restart bytes):
 
-Three faults changed 0 bytes:
+| Fault | Where | Case | Bytes |
+|---|---|---|---|
+| `QBN` cap 1 to 0.9999999 | CPU | `ww3_tp1.1`, `ww3_tp2.4` | 1 176, 2 762 320 |
+| `QBN` cap 1 to 0.9999999 | **in the shader** | `ww3_tp1.1`, `ww3_tp2.3` | 1 176, 753 071 |
+| `DQNZ` floor 1e-15 to 1e-14 | CPU | `ww3_tp1.2`, `ww3_tp2.4` | 130, 6 060 641 |
+| 1e-7 in the `QB` blend | CPU | `ww3_tp1.1` | 1 288 |
+| 1e-7 on the averaging weights | CPU | `ww3_tp2.3` | 510 839 |
+| 1e-7 on `W3KTP3`'s depth refraction | CPU | `ww3_tp1.4`, `ww3_tp2.4` | 77, 14 164 |
+| 1e-7 on `W3KTP3`'s depth refraction | **in the shader** | `ww3_tp1.4` | 77 |
+| 1e-7 on `W3KTP3`'s great circle term | CPU | `ww3_tp2.4` | 1 070 959 |
+| The `JN` choice of transparency | CPU | `ww3_tp2.15` | 906 019 |
+| 1e-7 on `W3QCK2`'s CFL | CPU | `ww3_tp1.6` | 307 |
+| 1e-7 on the current in `CXTOT` | CPU | `ww3_tp2.2`, `ww3_tp1.6` | 576 323, 300 |
 
-- The `QCN` clamp -0.1 to -0.1000001: a clamped `QCN` gets `CFAC=1`, which discards it.
-- The `JN` choice in `W3QCK3`: every transparency is 1 here, so **obstructions are not tested** ⚠.
-- The `CFL` floor 1e-10 to 1e-9: no flux has `|CFL|` that small.
+These changed 0 bytes, and why:
 
-The first pass failed on `ww3_tp1.2`, which found a real bug: `CLATS` is `(0:NSEA)` and was read from 1.
-`ww3_tp1.1` passed with that bug, on the equator.
+- `QCN` clamp -0.1 to -0.1000001: a clamped `QCN` gets `CFAC=1`, which discards it.
+- `CFL` floor 1e-10 to 1e-9: no flux has `|CFL|` that small.
+- `CXC` × 1.5 on `ww3_tp2.2`: the group velocity sets `CGN`, so `NTLOC` does not move.
+- 1e-7 on `W3KTP3`'s current term on `ww3_tp2.2`: a homogeneous current has no gradient. **Current refraction
+  has no fault run that reaches it ⚠.**
+- `W3QCK2` on `ww3_tp2.2`: that grid does not set `FLCK`.
+
+## What SPIR-V needs
+
+`scripts/spirv.sh` builds with rust-gpu's own `spirv-opt` pass off, decorates every float operation
+`NoContraction` and widens `f32` division with `rust/tools/spirv_exact`, then runs `spirv-opt -O` and
+`spirv-val`. The order is the point: `spirv-opt` folds floats on an undecorated module.
+
+Restart bytes differing, compiled each way:
+
+| Module | `ww3_tp1.1` | `ww3_tp1.4` | `ww3_tp2.3` | `ww3_tp2.15` |
+|---|---|---|---|---|
+| Decorated after rust-gpu's `spirv-opt`, plain `/` | 1 124 | 103 | 773 478 | 341 225 |
+| Undecorated, `f64` division in the kernel | 1 173 | 102 | 755 547 | 311 982 |
+| Decorated after it, `f64` division in the kernel | 0 | 0 | 0 | 0 |
+| Decorated before `spirv-opt`, the pipeline now | 0 | 0 | 0 | 0 |
+
+So the third row was a workaround for the order, and the kernel divides as the Fortran does again. Why a
+device might still differ, and all source-term numbers: `docs/log/2026-10-31-spirv-bit-parity.md`.
 
 ## How far it reaches
 
 | Not reached ⚠ | Why |
 |---|---|
-| Currents, `W3QCK2`, `W3KTP3`'s `FLCK` branch | `W3UCUR`, `ww3_tp1.6`, `ww3_tp2.2` |
-| Obstructions, `W3UTRN` with `TRFLAG` 1 or 2 | no such case yet |
-| Input boundaries | runs here have no `nest.ww3`, so `W3IOBC` clears `FLBPI` |
-| `out_grd.ww3` | needs `W3OUTG` and `W3IOGO`, so no case is a complete ADR-0005 verdict |
-| A full restart read | written and read code exist, the read has not run |
-| Wind fields, `ww3_tp2.15`'s physics | homogeneous or no wind so far |
-| `ww3_grid`, `ww3_strt` | their files still come from the Fortran |
-| `ww3_tp1.6`, `ww3_tp1.11`, `ww3_tp2.2`, and every other regtest | not run through this driver |
+| A real GPU, `W3SRCE` in the loop on a device | CPU Vulkan only, and only propagation |
+| A resident spectrum | the host uploads `VA` and reads it back for each dispatch |
+| PTX execution | `xyp3` and `ktp3` build and assemble, and never ran |
+| `wind.ww3` | `W3FLDG`'s path ran on `current.ww3` only |
+| Water levels, ice, icebergs, boundary input | refused; these runs have no `nest.ww3`, so `W3IOBC` clears `FLBPI` |
+| `TRFLAG` 1 and 2 | `ww3_tp2.15` has 4 |
+| Track output, partitions, `MPI`, tripole, SMC, unstructured grids | not ported, and refused where they could be asked for |
+| `ww3_grid`, `ww3_strt`, `ww3_prep` | their files still come from the Fortran |
 
-## On a device
-
-`xyp3` and `ktp3` are entry points in `rust/gpu-spirv/shader` and `rust/gpu-cuda/kernels`. Each handles one
-component or sea point per launch, so they exercise no parallelism yet. The Fortran's components are
-independent, so one thread per component needs offsets in `Qck` and the work arrays. `just spirv` and `just ptx`
-build both; `ptxas --fmad=false` assembles them. Nothing was dispatched, on lavapipe or on a device ⚠.
+The cell for a point exactly on a node assumes `W3GFCL` walks a bucket's cells in ascending order: verified on
+`ww3_tp1.7`, not read from how buckets are filled ⚠. A point near a pole or a branch cut stops the run.
 
 ## Timing
 
-None, as `WW3_SHEL_TS1.md` says.
+None: this is a laptop in Docker, and lavapipe says nothing about a GPU.

@@ -1,14 +1,14 @@
 # The WW3 code translated to Rust, one row each. status, in order: translated; routine (ADR-0007: every
 # captured call bit-identical); then host, cuda, spirv when that verdict of ADR-0005 passed on whole
-# output files. host here means out_pnt.ww3 and a last-step restart on the cases of just ts1-pair and
-# just tp-all: rust/port_report/WW3_SHEL_TS1.md and W3PRO3.md say how far that reaches. evidence: the command or log entry that shows the status.
+# output files. host and spirv here mean out_grd.ww3, out_pnt.ww3 and a last-step restart on the cases
+# of just ts1-pair and just tp-all: rust/port_report/WW3_SHEL_TS1.md and W3PRO3.md say how far that reaches. evidence: the command or log entry that shows the status.
 routine	file	lines	status	evidence	rust
 constants	model/src/constants.F90:61-82	22	translated	gfortran 14.3 bit probe, docs/log/2026-10-30-scaffold.md	rust/crates/ww3-kernels/src/constants.rs
 w3snl1md:w3snl1	model/src/w3snl1md.F90:99-457	359	host	just ts1-pair on 18 cases; just snl1-cmp and just spirv-replay at 2500, 20 and 8 m: 0 of 14169600 values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-kernels/src/snl1.rs
 w3snl1md:insnl1	model/src/w3snl1md.F90:467-770	304	host	just ts1-pair on 18 cases; just snl1-cmp: 0 of 30163 table values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-host/src/insnl1.rs
-w3src4md:w3sds4	model/src/w3src4md.F90:1872-2599	728	host	just ts1-pair on 18 cases; just sds4-cmp on 10 captures: 0 of 32325392 values differ, in call and batch layouts; SPIR-V within tolerance only, not bit-equal; rust/port_report/W3SDS4.md	rust/crates/ww3-kernels/src/sds4.rs
-w3src4md:w3sin4	model/src/w3src4md.F90:424-906	483	host	just ts1-pair on 18 cases; just st4-cmp on 12 captures: 0 of 54362284 values differ, guards reached by entry pokes; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
-w3src4md:w3spr4	model/src/w3src4md.F90:143-385	243	host	just ts1-pair on 18 cases; just st4-cmp spr4 on 11 captures: 0 of 327948 values differ; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
+w3src4md:w3sds4	model/src/w3src4md.F90:1872-2599	728	host	just ts1-pair on 18 cases; just sds4-cmp on 10 captures: 0 of 32325392 values differ, in call and batch layouts; just spirv-replay on 15 captures: 0 of 32340968; rust/port_report/W3SDS4.md	rust/crates/ww3-kernels/src/sds4.rs
+w3src4md:w3sin4	model/src/w3src4md.F90:424-906	483	host	just ts1-pair on 18 cases; just st4-cmp on 12 captures: 0 of 54362284 values differ, guards reached by entry pokes; just spirv-replay on 15 captures: 0 of 54377872; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
+w3src4md:w3spr4	model/src/w3src4md.F90:143-385	243	host	just ts1-pair on 18 cases; just st4-cmp spr4 on 11 captures: 0 of 327948 values differ; just spirv-replay on 14 captures: 0 of 328032; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
 w3src4md:calc_ustar	model/src/w3src4md.F90:1738-1840	103	host	just ts1-pair on 18 cases; through W3SPR4; rust/port_report/W3SIN4.md	rust/crates/ww3-kernels/src/sin4.rs
 w3src4md:insin4	model/src/w3src4md.F90:917-1179	263	routine	just st4-cmp sin4: every table equal on default, filipot, noshelter; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 w3src4md:tabu_stress	model/src/w3src4md.F90:1188-1309	122	routine	TAUT equal; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
@@ -17,7 +17,7 @@ w3src4md:tabu_tauhf2	model/src/w3src4md.F90:1495-1720	226	routine	TAUHFT and TAU
 constants:tabu_fw	model/src/constants.F90:119-212	94	routine	FWTABLE equal; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 constants:kzeone	model/src/constants.F90:243-406	164	routine	through FWTABLE; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
 w3dispmd:wavnu2	model/src/w3dispmd.F90:203-344	142	routine	through IKTAB, positive frequency only; rust/port_report/W3SIN4.md	rust/crates/ww3-host/src/insin4.rs
-w3srcemd:w3srce	model/src/w3srcemd.F90	2692	host	just ts1-pair on 18 cases; just srce-cmp on 11 captures: 7931 calls, 0 of 7082383 values differ, for switch_chaceon_shrd; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
+w3srcemd:w3srce	model/src/w3srcemd.F90	2692	host	just ts1-pair on 18 cases; just srce-cmp on 11 captures: 7931 calls, 0 of 7082383 values differ, for switch_chaceon_shrd; just spirv-replay call by call: the same 0; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
 w3sln1md:w3sln1	model/src/w3sln1md.F90	216	host	just ts1-pair on 18 cases; through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
 w3sbt1md:w3sbt1	model/src/w3sbt1md.F90	246	host	just ts1-pair on 18 cases; through W3SRCE, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
 w3sdb1md:w3sdb1	model/src/w3sdb1md.F90	343	host	just ts1-pair on 18 cases; through W3SRCE on filipot and storm, fault caught; rust/port_report/W3SRCE.md	rust/crates/ww3-kernels/src/srce.rs
@@ -34,15 +34,32 @@ w3wavemd:w3wave	model/src/w3wavemd.F90:228-2899	2672	translated	only the time an
 ww3_shel:ww3_shel	model/src/ww3_shel.F90	2921	translated	only the outer loop and namelist keys ts1 reaches; rust/port_report/WW3_SHEL_TS1.md	rust/tools/ww3_shel/src/main.rs
 w3pro3md:w3map3	model/src/w3pro3md.F90:113-489	377	host	GTYPE < 3 branch, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 w3pro3md:w3mapt	model/src/w3pro3md.F90:491-589	99	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
-w3pro3md:w3xyp3	model/src/w3pro3md.F90:591-1420	830	host	just tp-all; no currents, no boundary input; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
-w3pro3md:w3ktp3	model/src/w3pro3md.F90:1422-1864	443	host	just tp-all; the FLCK branch needs currents and is unreached; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
-w3uqckmd:w3qck1	model/src/w3uqckmd.F90:117-477	361	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
-w3uqckmd:w3qck2	model/src/w3uqckmd.F90:514-885	372	translated	called only under FLCK, which needs currents; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
-w3uqckmd:w3qck3	model/src/w3uqckmd.F90:919-1327	409	host	just tp-all; every transparency is 1 in these cases; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
-w3updtmd:w3utrn	model/src/w3updtmd.F90:2735-3121	387	translated	TRFLAG 0 reached, 1 and 2 unreached, ice refused; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3pro3md:w3xyp3	model/src/w3pro3md.F90:591-1420	830	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3pro3md:w3ktp3	model/src/w3pro3md.F90:1422-1864	443	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3uqckmd:w3qck1	model/src/w3uqckmd.F90:117-477	361	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3uqckmd:w3qck2	model/src/w3uqckmd.F90:514-885	372	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3uqckmd:w3qck3	model/src/w3uqckmd.F90:919-1327	409	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3updtmd:w3utrn	model/src/w3updtmd.F90:2735-3121	387	host	TRFLAG 0 and 4, ice and icebergs zero; TRFLAG 1 and 2 unreached; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 w3updtmd:w3dzxy	model/src/w3updtmd.F90:3138-3457	320	host	no tripole, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 w3wavemd:w3gath	model/src/w3wavemd.F90:2926-3228	303	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
 w3wavemd:w3scat	model/src/w3wavemd.F90:3244-3545	302	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
-w3iorsmd:w3iors	model/src/w3iorsmd.F90:112-1473	1362	host	COLD and CALM read, FULL written; FULL read unreached; just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/iors.rs
+w3iorsmd:w3iors	model/src/w3iorsmd.F90:112-1473	1362	host	COLD, CALM, WIND and FULL read, FULL written; just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/iors.rs
 w3iopomd:w3iopp	model/src/w3iopomd.F90:138-593	456	host	rectilinear grid, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
 w3gsrumd:getpqr	model/src/w3gsrumd.F90:7853-7960	108	host	just tp-all (ww3_tp2.4 needs its rounding); rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3iogomd:w3outg	model/src/w3iogomd.F90:1202-2639	1438	host	no partitions; just tp-all; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/iogo.rs
+w3iogomd:w3iogo	model/src/w3iogomd.F90:2654-4016	1363	host	write, the fields of iogo.rs; just tp-all; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/iogo.rs
+w3iogomd:calc_u3stokes	model/src/w3iogomd.F90:4031-4261	231	host	USF only; ww3_tp1.8; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/iogo.rs
+w3iogomd:calc_wbt	model/src/w3iogomd.F90:4287-4527	241	host	just ts1-pair; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/iogo.rs
+w3updtmd:w3ucur	model/src/w3updtmd.F90:171-472	302	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3updtmd:w3uini	model/src/w3updtmd.F90:1049-1302	254	host	ww3_tp2.15; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3fldsmd:w3fldo	model/src/w3fldsmd.F90:88-527	440	host	read, current.ww3 of ww3_tp1.6; wind.ww3 has not run; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3fldsmd:w3fldg	model/src/w3fldsmd.F90:954-1470	517	host	read, current.ww3 of ww3_tp1.6; wind.ww3 has not run; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3pro3md:w3cflxy	model/src/w3pro3md.F90:1866-2033	168	host	ww3_tp1.3 asks for CFX; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/shel.rs
+w3gsrumd:w3cgdm	model/src/w3gsrumd.F90:4014-4363	350	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3gsrumd:dxydp	model/src/w3gsrumd.F90:8410-8687	278	host	no mask, ww3_tp2.4 curv and ww3_tp2.15; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3gsrumd:dxydq	model/src/w3gsrumd.F90:8693-8982	290	host	no mask, ww3_tp2.4 curv and ww3_tp2.15; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3gsrumd:w3ckcl	model/src/w3gsrumd.F90:3615-3840	226	host	no pole or branch cut; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3gsrumd:w3fdwt	model/src/w3gsrumd.F90:6706-6747	42	host	M = 1; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3gsrumd:w3splx	model/src/w3gsrumd.F90:5971-5995	25	host	from a pole; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3gsrumd:spddp	model/src/w3gsrumd.F90:8986-9038	53	host	rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3gsrumd:spddq	model/src/w3gsrumd.F90:9042-9094	53	host	rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs

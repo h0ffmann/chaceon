@@ -59,7 +59,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "spirv_exact"
+version = "0.0.0"
+
+[[package]]
 name = "spirv_replay"
+version = "0.0.0"
+dependencies = [
+ "ash",
+ "ww3-host",
+ "ww3-kernels",
+ "ww3-libm",
+]
+
+[[package]]
+name = "spirv_shel"
 version = "0.0.0"
 dependencies = [
  "ash",

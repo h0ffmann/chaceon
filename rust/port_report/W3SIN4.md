@@ -6,8 +6,8 @@ ST4's wind input and mean parameters. Kernels in `rust/crates/ww3-kernels/src/si
 (`:1188-1720`), `TABU_FW`, `KZEONE`, `KERKEI` (`constants.F90:119-440`), `WAVNU2` (`w3dispmd.F90:203-344`).
 All at metocean/WW3 `92e2cf66`, built for `STAB0` and `FLX0`.
 
-**Status: `routine`** (ADR-0007), on the host. Bit-identical on SPIR-V: no, except `LLWS`. No whole-file
-verdict, no GPU run ⚠.
+**Status: `host`**, through `just ts1-pair` and `just tp-all`, and bit-identical as SPIR-V on lavapipe on every
+capture (`docs/log/2026-10-31-spirv-bit-parity.md`). It has run on no GPU ⚠.
 
 ## Comparison with the reference
 
@@ -63,10 +63,13 @@ pass every natural capture, and only `poke` shows they do something:
 
 ## SPIR-V on lavapipe
 
-`LLWS` is exact. `W3SPR4` is within 1 ULP. `W3SIN4` differs on about a third of its values, by up to
-millions of ULP on values that nearly cancel to zero. Measured against the array's peak, the largest
-difference is about 1.7e-6 for `S` and 5e-7 for `D` (`default`, `noshelter`, 2500 m), and for the stress
-3e-7. The cause is unattributed ⚠, as for `W3SDS4`.
+Bit-identical (v, `just spirv-replay`): 15 `W3SIN4` captures, 0 of 54 377 872 values, `LLWS` included, and 14
+`W3SPR4` captures, 0 of 328 032. Before, `W3SIN4` differed on 16 308 251 values, up to 29 571 072 ULP where
+values nearly cancel, and `W3SPR4` on 7 542, 1 ULP. Both came from float folds on a module without
+`NoContraction`, `atan2f` among them. [The log](../../docs/log/2026-10-31-spirv-bit-parity.md) has the cause.
+
+The same fold put back by hand, `z - (pi_lo + pi)` in `atan2f`, default, 2500 m: 604 035 of 4 378 496 `W3SIN4`
+values and 224 of 28 140 `W3SPR4` values differ, so these zeros can fail.
 
 ## GPU code
 

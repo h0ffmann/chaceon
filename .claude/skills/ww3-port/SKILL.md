@@ -41,6 +41,11 @@ longer history; its facts are at NOAA's pin.
 - A fault that changes nothing may be a weak fault, not a blind spot: `CFAC=1` discards the clamped
   `QCN`, and all transparencies are 1 without obstructions. Say which, and find one that reaches.
 
+- `UST` starts at `1.E-5` (`W3DIMW`), not 0: a run with source terms hides it, a restart without them
+  shows it.
+- `W3IOGO` blanks fields to `UNDEF` at dry points and, for some, at `MAPSTA = 2`, and it writes `UST` back.
+- `W3FLDH`'s fallback tests `TFN`, not `TF0`, so a first input after the start time leaves `TF0` at -1.
+
 ## Memory
 
 - Fortran bounds survive translation: `SIG(0:NK+1)`, `CG(0:NK+1,0:NSEA)`. Index through a named
@@ -58,6 +63,10 @@ longer history; its facts are at NOAA's pin.
 - No allocation, `std`, formatting or panic that depends on data inside a kernel. Keep slices
   bounds-checked in `host` builds and read the cost before removing a check.
 - Math goes through `ww3-libm`. Never `cuda_std`'s `GpuFloat`, never `spirv-std`'s `GLSL.std.450`.
+- A floating-point fold can come before the driver. rust-gpu's `spirv-opt` folds `(a-c1)-c2` and
+  friends unless `NoContraction` is already on the operation, so `scripts/spirv.sh` turns it off,
+  decorates, then runs `spirv-opt`. A SPIR-V difference of a few ULP is read from the module first:
+  `just spirv-libm` separates a function from a kernel in a minute.
 - A kernel that needs `f64` declares it, and the host checks the device before starting.
 - Never run on a device without the owner.
 

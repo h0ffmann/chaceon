@@ -46,6 +46,10 @@ tp-pair case suffix="":
 tp-all:
     bash scripts/tp_all.sh
 
+# A prepared case with propagation in compiled SPIR-V on lavapipe, by cmp
+spirv-pair tag:
+    bash scripts/spirv_pair.sh {{tag}}
+
 # Compares the mod_def reader with the reference's memory, for a case with captures
 moddef-cmp mod_def tag="default_2500m":
     bash scripts/rust_in_ref.sh moddef_cmp {{mod_def}} {{tag}}
@@ -65,6 +69,10 @@ spirv:
 # Runs the compiled SPIR-V on a capture, on CPU Vulkan
 spirv-replay kernel="snl1" variant="default" depth="2500":
     bash scripts/spirv_replay.sh {{kernel}} capture/{{kernel}}_{{variant}}_{{depth}}m.bin
+
+# ww3-libm in SPIR-V against the same source on the host, on random inputs; at most 3900000 per function
+spirv-libm inputs="2000000":
+    bash scripts/spirv_replay.sh libm {{inputs}}
 
 # Compiles the kernels to PTX and assembles sm_89 and sm_90 binaries
 ptx:

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The host verdict of ADR-0005 on ww3_ts1: the reference and Rust run the same case, and cmp judges the
 # output file. Usage: ts1_pair.sh <variant> [depth]. Rust reads the mod_def.ww3 the reference wrote.
-# Exit 0 only when out_pnt.ww3 is byte-identical.
+# Exit 0 only when out_grd.ww3 and out_pnt.ww3 are byte-identical.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 variant="$1"
@@ -31,14 +31,19 @@ docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
     sed -i \"s#../input/points.list#points.list#\" \$d/ww3_shel.nml
     cp restart.ww3 \$d/
     mv out_pnt.ww3 \$d/out_pnt.reference
-    rm -f \$d/out_pnt.ww3"
+    cat out_grd.ww3 > \$d/out_grd.reference
+    rm -f \$d/out_pnt.ww3 \$d/out_grd.ww3"
 bash scripts/rust_in_ref.sh ww3_shel "/work/pair/$tag" 2>&1 | tail -1 | grep -E 'panicked|rror' || true
-ref="work/pair/$tag/out_pnt.reference"
-ours="work/pair/$tag/out_pnt.ww3"
-bytes=$(wc -c < "$ref" | tr -d ' ')
-if cmp -s "$ref" "$ours"; then
-  echo "$tag: identical, $bytes bytes"
-else
-  echo "$tag: DIFFERENT, $(cmp -l "$ref" "$ours" 2>/dev/null | wc -l | tr -d ' ') of $bytes bytes"
-  exit 1
-fi
+bad=0
+for f in out_grd out_pnt; do
+  ref="work/pair/$tag/$f.reference"
+  ours="work/pair/$tag/$f.ww3"
+  bytes=$(wc -c < "$ref" | tr -d ' ')
+  if cmp -s "$ref" "$ours"; then
+    echo "$tag $f: identical, $bytes bytes"
+  else
+    echo "$tag $f: DIFFERENT, $(cmp -l "$ref" "$ours" 2>/dev/null | wc -l | tr -d ' ') of $bytes bytes"
+    bad=1
+  fi
+done
+exit "$bad"

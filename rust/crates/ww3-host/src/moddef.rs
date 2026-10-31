@@ -21,6 +21,11 @@ impl Records {
         Self { b: std::fs::read(path).unwrap_or_else(|e| panic!("{path}: {e}")), p: 0 }
     }
 
+    /// The next record, or `None` at the end of the file.
+    pub fn try_next(&mut self) -> Option<Rec<'_>> {
+        if self.p >= self.b.len() { None } else { Some(self.next()) }
+    }
+
     /// The next record's payload.
     pub fn next(&mut self) -> Rec<'_> {
         let n = i32::from_be_bytes(self.b[self.p..self.p + 4].try_into().unwrap());
@@ -87,6 +92,10 @@ pub struct ModDef {
     pub gname: String,
     pub flagll: bool,
     pub iclose: i32,
+    /// `XGRD`, `YGRD`, by `IXY`.
+    pub xgrd: Vec<f32>,
+    pub ygrd: Vec<f32>,
+    pub gtype: i32,
     pub sx: f32,
     pub sy: f32,
     pub x0: f32,
@@ -107,6 +116,19 @@ pub struct ModDef {
     pub fldry: bool,
     pub flbpi: bool,
     pub mapwn: Vec<i32>,
+    pub noswll: i32,
+    pub btbeta: f32,
+    pub stexu: f32,
+    pub steyu: f32,
+    pub stedu: f32,
+    pub e3df: Vec<i32>,
+    pub p2msf: Vec<i32>,
+    pub us3df: Vec<i32>,
+    pub usspf: Vec<i32>,
+    pub dsii: Vec<f32>,
+    pub ftwn: f32,
+    pub fttr: f32,
+    pub ftwl: f32,
     pub wdcg: f32,
     pub wdth: f32,
     pub dtmax: f32,
@@ -224,11 +246,27 @@ impl ModDef {
         let gtype = c.i();
         m.flagll = c.i() != 0;
         m.iclose = c.i();
-        assert_eq!(gtype, 1, "only a rectilinear grid is implemented");
+        assert!(gtype == 1 || gtype == 2, "only rectilinear and curvilinear grids are implemented");
+        m.gtype = gtype;
         c.done("GTYPE");
 
         let mut c = r.next();
-        (m.sx, m.sy, m.x0, m.y0) = (c.f(), c.f(), c.f(), c.f());
+        if gtype == 1 {
+            (m.sx, m.sy, m.x0, m.y0) = (c.f(), c.f(), c.f(), c.f());
+            for ix in 0..nx {
+                for _ in 0..ny {
+                    m.xgrd.push(m.x0 + ix as f32 * m.sx);
+                }
+            }
+            for _ in 0..nx {
+                for iy in 0..ny {
+                    m.ygrd.push(m.y0 + iy as f32 * m.sy);
+                }
+            }
+        } else {
+            m.xgrd = c.fs(ny * nx);
+            m.ygrd = c.fs(ny * nx);
+        }
         c.done("SX");
 
         let mut c = r.next();
@@ -271,11 +309,13 @@ impl ModDef {
         c.skip((nsea + 1) * 4); // CLATIS
         c.f();
         m.cthg0s = c.fs(nsea);
+        (m.stexu, m.steyu, m.stedu) = (c.f(), c.f(), c.f());
         // From here the sizes depend on the grid, so the end of the record is the anchor: ICESCALES(4),
         // CALTYPE*8, CMPRTRCK, IICEHFAC, IICEDDISP, IICEHDISP, IICEFDISP, BTBETA, AAIRCMIN, AAIRGB.
         c.skip(c.len() - 56 - c.p);
         m.icescales = c.fs(4);
-        c.skip(32);
+        c.skip(28);
+        m.btbeta = c.f();
         m.aaircmin = c.f();
         m.aairgb = c.f();
         c.done("DTCFL");
@@ -297,23 +337,29 @@ impl ModDef {
         m.sig = c.fs(nk + 2);
         m.sig2 = c.fs(nspec);
         m.dsip = c.fs(nk + 2);
-        c.skip(nk * 4); // DSII
+        m.dsii = c.fs(nk);
         m.dden = c.fs(nk);
         m.dden2 = c.fs(nspec);
         m.fte = c.f();
         m.ftf = c.f();
-        c.f(); // FTWN
-        c.f(); // FTTR
-        c.f(); // FTWL
+        m.ftwn = c.f();
+        m.fttr = c.f();
+        m.ftwl = c.f();
         m.facti1 = c.f();
         m.facti2 = c.f();
         m.fachfa = c.f();
         m.fachfe = c.f();
         c.done("MAPWN");
 
-        r.next(); // E3DF P2MSF US3DF USSPF USSP_WN
+        let mut c = r.next();
+        m.e3df = c.is(15);
+        m.p2msf = c.is(3);
+        m.us3df = c.is(3);
+        m.usspf = c.is(2);
         r.next(); // XBPO YBPO RDBPO IPBPO ISBPO
-        r.next(); // IHMAX HSPMIN WSMULT WSCUT FLCOMB NOSWLL PTMETH PTFCUT
+        let mut c = r.next();
+        c.skip(5 * 4); // IHMAX HSPMIN WSMULT WSCUT FLCOMB
+        m.noswll = c.i();
 
         let mut c = r.next();
         m.facp = c.f();

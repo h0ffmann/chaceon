@@ -9,6 +9,9 @@
 | `host`, `cuda`, `spirv` | The three verdicts of ADR-0005 |
 | `W3XYP3`, `W3KTP3` | WW3's third-order propagation in space and in spectral space (`PR3`) |
 | `W3QCK1`, `W3QCK2`, `W3QCK3` | The ULTIMATE QUICKEST step, `UQ`: uniform, varying grid, with transparencies |
+| `out_grd.ww3` | WW3's field output, one record per field per output time |
+| `lavapipe` | Mesa's CPU implementation of Vulkan, the only place this repository runs SPIR-V |
+| `NoContraction` | SPIR-V decoration that stops a driver fusing a multiply and an add |
 | `out_pnt.ww3` | WW3's point output: spectra and scalars at output points |
 | lavapipe | Mesa's Vulkan implementation on the CPU |
 | libdevice | NVIDIA's device math library |
@@ -21,6 +24,9 @@
 | rust-gpu | Rust compiler backend for SPIR-V (`rustc_codegen_spirv`) |
 | sm_89, sm_90 | NVIDIA shader models: RTX 4090, H100 |
 | SPIR-V | Khronos' binary shader language, what Vulkan consumes |
+| `spirv-opt` | The SPIR-V optimiser of SPIRV-Tools; it folds floats unless `NoContraction` is set |
+| `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
+| `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |

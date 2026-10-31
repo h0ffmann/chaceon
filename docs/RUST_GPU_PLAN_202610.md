@@ -108,10 +108,11 @@ remains, for MetOcean's switch.
 
 ### Batch 3: the time loop
 
-**2026-10-31:** `W3XYP3`, `W3KTP3`, `W3QCK1`, `W3QCK3` and many sea points pass `just tp-all` on the host
-(`rust/port_report/W3PRO3.md`), with `restart001.ww3` as the whole-state file. Open: currents, `W3OUTG`
-and `out_grd.ww3`, wind fields, boundaries, obstructions, then `ww3_tp2.15`, and the propagation kernels
-on a device, one launch per component today.
+**2026-10-31:** 18 runs pass `just tp-all` on the host with `out_grd.ww3`, `out_pnt.ww3` and a restart
+byte-identical, `ww3_tp2.15`'s grid and physics among them under homogeneous wind, and 16 of them pass
+with `W3XYP3` and `W3KTP3` in compiled SPIR-V on lavapipe (`rust/port_report/W3PRO3.md`). Open: `W3SRCE`
+in the time loop on the device, a resident spectrum, water levels, ice, boundary input, `wind.ww3`,
+track output, and any real device.
 
 `w3wavemd`, `w3initmd`, `w3updtmd`, `w3pro3md`, `w3uqckmd`, `w3parall`, `w3cspcmd`, `w3flx2md`
 (`ww3_tp2.4` needs `FLX2`). `ww3_tp2.4` runs propagation alone (`ST0`, `NL0`); `ww3_tp2.15` has the
@@ -158,7 +159,7 @@ to C MPI, or GPU-aware transport.
 | gfortran on arm64 fuses `a*b+c` by default (v, probe) | Default reference differs from Rust's arithmetic | The reference is built with `-ffp-contract=off` (ADR-0005) |
 | An arm64 reference is not LabECO's operational x86_64 build | Bits proved here are this reference's | Contraction off keeps the arithmetic IEEE; libm results may still differ ⚠ |
 | `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac, and no `W3SNL1` either: `ww3-libm`'s `expf` needs `f64` and `i64` | Stop with a message; no demotion |
-| SPIR-V is not bit-identical on `W3SDS4` (v), and the cause is partly unattributed ⚠ | `spirv` needs tolerances that a large difference may not fit | Measure on a real device before fixing tolerances; `NoContraction` through inline assembly is untried |
+| SPIR-V is bit-identical on lavapipe (v, [log](log/2026-10-31-spirv-bit-parity.md)), and no device has run ⚠ | `f64` division, subnormals and `OpFConvert`'s rounding are still free on a device | Measure on a real device before fixing tolerances |
 | 52 storage buffers in `W3SRCE` ⚠ | A device with a low limit cannot bind them | Read `maxPerStageDescriptorStorageBuffers` on the device; pack tables if needed |
 | Soft `fma64` and `sqrtf` are slow on a device ⚠ | Wall time | Replace them on PTX in Batch 6, once `fma.rn` and `sqrt.rn` are shown to give the same bits |
 | Rust-CUDA's LLVM 7 path is its legacy one (v) | A language or `core` change may stop building | Pinned nightly; kept plain; cuda-oxide is the fallback |

@@ -12,6 +12,7 @@ crate-type = ["dylib", "lib"]
 [dependencies]
 spirv-std = { workspace = true }
 ww3-kernels = { path = "../../crates/ww3-kernels" }
+ww3-libm = { path = "../../crates/ww3-libm" }
 
 [lints.rust]
 unexpected_cfgs = { level = "allow" }

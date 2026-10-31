@@ -5,26 +5,26 @@ wave-turbulence interaction, cumulative breaking and whitecap output. Translated
 `model/src/w3src4md.F90:1872-2599` at metocean/WW3 `92e2cf66`, MetOcean's commits included. Kernel:
 `rust/crates/ww3-kernels/src/sds4.rs`.
 
-**Status: `routine`** (ADR-0007), on the host. Bit-identical on SPIR-V: **no**. No whole-file verdict,
-no GPU run ⚠.
+**Status: `host`** in `rust/ports.tsv`, through `ww3_ts1`; `routine` (ADR-0007) on the captures below. Bit-identical
+as SPIR-V on lavapipe: **yes** (v, `just spirv-replay`, 15 captures). No whole-file SPIR-V verdict, no GPU run ⚠.
 
 ## Comparison with the reference
 
 Same reference and case as [`W3SNL1`](W3SNL1.md). Variants change the case's namelists only, every
 third call kept, 12 452 calls. Outputs: `SRHS`, `DDIAG`, `BRLAMBDA`, `WHITECAP`, 32 325 392 values.
 
-| Capture | Reaches | Calls | Host differ | SPIR-V max ULP (`SRHS`, `DDIAG`, `BRLAMBDA`, `WHITECAP`) |
+| Capture | Reaches | Calls | Host differ | SPIR-V differ |
 |---|---|---|---|---|
-| default, 2500 m | Scheme 1, `atan2f` through `SSDSC(18)` | 904 | 0 | 5, 4, 2, 4 |
-| default, 8 m | The same, shallow | 940 | 0 | 4, 4, 2, 4 |
-| strain, 20 m | Straining, smoothing, `SSDSISO=1`, `TANH` | 870 | 0 | 4, 4, 3292, 3 |
-| strain, 2500 m | The same, deep | 868 | 0 | 4, 4, 4019, 6 |
-| circle, 2500 m | `SSDSDTH=180` | 808 | 0 | 6, 6, 2, 4 |
-| t700, 2500 m | Scheme 3, the regtest's own settings | 767 | 0 | 1624, 2298, 0, 3 |
-| t700, 8 m | The same, shallow | 767 | 0 | 93, 63, 0, 4 |
-| romero2, 20 m | Scheme 3 with straining | 766 | 0 | 299, 455, 455, 3 |
-| filipot, 2500 m | Scheme 2, `IKTAB`, `DCKI`, `QBI` | 2881 | 0 | 6, 12288, 1, 13 |
-| filipot, 20 m | The same, shallow | 2881 | 0 | 6, 8192, 1, 4 |
+| default, 2500 m | Scheme 1, `atan2f` through `SSDSC(18)` | 904 | 0 | 0 |
+| default, 8 m | The same, shallow | 940 | 0 | 0 |
+| strain, 20 m | Straining, smoothing, `SSDSISO=1`, `TANH` | 870 | 0 | 0 |
+| strain, 2500 m | The same, deep | 868 | 0 | 0 |
+| circle, 2500 m | `SSDSDTH=180` | 808 | 0 | 0 |
+| t700, 2500 m | Scheme 3, the regtest's own settings | 767 | 0 | 0 |
+| t700, 8 m | The same, shallow | 767 | 0 | 0 |
+| romero2, 20 m | Scheme 3 with straining | 766 | 0 | 0 |
+| filipot, 2500 m | Scheme 2, `IKTAB`, `DCKI`, `QBI` | 2881 | 0 | 0 |
+| filipot, 20 m | The same, shallow | 2881 | 0 | 0 |
 
 Host means both layouts: one call at a time, and every call in one buffer at its offsets, as a device
 runs them.
@@ -36,6 +36,10 @@ just spirv && just spirv-replay sds4 strain 20
 
 `scripts/capture.sh` lists the variants.
 
+The SPIR-V column reached 12 288 ULP until `spirv-opt` stopped folding this kernel's floats: table and
+causes in [the log](../../docs/log/2026-10-31-spirv-bit-parity.md). Five more captures on disk, which this table
+does not list, also give 0: 32 340 968 values in all.
+
 ## Fault runs
 
 | Fault | Result |
@@ -43,6 +47,7 @@ just spirv && just spirv-replay sds4 strain 20
 | `SIG*(1-C6)` associated first in `COEF2` | 13 418 `SRHS` values differ, max 4 ULP |
 | One bit of `2.*PI**2.` | 252 493 `BRLAMBDA` values differ |
 | `KBAR**(-2.4999)` for `-2.5`, filipot, 20 m | Detected in `DDIAG`; `SRHS` alone misses it |
+| SPIR-V, default, 2500 m: `pb * (1/TWO_PI2)` for `pb / TWO_PI2`, and `atan2f`'s `z - (pi_lo + pi)` | 91 662 of 2 346 784 values differ, up to 4 ULP |
 
 ## GPU code
 

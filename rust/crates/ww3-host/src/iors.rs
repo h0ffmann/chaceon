@@ -30,7 +30,7 @@ pub struct State {
     pub tlev: Time,
     pub tice: Time,
     pub trho: Time,
-    /// 2 for a full restart, 0 for a cold start, 4 for a calm one.
+    /// 2 for a full restart, 0 for a cold start, 1 for one from the wind, 4 for a calm one.
     pub rstype: i32,
 }
 
@@ -76,7 +76,7 @@ pub fn read(path: &str, m: &ModDef, time: Time, mapsta: &mut [i32], mapst2: &mut
         va: vec![0.; ns * n1],
         wlv: vec![0.; n1],
         ice: vec![0.; n1],
-        ust: vec![0.; n1],
+        ust: vec![1.0e-5; n1],
         ustdir: vec![0.; n1],
         asf: vec![1.; n1],
         fpis: vec![m.sig[m.nk as usize]; n1],
@@ -95,9 +95,10 @@ pub fn read(path: &str, m: &ModDef, time: Time, mapsta: &mut [i32], mapst2: &mut
         "FULL" => 2,
         "COLD" => 0,
         "CALM" => 4,
+        "WIND" => 1,
         _ => panic!("restart type {ty} is not implemented"),
     };
-    if s.rstype == 4 {
+    if s.rstype == 4 || s.rstype == 1 {
         return s;
     }
     if s.rstype == 2 {

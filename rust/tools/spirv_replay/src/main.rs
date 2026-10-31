@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce> <capture>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -449,6 +449,77 @@ fn srce_run(code: &[u8], path: &str) -> bool {
     compare("SPEC", &out[26], &rs) & compare("scalars", bytes(&ours), &ro) & compare("WHITECAP", &out[WHITECAP], &rw)
 }
 
+/// Every `ww3-libm` function in SPIR-V against the same source on this host, on random finite inputs.
+/// The host build is the one `just libm-bits` proves against glibc.
+fn libm_run(code: &[u8], n: &str) -> bool {
+    let n: usize = n.parse().expect("number of inputs");
+    let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+    let mut next = || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state >> 16) as u32
+    };
+    // Exponents near 1 are what a kernel sees, so half the inputs are there.
+    let mut draw = |wide: bool| loop {
+        let b = next();
+        let b = if wide { b } else { (b & 0x807f_ffff) | ((b >> 24) % 40 + 107) << 23 };
+        let x = f32::from_bits(b);
+        if x.is_finite() {
+            return x;
+        }
+    };
+    let x: Vec<f32> = (0..n).map(|i| draw(i % 2 == 0)).collect();
+    let y: Vec<f32> = (0..n).map(|i| draw(i % 2 == 0)).collect();
+    let abs: Vec<f32> = x.iter().map(|v| v.abs()).collect();
+    type F = fn(f32, f32) -> (f32, f32);
+    let funcs: [(&str, F); 10] = [
+        ("expf", |a, _| (ww3_libm::expf(a), 0.)),
+        ("logf", |a, _| (ww3_libm::logf(a), 0.)),
+        ("powf", |a, b| (ww3_libm::powf(a, b), 0.)),
+        ("sincosf", |a, _| ww3_libm::sincosf(a)),
+        ("tanhf", |a, _| (ww3_libm::tanhf(a), 0.)),
+        ("atan2f", |a, b| (ww3_libm::atan2f(a, b), 0.)),
+        ("log10f", |a, _| (ww3_libm::log10f(a), 0.)),
+        ("sqrtf", |a, _| (ww3_libm::sqrtf(a), 0.)),
+        ("atanf", |a, _| (ww3_libm::atanf(a), 0.)),
+        ("expm1f", |a, _| (ww3_libm::expm1f(a), 0.)),
+    ];
+    let mut ok = true;
+    for (i, (name, f)) in funcs.iter().enumerate() {
+        // `logf`, `powf`'s base and `sqrtf` of a negative are NaN on both sides, and say nothing.
+        let xs: &Vec<f32> = if matches!(i, 1 | 2 | 6 | 7) { &abs } else { &x };
+        let which = [i as u32];
+        let slots = [
+            Slot::In(bytes(&which)),
+            Slot::In(bytes(xs)),
+            Slot::In(bytes(&y)),
+            Slot::Out(n * 4),
+            Slot::Out(n * 4),
+        ];
+        let out = dispatch(code, c"libm_probe", &slots, n);
+        let host: Vec<(f32, f32)> = xs.iter().zip(y.iter()).map(|(a, b)| f(*a, *b)).collect();
+        let (r, r2) = (floats(&out[3]), floats(&out[4]));
+        let same = |a: f32, b: f32| a.to_bits() == b.to_bits() || (a.is_nan() && b.is_nan());
+        let mut bad = 0;
+        let mut first = None;
+        for k in 0..n {
+            if !same(r[k], host[k].0) || (i == 3 && !same(r2[k], host[k].1)) {
+                bad += 1;
+                first.get_or_insert(k);
+            }
+        }
+        print!("{name:8} {n} inputs, {bad} differ");
+        if let Some(k) = first {
+            print!("; first x {:08x} y {:08x}: ours {:08x} {:08x}, host {:08x} {:08x}",
+                xs[k].to_bits(), y[k].to_bits(), r[k].to_bits(), r2[k].to_bits(), host[k].0.to_bits(), host[k].1.to_bits());
+        }
+        println!();
+        ok &= bad == 0;
+    }
+    ok
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let (spv, kernel, path) =
@@ -460,6 +531,7 @@ fn main() {
         "sin4" => sin4_run(&code, &path),
         "spr4" => spr4_run(&code, &path),
         "srce" => srce_run(&code, &path),
+        "libm" => libm_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });

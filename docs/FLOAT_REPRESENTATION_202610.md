@@ -101,27 +101,28 @@ converts, one `as` per Fortran conversion.
 
 | | CPU reference | Rust-CUDA | rust-gpu on Vulkan |
 |---|---|---|---|
-| Contraction into FMA | **off by build flag**: arm64 gfortran fuses by default, so the reference adds `-ffp-contract=off` (v, ADR-0005) | **on by default**: `fma_contraction: true` (`cuda_builder/src/lib.rs:211` at `3a82c35`). Set `false`, which passes `-fma=0` (`:743-744`) (v) | **Allowed**: without `NoContraction`, the driver may contract (v, Vulkan specification). `rustc_codegen_spirv` at `60d1e25` emits no such decoration (v, `grep -rn NoContraction crates`) |
-| `/` | IEEE | correctly rounded when `fast_div` is off, its default (v, option; rounding not run ⚠) | **2.5 ULP** allowed (v, Vulkan specification) |
+| Contraction into FMA | **off by build flag**: arm64 gfortran fuses by default, so the reference adds `-ffp-contract=off` (v, ADR-0005) | **on by default**: `fma_contraction: true` (`cuda_builder/src/lib.rs:211` at `3a82c35`). Set `false`, which passes `-fma=0` (`:743-744`) (v) | **Allowed** without `NoContraction` (v, Vulkan specification). `rustc_codegen_spirv` at `60d1e25` emits no such decoration (v, `grep -rn NoContraction crates`); `rust/tools/spirv_exact` adds it to every float operation |
+| `/` | IEEE | correctly rounded when `fast_div` is off, its default (v, option; rounding not run ⚠) | **2.5 ULP** allowed (v, Vulkan specification). `spirv_exact` divides `f32` in `f64`, itself allowed 2.5 ULP, then rounds |
 | `+`, `*` | IEEE | IEEE | correctly rounded (v) |
 | `exp`, `log`, `pow` | glibc | **libdevice by default**: `override_libm: true`, "likely to not be deterministic" (`cuda_builder/src/lib.rs`, doc of `override_libm`) (v). Set `false` and call `ww3-libm` | `GLSL.std.450`, a ULP bound, not glibc's bits (v, `libm_intrinsics.rs:84-85`, `:146-147`). Call `ww3-libm` |
-| Subnormals | kept | `ftz: false` is the default (v); set it explicitly | "may" be flushed unless the execution mode says otherwise ⚠, to settle in Batch 0 |
+| Subnormals | kept | `ftz: false` is the default (v); set it explicitly | "may" be flushed unless the execution mode says otherwise ⚠. lavapipe does not offer `DenormPreserve` (v, `lvp_device.c`, Mesa 22.3.6), and kept them on the subnormal inputs of `just spirv-libm` on arm64 (v); a device is unread ⚠ |
 
 **Measured on `W3SNL1`'s PTX, 2026-10-30 (v, `just ptx`):** no `fma` or float `mad`, no libdevice
 call, and every float operation `.rn`. `ptxas` fuses a plain `mul`, `add` pair by default but leaves
 `mul.rn`, `add.rn` alone with or without `--fmad=false`. The 27 FMA-class instructions in the binary
 are the expansion of the three `div.rn.f32`: one `div.rn.f32` alone gives 17. None has run on a device ⚠.
 
-**Measured on `W3SDS4`'s SPIR-V on lavapipe, 2026-10-31 (v, `just spirv-replay sds4`):** not
-bit-identical. Most values are within a few ULP, and single values reach 12 288 ULP where terms
-nearly cancel. Division by a constant accounts for part of `BRLAMBDA` (`pb / TWO_PI2`, 2 ULP). The
-rest is unattributed ⚠: the exact fused operations depend on `(a+b)-a`, which Vulkan compilers may
-simplify without `NoContraction`. `W3SNL1` stays bit-identical there. On PTX all 5 959 float
-operations are `.rn` and nothing fuses.
+**Measured on lavapipe, 2026-10-31 (v, `just spirv-replay`, `just spirv-libm`):** `W3SNL1`, `W3SPR4`,
+`W3SIN4`, `W3SDS4` and `W3SRCE` are bit-identical, 66 captures, 0 of 108 316 135 values. They were not while
+`rust-gpu`'s `spirv-opt` ran before anything had decorated the module: `spirv-opt` folds floats unless
+`NoContraction` is on the operation, so `(z-pi_lo)-pi` in `atan2f` became `z-(pi_lo+pi)`, 1 ULP wrong on 29% of
+its inputs. Mesa folds an undecorated module too. `scripts/spirv.sh` now decorates first and optimises after.
+[The log](log/2026-10-31-spirv-bit-parity.md) has the table. On PTX all float operations are `.rn` and nothing fuses.
 
-So Rust-CUDA can reach the CPU's bits with the right builder settings, and rust-gpu on Vulkan
-cannot, by specification, until its compiler decorates `NoContraction` and even then not through
-`/`. ADR-0005 turns this into verdicts.
+So Rust-CUDA can reach the CPU's bits with the right builder settings. rust-gpu on lavapipe does reach them. A
+Vulkan device is a separate question ⚠: `NoContraction` binds it, but `f64` division may be off by 2.5 ULP there, which
+`W3SDB1`, `exp`, `expm1` and `tanh` would see, and an `f32` quotient survives only by the margin to a rounding tie
+that `rust/tools/spirv_exact` relies on (`2^-49`, against a 2.5 ULP error in `f64`). Subnormals and the rounding of `OpFConvert` are unread there too. ADR-0005 judges `spirv` by tolerance until a device has run.
 
 ## Memory and files
 
