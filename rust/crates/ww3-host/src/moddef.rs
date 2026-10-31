@@ -58,6 +58,12 @@ impl Rec<'_> {
     pub fn f(&mut self) -> f32 {
         f32::from_bits(self.i() as u32)
     }
+    /// Blanks at the end are Fortran's padding.
+    pub fn text(&mut self, n: usize) -> String {
+        let s = String::from_utf8_lossy(&self.b[self.p..self.p + n]).trim_end().to_string();
+        self.p += n;
+        s
+    }
     pub fn fs(&mut self, n: usize) -> Vec<f32> {
         (0..n).map(|_| self.f()).collect()
     }
@@ -78,6 +84,9 @@ pub struct ModDef {
     pub nsea: i32,
     pub nth: i32,
     pub nk: i32,
+    pub gname: String,
+    pub flagll: bool,
+    pub iclose: i32,
     pub sx: f32,
     pub sy: f32,
     pub x0: f32,
@@ -87,6 +96,19 @@ pub struct ModDef {
     pub maptmp: Vec<i32>,
     pub mapfs: Vec<i32>,
     pub mapsf: Vec<i32>,
+    pub trflag: i32,
+    pub trnx: Vec<f32>,
+    pub trny: Vec<f32>,
+    pub dtcfl: f32,
+    pub dtcfli: f32,
+    pub ctmax: f32,
+    pub clats: Vec<f32>,
+    pub cthg0s: Vec<f32>,
+    pub fldry: bool,
+    pub flbpi: bool,
+    pub mapwn: Vec<i32>,
+    pub wdcg: f32,
+    pub wdth: f32,
     pub dtmax: f32,
     pub dtmin: f32,
     pub dmin: f32,
@@ -190,6 +212,8 @@ impl ModDef {
         let mut c = r.next();
         c.skip(35 + 10);
         (m.nx, m.ny, m.nsea, m.nth, m.nk) = (c.i(), c.i(), c.i(), c.i(), c.i());
+        c.skip(2 * 4); // NBI NFBPO
+        m.gname = c.text(30);
         let (nx, ny, nsea) = (m.nx as usize, m.ny as usize, m.nsea as usize);
         let (nth, nk) = (m.nth as usize, m.nk as usize);
         let nspec = nth * nk;
@@ -198,7 +222,8 @@ impl ModDef {
         r.next(); // NBO, NBO2
         let mut c = r.next();
         let gtype = c.i();
-        c.skip(8);
+        m.flagll = c.i() != 0;
+        m.iclose = c.i();
         assert_eq!(gtype, 1, "only a rectilinear grid is implemented");
         c.done("GTYPE");
 
@@ -211,24 +236,41 @@ impl ModDef {
         m.maptmp = c.is(ny * nx);
         m.mapfs = c.is(ny * nx);
         m.mapsf = c.is(nsea * 3);
-        let trflag = c.i();
+        m.trflag = c.i();
         c.done("ZB");
-        assert_eq!(trflag, 0, "sub-grid obstructions are not implemented");
+        // W3IOGR's read fills the third column.
+        for i in 0..nsea {
+            m.mapsf[i + 2 * nsea] = m.mapsf[i + nsea] + (m.mapsf[i] - 1) * m.ny;
+        }
+        if m.trflag != 0 {
+            let mut c = r.next();
+            m.trnx = c.fs(ny * nx);
+            m.trny = c.fs(ny * nx);
+            c.done("TRNX");
+        }
 
         let mut c = r.next();
-        c.f();
-        c.f();
+        m.dtcfl = c.f();
+        m.dtcfli = c.f();
         m.dtmax = c.f();
         m.dtmin = c.f();
         m.dmin = c.f();
-        c.skip(5 * 4); // CTMAX FICE0 FICEN FICEL PFMOVE
-        c.i(); // FLDRY
+        m.ctmax = c.f();
+        c.skip(4 * 4); // FICE0 FICEN FICEL PFMOVE
+        m.fldry = c.i() != 0;
         m.flcx = c.i() != 0;
         m.flcy = c.i() != 0;
         m.flcth = c.i() != 0;
         m.flck = c.i() != 0;
         m.flsou = c.i() != 0;
-        c.skip(2 * 4); // FLBPI FLBPO
+        m.flbpi = c.i() != 0;
+        c.i(); // FLBPO
+        // CLATS, CLATIS and CTHG0S are (0:NSEA).
+        c.f();
+        m.clats = c.fs(nsea);
+        c.skip((nsea + 1) * 4); // CLATIS
+        c.f();
+        m.cthg0s = c.fs(nsea);
         // From here the sizes depend on the grid, so the end of the record is the anchor: ICESCALES(4),
         // CALTYPE*8, CMPRTRCK, IICEHFAC, IICEDDISP, IICEHDISP, IICEFDISP, BTBETA, AAIRCMIN, AAIRGB.
         c.skip(c.len() - 56 - c.p);
@@ -241,7 +283,8 @@ impl ModDef {
         r.next(); // GRIDSHIFT
 
         let mut c = r.next();
-        c.skip(2 * nfull * 4); // MAPWN MAPTH
+        m.mapwn = c.is(nfull);
+        c.skip(nfull * 4); // MAPTH
         m.dth = c.f();
         m.th = c.fs(nth);
         m.esin = c.fs(nfull);
@@ -357,7 +400,9 @@ impl ModDef {
         (m.sdbc1, m.sdbc2) = (c.f(), c.f());
         m.fdonly = c.i() != 0;
         c.done("SDBC1");
-        r.next(); // WDCG WDTH
+        let mut c = r.next();
+        (m.wdcg, m.wdth) = (c.f(), c.f());
+        c.done("WDCG");
         m
     }
 

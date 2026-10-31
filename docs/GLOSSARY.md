@@ -7,6 +7,8 @@
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
 | GIMPLE | GCC's intermediate form, read to see what `-O3` computes |
 | `host`, `cuda`, `spirv` | The three verdicts of ADR-0005 |
+| `W3XYP3`, `W3KTP3` | WW3's third-order propagation in space and in spectral space (`PR3`) |
+| `W3QCK1`, `W3QCK2`, `W3QCK3` | The ULTIMATE QUICKEST step, `UQ`: uniform, varying grid, with transparencies |
 | `out_pnt.ww3` | WW3's point output: spectra and scalars at output points |
 | lavapipe | Mesa's Vulkan implementation on the CPU |
 | libdevice | NVIDIA's device math library |

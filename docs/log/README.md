@@ -2,6 +2,7 @@
 
 One dated entry per thing tried, negative results included. Append; never rewrite.
 
+- [2026-10-31: propagation on the host, 12 regtests](2026-10-31-propagation-host.md)
 - [2026-10-31: first whole-file verdict, out_pnt.ww3 on ww3_ts1](2026-10-31-ts1-whole-file.md)
 - [2026-10-31: W3SRCE, the integrator, with W3SDB1's f64](2026-10-31-srce-parity.md)
 - [2026-10-31: W3SIN4, W3SPR4 and ST4's tables; a folded constant; unreachable guards](2026-10-31-sin4-parity.md)

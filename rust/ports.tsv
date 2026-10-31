@@ -1,7 +1,7 @@
 # The WW3 code translated to Rust, one row each. status, in order: translated; routine (ADR-0007: every
 # captured call bit-identical); then host, cuda, spirv when that verdict of ADR-0005 passed on whole
-# output files. host here means out_pnt.ww3 on ww3_ts1 only: rust/port_report/WW3_SHEL_TS1.md says how
-# far that reaches. evidence: the command or log entry that shows the status.
+# output files. host here means out_pnt.ww3 and a last-step restart on the cases of just ts1-pair and
+# just tp-all: rust/port_report/WW3_SHEL_TS1.md and W3PRO3.md say how far that reaches. evidence: the command or log entry that shows the status.
 routine	file	lines	status	evidence	rust
 constants	model/src/constants.F90:61-82	22	translated	gfortran 14.3 bit probe, docs/log/2026-10-30-scaffold.md	rust/crates/ww3-kernels/src/constants.rs
 w3snl1md:w3snl1	model/src/w3snl1md.F90:99-457	359	host	just ts1-pair on 18 cases; just snl1-cmp and just spirv-replay at 2500, 20 and 8 m: 0 of 14169600 values differ; rust/port_report/W3SNL1.md	rust/crates/ww3-kernels/src/snl1.rs
@@ -32,3 +32,17 @@ w3timemd:tick21	model/src/w3timemd.F90:83-330	248	host	standard calendar, just t
 w3timemd:dsec21	model/src/w3timemd.F90:332-573	242	host	standard calendar, just ts1-pair; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/wtime.rs
 w3wavemd:w3wave	model/src/w3wavemd.F90:228-2899	2672	translated	only the time and output logic ts1 reaches, in shel.rs; rust/port_report/WW3_SHEL_TS1.md	rust/crates/ww3-host/src/shel.rs
 ww3_shel:ww3_shel	model/src/ww3_shel.F90	2921	translated	only the outer loop and namelist keys ts1 reaches; rust/port_report/WW3_SHEL_TS1.md	rust/tools/ww3_shel/src/main.rs
+w3pro3md:w3map3	model/src/w3pro3md.F90:113-489	377	host	GTYPE < 3 branch, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3pro3md:w3mapt	model/src/w3pro3md.F90:491-589	99	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3pro3md:w3xyp3	model/src/w3pro3md.F90:591-1420	830	host	just tp-all; no currents, no boundary input; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3pro3md:w3ktp3	model/src/w3pro3md.F90:1422-1864	443	host	just tp-all; the FLCK branch needs currents and is unreached; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3uqckmd:w3qck1	model/src/w3uqckmd.F90:117-477	361	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3uqckmd:w3qck2	model/src/w3uqckmd.F90:514-885	372	translated	called only under FLCK, which needs currents; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3uqckmd:w3qck3	model/src/w3uqckmd.F90:919-1327	409	host	just tp-all; every transparency is 1 in these cases; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
+w3updtmd:w3utrn	model/src/w3updtmd.F90:2735-3121	387	translated	TRFLAG 0 reached, 1 and 2 unreached, ice refused; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3updtmd:w3dzxy	model/src/w3updtmd.F90:3138-3457	320	host	no tripole, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3wavemd:w3gath	model/src/w3wavemd.F90:2926-3228	303	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3wavemd:w3scat	model/src/w3wavemd.F90:3244-3545	302	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3iorsmd:w3iors	model/src/w3iorsmd.F90:112-1473	1362	host	COLD and CALM read, FULL written; FULL read unreached; just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/iors.rs
+w3iopomd:w3iopp	model/src/w3iopomd.F90:138-593	456	host	rectilinear grid, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3gsrumd:getpqr	model/src/w3gsrumd.F90:7853-7960	108	host	just tp-all (ww3_tp2.4 needs its rounding); rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs

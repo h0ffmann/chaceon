@@ -108,6 +108,11 @@ remains, for MetOcean's switch.
 
 ### Batch 3: the time loop
 
+**2026-10-31:** `W3XYP3`, `W3KTP3`, `W3QCK1`, `W3QCK3` and many sea points pass `just tp-all` on the host
+(`rust/port_report/W3PRO3.md`), with `restart001.ww3` as the whole-state file. Open: currents, `W3OUTG`
+and `out_grd.ww3`, wind fields, boundaries, obstructions, then `ww3_tp2.15`, and the propagation kernels
+on a device, one launch per component today.
+
 `w3wavemd`, `w3initmd`, `w3updtmd`, `w3pro3md`, `w3uqckmd`, `w3parall`, `w3cspcmd`, `w3flx2md`
 (`ww3_tp2.4` needs `FLX2`). `ww3_tp2.4` runs propagation alone (`ST0`, `NL0`); `ww3_tp2.15` has the
 target's physics, `PR3 UQ FLX0 LN1 ST4 NL1 BT1 DB1`, so it is the first full model (v, its `switch`).

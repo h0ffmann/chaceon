@@ -29,6 +29,7 @@ docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
     cp mod_def.ww3 ww3_shel.nml \$d/
     cp ../input/points.list \$d/
     sed -i \"s#../input/points.list#points.list#\" \$d/ww3_shel.nml
+    cp restart.ww3 \$d/
     mv out_pnt.ww3 \$d/out_pnt.reference
     rm -f \$d/out_pnt.ww3"
 bash scripts/rust_in_ref.sh ww3_shel "/work/pair/$tag" 2>&1 | tail -1 | grep -E 'panicked|rror' || true

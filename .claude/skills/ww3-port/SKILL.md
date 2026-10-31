@@ -35,6 +35,12 @@ longer history; its facts are at NOAA's pin.
 - Prove a first whole-file match: delete the output, regenerate it, compare hashes, then break it on
   purpose. A file left over from the reference passes `cmp` too.
 
+- `CLATS`, `CLATIS`, `CTHG0S` are `(0:NSEA)`, unlike `ZB`. A case on the equator hides a shift by one,
+  since every `CLATS` is 1: `ww3_tp1.1` passed with it and `ww3_tp1.2` did not.
+- `MAPSF(:,3)` is not in `mod_def.ww3`: `W3IOGR` fills it on read.
+- A fault that changes nothing may be a weak fault, not a blind spot: `CFAC=1` discards the clamped
+  `QCN`, and all transparencies are 1 without obstructions. Say which, and find one that reaches.
+
 ## Memory
 
 - Fortran bounds survive translation: `SIG(0:NK+1)`, `CG(0:NK+1,0:NSEA)`. Index through a named
