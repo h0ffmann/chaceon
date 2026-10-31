@@ -45,8 +45,6 @@ longer history; its facts are at NOAA's pin.
   shows it.
 - `W3IOGO` blanks fields to `UNDEF` at dry points and, for some, at `MAPSTA = 2`, and it writes `UST` back.
 - `W3FLDH`'s fallback tests `TFN`, not `TF0`, so a first input after the start time leaves `TF0` at -1.
-- On Vulkan, `/` and contraction both break bits: use `div()` and `spirv_exact`. Testing one alone shows
-  nothing changing.
 
 ## Memory
 
@@ -65,6 +63,10 @@ longer history; its facts are at NOAA's pin.
 - No allocation, `std`, formatting or panic that depends on data inside a kernel. Keep slices
   bounds-checked in `host` builds and read the cost before removing a check.
 - Math goes through `ww3-libm`. Never `cuda_std`'s `GpuFloat`, never `spirv-std`'s `GLSL.std.450`.
+- A floating-point fold can come before the driver. rust-gpu's `spirv-opt` folds `(a-c1)-c2` and
+  friends unless `NoContraction` is already on the operation, so `scripts/spirv.sh` turns it off,
+  decorates, then runs `spirv-opt`. A SPIR-V difference of a few ULP is read from the module first:
+  `just spirv-libm` separates a function from a kernel in a minute.
 - A kernel that needs `f64` declares it, and the host checks the device before starting.
 - Never run on a device without the owner.
 

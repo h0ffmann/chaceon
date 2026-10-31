@@ -23,8 +23,9 @@ propagation in SPIR-V on lavapipe, 0 differ (v, `just tp-all`, `scripts/spirv_pa
   while its grid output matched.
 - **`W3FLDH`'s fallback tests `TFN`**, so a first input after the start time leaves `TF0` at -1, and the
   translation keeps that.
-- **`NoContraction` alone changed nothing useful**, and that looked like a dead end. Division alone does not
-  help either. Only the two together reach 0.
+- **`NoContraction` alone changed nothing useful**, and that looked like a dead end. Division alone did not
+  help either, and the two together reached 0. That was a workaround: the cause was the order of
+  `spirv-opt` and the decoration (`2026-10-31-spirv-bit-parity.md`), and the kernel's `div()` is gone.
 - **An attribution run was invalid:** a path came back empty, `cp` failed, and the run kept the decorated
   module, so the table first said undecorated was identical. It was redone.
 

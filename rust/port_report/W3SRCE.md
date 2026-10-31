@@ -5,8 +5,8 @@ Translated from `model/src/w3srcemd.F90`, `w3sln1md.F90`, `w3sbt1md.F90` and `w3
 `92e2cf66`, **as `switch_chaceon_shrd` builds them**: the text of `gfortran -E -cpp -P` with the
 switches defined, about 400 lines of the 2692.
 
-**Status: `routine`** (ADR-0007), on the host. Bit-identical on SPIR-V: no. No whole-file verdict, no GPU
-run ⚠.
+**Status: `host`** in `rust/ports.tsv`, through `ww3_ts1`; `routine` (ADR-0007) on the captures below. Bit-identical
+as SPIR-V on lavapipe, call by call: yes (v). No whole-file SPIR-V verdict, no GPU run ⚠.
 
 ## Comparison with the reference
 
@@ -46,18 +46,13 @@ LIBM_F64_ONLY=1 just libm-bits # exp, expm1, tanh, sqrt: 8e9 samples each, 0 dif
 
 ## SPIR-V on lavapipe
 
-| Tag | `SPEC` differ of 622 944, max ULP, max relative | `WHITECAP` max ULP |
-|---|---|---|
-| `default_2500m` | 20 482, 8, 7e-7 | 4 |
-| `default_8m` | 29 643, 8, 5e-7 | 4 |
-| `t700_8m` | 51 166, 11, 7e-7 | 8 |
-| `filipot_20m` | 2 736, 10, 9e-7 | 4 |
-| `storm_6m` | 197 036, 45, 5e-6 | 3 |
-| `calm_2500m` | 81, 1, 1e-7 | 0 |
+Bit-identical (v, `just spirv-replay`): 11 captures, 0 of 7 082 383 values, `SPEC`, the scalars and `WHITECAP`,
+`W3SDB1`'s `f64` included. Before, `SPEC` differed up to 45 ULP and the scalars up to 2 534 235 ULP. Cause: float
+folds on a module without `NoContraction`, in [the log](../../docs/log/2026-10-31-spirv-bit-parity.md). A dispatch
+took about 50 s for 721 points: lavapipe on a laptop, with soft math. It is not a timing.
 
-The other scalars reach millions of ULP on values near zero; their largest difference is about 1e-6
-of their peak. A dispatch took 45 s for 721 points: lavapipe on a laptop, with soft math. It is not
-a timing. Cause of the differences unattributed ⚠.
+This replays each call alone. `W3SRCE` has not run chained as SPIR-V: `spirv_shel` dispatches only `W3XYP3` and
+`W3KTP3` ⚠.
 
 ## GPU code
 

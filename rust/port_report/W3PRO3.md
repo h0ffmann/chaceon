@@ -78,19 +78,23 @@ These changed 0 bytes, and why:
   has no fault run that reaches it ⚠.**
 - `W3QCK2` on `ww3_tp2.2`: that grid does not set `FLCK`.
 
-## SPIR-V needs two things
+## What SPIR-V needs
 
-Measured on restart bytes, compiled again each way:
+`scripts/spirv.sh` builds with rust-gpu's own `spirv-opt` pass off, decorates every float operation
+`NoContraction` and widens `f32` division with `rust/tools/spirv_exact`, then runs `spirv-opt -O` and
+`spirv-val`. The order is the point: `spirv-opt` folds floats on an undecorated module.
+
+Restart bytes differing, compiled each way:
 
 | Module | `ww3_tp1.1` | `ww3_tp1.4` | `ww3_tp2.3` | `ww3_tp2.15` |
 |---|---|---|---|---|
-| rust-gpu's, plain `/` | 1 076 | 143 | not run | not run |
-| `NoContraction`, plain `/` | 1 124 | 103 | 773 478 | 341 225 |
-| No decoration, exact division | 1 173 | 102 | 755 547 | 311 982 |
-| Both | **0** | **0** | **0** | **0** |
+| Decorated after rust-gpu's `spirv-opt`, plain `/` | 1 124 | 103 | 773 478 | 341 225 |
+| Undecorated, `f64` division in the kernel | 1 173 | 102 | 755 547 | 311 982 |
+| Decorated after it, `f64` division in the kernel | 0 | 0 | 0 | 0 |
+| Decorated before `spirv-opt`, the pipeline now | 0 | 0 | 0 | 0 |
 
-`rust/tools/spirv_exact` decorates the module, and `div()` in `pro3.rs` divides in `f64`. Why that division is
-exact is in `docs/FLOAT_REPRESENTATION_202610.md`. `pos()` keeps `MAX(0.,X)` at `+0.`, which `FMax` leaves open.
+So the third row was a workaround for the order, and the kernel divides as the Fortran does again. Why a
+device might still differ, and all source-term numbers: `docs/log/2026-10-31-spirv-bit-parity.md`.
 
 ## How far it reaches
 

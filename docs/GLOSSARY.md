@@ -24,6 +24,9 @@
 | rust-gpu | Rust compiler backend for SPIR-V (`rustc_codegen_spirv`) |
 | sm_89, sm_90 | NVIDIA shader models: RTX 4090, H100 |
 | SPIR-V | Khronos' binary shader language, what Vulkan consumes |
+| `spirv-opt` | The SPIR-V optimiser of SPIRV-Tools; it folds floats unless `NoContraction` is set |
+| `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
+| `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |

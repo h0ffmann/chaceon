@@ -74,7 +74,7 @@ just ref-build    # the Fortran reference, linux/arm64 image
 | You changed | Run |
 |---|---|
 | `rust/` | `just check`, and for a translated routine `just snl1-cmp`-style replays on every capture |
-| `rust/crates/ww3-kernels`, `ww3-libm`, `rust/gpu-*` | also `just spirv`, `just ptx`, `just spirv-replay`; `just libm-bits` for `ww3-libm`, which takes about ten minutes |
+| `rust/crates/ww3-kernels`, `ww3-libm`, `rust/gpu-*` | also `just spirv`, `just ptx`, `just spirv-replay`, `just spirv-libm`; `just libm-bits` for `ww3-libm`, which takes about ten minutes |
 | `*.sh`, `justfile` | `just lint-sh` |
 | A comparison, a tolerance | stop: a person reviews it |
 

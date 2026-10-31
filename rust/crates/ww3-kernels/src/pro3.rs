@@ -41,19 +41,6 @@ fn up(i: i32) -> usize {
     (i - 1) as usize
 }
 
-/// `a/b` with the `f32` rounding a CPU gives. Vulkan allows 2.5 ULP in `/`; two `f32` divided in `f64`
-/// and rounded to `f32` are exact, since a quotient never comes closer than `2^-49` to a rounding tie.
-#[inline]
-fn div(a: Real, b: Real) -> Real {
-    ((a as f64) / (b as f64)) as Real
-}
-
-/// `MAX(0.,X)`, as `fmaxnm` gives it: a `-0.` becomes `+0.`, which `FMax` leaves open.
-#[inline]
-fn pos(x: Real) -> Real {
-    if x > 0. { x } else { 0. }
-}
-
 /// `INT ( MIN ( 0. , SIGN (1.1,CFL) ) )`.
 #[inline]
 fn neg(cfl: Real) -> i32 {
@@ -69,10 +56,10 @@ fn limited(q: &[Real], oq: usize, qb: Real, cfl: Real, ixyc: i32, inc: i32, my: 
     let qc = q[oq + lo(ixyc, my)];
     let dq = q[oq + lo(ixyd, my)] - qu;
     let dqnz = sign(1.0e-15f32.max(dq.abs()), dq);
-    let qcn = div(qc - qu, dqnz);
+    let qcn = (qc - qu) / dqnz;
     let qcn = (1.1f32).min((-0.1f32).max(qcn));
-    let qbn = div(qb - qu, dqnz).max(qcn);
-    let qbn = qbn.min(1.).min(div(qcn, 1.0e-10f32.max(cfl.abs())));
+    let qbn = ((qb - qu) / dqnz).max(qcn);
+    let qbn = qbn.min(1.).min(qcn / (1.0e-10f32.max(cfl.abs())));
     let qbr = qu + qbn * dq;
     let cfac = (2. * (qcn - 0.5).abs()) as i32 as Real;
     (1. - cfac) * qbr + cfac * qc
@@ -109,7 +96,7 @@ fn fluxes(g: &Qck, cfll: &[Real], q: &[Real], mapbou: &[i32], fla: &mut [Real]) 
         let cfl = 0.5 * (cfll[g.oc + up(ixy)] + cfll[g.oc + up(ixy + inc)]);
         let ixyc = ixy - inc * neg(cfl);
         let qb = 0.5 * ((1. - cfl) * q[g.oq + lo(ixy + inc, my)] + (1. + cfl) * q[g.oq + lo(ixy, my)])
-            - div(1. - pow2(cfl), 6.)
+            - ((1. - pow2(cfl)) / 6.)
                 * (q[g.oq + lo(ixyc - inc, my)] - 2. * q[g.oq + lo(ixyc, my)] + q[g.oq + lo(ixyc + inc, my)]);
         let qb = limited(q, g.oq, qb, cfl, ixyc, inc, my);
         fla[g.ofl + lo(ixy, my)] = cfl * qb;
@@ -150,7 +137,7 @@ pub fn w3qck1(g: &Qck, cfll: &mut [Real], q: &mut [Real], mapact: &[i32], mapbou
     let (inc, my) = (g.inc, g.my);
     each!(ip, 1, g.nact, {
         let ixy = mapact[up(ip)];
-        q[g.oq + lo(ixy, my)] = pos(q[g.oq + lo(ixy, my)] + fla[g.ofl + lo(ixy - inc, my)] - fla[g.ofl + lo(ixy, my)]);
+        q[g.oq + lo(ixy, my)] = 0f32.max(q[g.oq + lo(ixy, my)] + fla[g.ofl + lo(ixy - inc, my)] - fla[g.ofl + lo(ixy, my)]);
     });
 }
 
@@ -172,13 +159,13 @@ pub fn w3qck2(
     each!(ip, 1, g.nb0, {
         let ixy = mapbou[up(ip)];
         let vel = 0.5 * (velo[g.oc + up(ixy)] + velo[g.oc + up(ixy + inc)]);
-        let cfl = div(dt * vel, dx2[g.od2 + lo(ixy, my)]);
+        let cfl = dt * vel / dx2[g.od2 + lo(ixy, my)];
         let ixyc = ixy - inc * neg(cfl);
         let d2 = dx2[g.od2 + lo(ixy, my)];
         let qb = 0.5 * ((1. - cfl) * q[g.oq + lo(ixy + inc, my)] + (1. + cfl) * q[g.oq + lo(ixy, my)])
-            - div(div(pow2(d2), dx1[g.od1 + up(ixyc)]) * (1. - pow2(cfl)), 6.)
-                * (div(q[g.oq + lo(ixyc + inc, my)] - q[g.oq + lo(ixyc, my)], dx2[g.od2 + lo(ixyc, my)])
-                    - div(q[g.oq + lo(ixyc, my)] - q[g.oq + lo(ixyc - inc, my)], dx2[g.od2 + lo(ixyc - inc, my)]));
+            - ((pow2(d2) / dx1[g.od1 + up(ixyc)]) * (1. - pow2(cfl)) / 6.)
+                * ((q[g.oq + lo(ixyc + inc, my)] - q[g.oq + lo(ixyc, my)]) / dx2[g.od2 + lo(ixyc, my)]
+                    - (q[g.oq + lo(ixyc, my)] - q[g.oq + lo(ixyc - inc, my)]) / dx2[g.od2 + lo(ixyc - inc, my)]);
         let qb = limited(q, g.oq, qb, cfl, ixyc, inc, my);
         fla[g.ofl + lo(ixy, my)] = vel * qb;
     });
@@ -197,7 +184,7 @@ pub fn w3qck2(
     each!(ip, 1, g.nact, {
         let ixy = mapact[up(ip)];
         q[g.oq + lo(ixy, my)] =
-            pos(q[g.oq + lo(ixy, my)] + div(dt, dx1[g.od1 + up(ixy)]) * (fla[g.ofl + lo(ixy - inc, my)] - fla[g.ofl + lo(ixy, my)]));
+            0f32.max(q[g.oq + lo(ixy, my)] + (dt / dx1[g.od1 + up(ixy)]) * (fla[g.ofl + lo(ixy - inc, my)] - fla[g.ofl + lo(ixy, my)]));
     });
 }
 
@@ -225,7 +212,7 @@ pub fn w3qck3(
         let ixy = mapact[up(ip)];
         let jn = if fla[g.ofl + lo(ixy - inc, my)] > 0. { 0 } else { 1 };
         let jp = if fla[g.ofl + lo(ixy, my)] < 0. { 2 } else { 1 };
-        q[g.oq + lo(ixy, my)] = pos(
+        q[g.oq + lo(ixy, my)] = 0f32.max(
             q[g.oq + lo(ixy, my)] + trans[up(ixy) + jn * n] * fla[g.ofl + lo(ixy - inc, my)]
                 - trans[up(ixy) + jp * n] * fla[g.ofl + lo(ixy, my)],
         );
@@ -322,9 +309,9 @@ fn corners(dxcgc: Real, dycgc: Real, ny: i32) -> (i32, i32, Real, Real) {
     let iyc = if dycgc < 0. { -1 } else { 1 };
     let iixy1 = ixc + iyc;
     if dxcgc.abs() > dycgc.abs() {
-        (iixy1, ixc, div(dycgc, dxcgc).abs(), dxcgc.abs())
+        (iixy1, ixc, (dycgc / dxcgc).abs(), dxcgc.abs())
     } else {
-        let rd1 = if dycgc.abs() > 1.0e-5 { div(dxcgc, dycgc).abs() } else { 1. };
+        let rd1 = if dycgc.abs() > 1.0e-5 { (dxcgc / dycgc).abs() } else { 1. };
         (iixy1, iyc, rd1, dycgc.abs())
     }
 }
@@ -360,8 +347,8 @@ pub fn w3xyp3(
     let ecos = t.ecos[up(ith)];
     let esin = t.esin[up(ith)];
 
-    let cg0 = div(0.575 * GRAV, t.sig[1]);
-    let cga = div(0.575 * GRAV, t.sig[ik as usize]);
+    let cg0 = 0.575 * GRAV / t.sig[1];
+    let cga = 0.575 * GRAV / t.sig[ik as usize];
     let mut cgx = cga * ecos;
     let mut cgy = cga * esin;
     let flcur = p.flcur != 0;
@@ -382,11 +369,11 @@ pub fn w3xyp3(
     }
     let cgn = cgx.abs().max(cgy.abs()).max(cxc).max(cyc).max(0.001 * cg0);
 
-    let ntloc = 1 + div(dtg, div(p.dtcfl * cg0, cgn)) as i32;
-    let dtloc = div(dtg, ntloc as Real);
+    let ntloc = 1 + dtg / (p.dtcfl * cg0 / cgn) as i32;
+    let dtloc = dtg / ntloc as Real;
     let mut dtrad = dtloc;
     if flagll {
-        dtrad = div(dtrad, DERA * RADIUS);
+        dtrad = dtrad / (DERA * RADIUS);
     }
     let mut yfirst = yfirst;
 
@@ -401,12 +388,12 @@ pub fn w3xyp3(
     zero(w.cytot, ocy, lcy);
 
     let mut fth = 1. * p.wdth * p.dth * dtloc;
-    let mut fcg = 1. * p.wdcg * 0.5 * (p.xfr - div(1., p.xfr)) * dtloc;
+    let mut fcg = 1. * p.wdcg * 0.5 * (p.xfr - 1. / p.xfr) * dtloc;
     if flagll {
-        fth = div(div(fth, RADIUS), DERA);
-        fcg = div(div(fcg, RADIUS), DERA);
+        fth = (fth / RADIUS) / DERA;
+        fcg = (fcg / RADIUS) / DERA;
     }
-    fcg = div(fcg, ntloc as Real);
+    fcg = fcg / ntloc as Real;
     let fthx = -fth * esin;
     let fthy = fth * ecos;
     let fcgx = fcg * ecos;
@@ -417,11 +404,11 @@ pub fn w3xyp3(
         let i = up(isea);
         let ixy = t.mapsf[i + 2 * ns];
         let c = up(ixy);
-        let tmpx = div(fthx, t.clats[i]);
+        let tmpx = fthx / t.clats[i];
         let tmpy = fthy;
         let dxcgn = t.dpdx[c] * tmpx + t.dpdy[c] * tmpy;
         let dycgn = t.dqdx[c] * tmpx + t.dqdy[c] * tmpy;
-        let tmpx = div(fcgx, t.clats[i]);
+        let tmpx = fcgx / t.clats[i];
         let tmpy = fcgy;
         let dxcgs = t.dpdx[c] * tmpx + t.dpdy[c] * tmpy;
         let dycgs = t.dqdx[c] * tmpx + t.dqdy[c] * tmpy;
@@ -443,15 +430,15 @@ pub fn w3xyp3(
         let i = up(isea);
         let ixy = t.mapsf[i + 2 * ns];
         let cg = t.cg[cgi + cgs * (isea as usize)];
-        vq[oq + lo(ixy, ny)] = div(vq[oq + lo(ixy, ny)], cg) * t.clats[i];
-        w.cxtot[oc + up(ixy)] = div(ecos * cg, t.clats[i]);
+        vq[oq + lo(ixy, ny)] = (vq[oq + lo(ixy, ny)] / cg) * t.clats[i];
+        w.cxtot[oc + up(ixy)] = ecos * cg / t.clats[i];
         w.cytot[ocy + up(ixy)] = esin * cg;
     });
     if flcur {
         each!(isea, 1, nsea, {
             let i = up(isea);
             let c = up(t.mapsf[i + 2 * ns]);
-            w.cxtot[oc + c] = w.cxtot[oc + c] + div(t.cx[i + 1], t.clats[i]);
+            w.cxtot[oc + c] = w.cxtot[oc + c] + t.cx[i + 1] / t.clats[i];
             w.cytot[ocy + c] = w.cytot[ocy + c] + t.cy[i + 1];
         });
     }
@@ -507,15 +494,15 @@ pub fn w3xyp3(
                 let rd3 = w.rdi3[oi + i];
                 let rd4 = 1f32.min(w.rdi4[oi + i] * cg);
                 let (a1, a2, a3, a4) = (w.iixy1[oi + i], w.iixy2[oi + i], w.iixy3[oi + i], w.iixy4[oi + i]);
-                vq[oq + lo(ixy, ny)] = vq[oq + lo(ixy, ny)] + div(aq * (3. - rd2 - rd4), 3.);
-                spread(vq, oq, ixy, a1, true, div(aq * rd2 * rd1, 6.), ny);
-                spread(vq, oq, ixy, a2, true, div(aq * (1. - rd1) * rd2, 6.), ny);
-                spread(vq, oq, ixy, a3, true, div(aq * rd4 * rd3, 6.), ny);
-                spread(vq, oq, ixy, a4, true, div(aq * (1. - rd3) * rd4, 6.), ny);
-                spread(vq, oq, ixy, -a1, true, div(aq * rd2 * rd1, 6.), ny);
-                spread(vq, oq, ixy, -a2, true, div(aq * (1. - rd1) * rd2, 6.), ny);
-                spread(vq, oq, ixy, -a3, true, div(aq * rd4 * rd3, 6.), ny);
-                spread(vq, oq, ixy, -a4, true, div(aq * (1. - rd3) * rd4, 6.), ny);
+                vq[oq + lo(ixy, ny)] = vq[oq + lo(ixy, ny)] + aq * (3. - rd2 - rd4) / 3.;
+                spread(vq, oq, ixy, a1, true, aq * rd2 * rd1 / 6., ny);
+                spread(vq, oq, ixy, a2, true, aq * (1. - rd1) * rd2 / 6., ny);
+                spread(vq, oq, ixy, a3, true, aq * rd4 * rd3 / 6., ny);
+                spread(vq, oq, ixy, a4, true, aq * (1. - rd3) * rd4 / 6., ny);
+                spread(vq, oq, ixy, -a1, true, aq * rd2 * rd1 / 6., ny);
+                spread(vq, oq, ixy, -a2, true, aq * (1. - rd1) * rd2 / 6., ny);
+                spread(vq, oq, ixy, -a3, true, aq * rd4 * rd3 / 6., ny);
+                spread(vq, oq, ixy, -a4, true, aq * (1. - rd3) * rd4 / 6., ny);
             }
         });
 
@@ -536,11 +523,11 @@ pub fn w3xyp3(
                     let rd4 = 1f32.min(w.rdi4[oi + i] * cg);
                     let (a1, a2, a3, a4) = (w.iixy1[oi + i], w.iixy2[oi + i], w.iixy3[oi + i], w.iixy4[oi + i]);
                     let m = t.mapstx;
-                    vq[oq + lo(ixy, ny)] = vq[oq + lo(ixy, ny)] + div(aq * (3. - rd2 - rd4), 3.);
+                    vq[oq + lo(ixy, ny)] = vq[oq + lo(ixy, ny)] + aq * (3. - rd2 - rd4) / 3.;
 
                     let ixc = if a1 >= 0 { ny } else { -ny };
                     let iyc = a1 - ixc;
-                    let f = div(aq * rd2 * rd1, 6.);
+                    let f = aq * rd2 * rd1 / 6.;
                     let o = stx(m, ixy + a1, ny) >= 1
                         && !(stx(m, ixy + ixc, ny) <= 0 && stx(m, ixy + iyc, ny) <= 0);
                     spread(vq, oq, ixy, a1, o, f, ny);
@@ -548,13 +535,13 @@ pub fn w3xyp3(
                         && !(stx(m, ixy - ixc, ny) <= 0 && stx(m, ixy - iyc, ny) <= 0);
                     spread(vq, oq, ixy, -a1, o, f, ny);
 
-                    let f = div(aq * (1. - rd1) * rd2, 6.);
+                    let f = aq * (1. - rd1) * rd2 / 6.;
                     spread(vq, oq, ixy, a2, stx(m, ixy + a2, ny) >= 1, f, ny);
                     spread(vq, oq, ixy, -a2, stx(m, ixy - a2, ny) >= 1, f, ny);
 
                     let ixc = if a3 >= 0 { ny } else { -ny };
                     let iyc = a3 - ixc;
-                    let f = div(aq * rd4 * rd3, 6.);
+                    let f = aq * rd4 * rd3 / 6.;
                     let o = stx(m, ixy + a3, ny) >= 1
                         && !(stx(m, ixy + ixc, ny) <= 0 && stx(m, ixy + iyc, ny) <= 0);
                     spread(vq, oq, ixy, a3, o, f, ny);
@@ -562,7 +549,7 @@ pub fn w3xyp3(
                         && !(stx(m, ixy - ixc, ny) <= 0 && stx(m, ixy - iyc, ny) <= 0);
                     spread(vq, oq, ixy, -a3, o, f, ny);
 
-                    let f = div(aq * (1. - rd3) * rd4, 6.);
+                    let f = aq * (1. - rd3) * rd4 / 6.;
                     spread(vq, oq, ixy, a4, stx(m, ixy + a4, ny) >= 1, f, ny);
                     spread(vq, oq, ixy, -a4, stx(m, ixy - a4, ny) >= 1, f, ny);
                 }
@@ -605,7 +592,7 @@ pub fn w3xyp3(
 
         each!(isea, 1, nsea, {
             let ixy = t.mapsf[up(isea) + 2 * ns];
-            vq[oq + lo(ixy, ny)] = div(vq[oq + lo(ixy, ny)], t.gsqrt[up(ixy)]);
+            vq[oq + lo(ixy, ny)] = vq[oq + lo(ixy, ny)] / t.gsqrt[up(ixy)];
         });
 
         yfirst = !yfirst;
@@ -616,7 +603,7 @@ pub fn w3xyp3(
         let ixy = t.mapsf[i + 2 * ns];
         if t.mapsta[up(ixy)] > 0 {
             let cg = t.cg[cgi + cgs * (isea as usize)];
-            vq[oq + lo(ixy, ny)] = pos(div(cg, t.clats[i]) * vq[oq + lo(ixy, ny)]);
+            vq[oq + lo(ixy, ny)] = 0f32.max((cg / t.clats[i]) * vq[oq + lo(ixy, ny)]);
         }
     });
 }
@@ -717,7 +704,7 @@ pub fn w3ktp3(
     each!(ik, 0, nk + 1, {
         let k = ik as usize;
         w.dsdd[ob + k] = if depth * wn[ob + k] < 5. {
-            div(pos(cg[ob + k] * wn[ob + k] - 0.5 * t.sig[k]), depth)
+            0f32.max(cg[ob + k] * wn[ob + k] - 0.5 * t.sig[k]) / depth
         } else {
             0.
         };
@@ -730,7 +717,7 @@ pub fn w3ktp3(
         let fdg = q.facth * q.cthg0;
         each!(ik, 1, nk, {
             let k = ik as usize;
-            w.frk[ofr + up(ik)] = div(q.facth * w.dsdd[ob + k], wn[ob + k]);
+            w.frk[ofr + up(ik)] = q.facth * w.dsdd[ob + k] / wn[ob + k];
             w.frg[ofr + up(ik)] = fdg * cg[ob + k];
         });
         if p.flcur != 0 {
@@ -765,10 +752,10 @@ pub fn w3ktp3(
         // `DM(NK2,0:NTH+1)`: column ITH starts at `ITH*NK2`.
         each!(ik, 0, nk, {
             let k = ik as usize;
-            w.db[odb + k] = div(t.dsip[k], cg[ob + k]);
+            w.db[odb + k] = t.dsip[k] / cg[ob + k];
             w.dm[om + k + nk2u] = wn[ob + k + 1] - wn[ob + k];
         });
-        w.db[odb + nk2u - 1] = div(t.dsip[nk2u - 1], cg[ob + nk2u - 1]);
+        w.db[odb + nk2u - 1] = t.dsip[nk2u - 1] / cg[ob + nk2u - 1];
         w.dm[om + 2 * nk2u - 1] = 0.;
         each!(ith, 2, nth, {
             let c = up(ith) * nk2u;
@@ -780,11 +767,11 @@ pub fn w3ktp3(
         });
         each!(ik, 0, nk + 1, {
             let k = ik as usize;
-            let fkd0 = div(fkd, cg[ob + k]) * w.dsdd[ob + k];
-            let velfac = div(q.fack, w.db[odb + k]);
+            let fkd0 = (fkd / cg[ob + k]) * w.dsdd[ob + k];
+            let velfac = q.fack / w.db[odb + k];
             each!(ith, 1, nth, {
                 let velnofilt = (fkd0 + wn[ob + k] * w.fkc[ofk + up(ith)]) * velfac;
-                w.cflk[ok + k + up(ith) * nk2u] = div(sign(velnofilt.abs().min(p.ctmax), velnofilt), velfac);
+                w.cflk[ok + k + up(ith) * nk2u] = sign(velnofilt.abs().min(p.ctmax), velnofilt) / velfac;
             });
         });
     }

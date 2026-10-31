@@ -8,6 +8,7 @@ Every pinned version, read on 2026-10-30 (v) unless marked.
 | Host Rust | 1.99.1 | not yet pinned ⚠ | `rustup toolchain list` |
 | Rust-CUDA | `3a82c35` (2026-09-30), `nightly-2026-04-02`, LLVM 7 backend (LLVM 21 reaches sm_100 and later only) | `rust/gpu-cuda/Cargo.toml`, its `rust-toolchain.toml` | `just ptx` |
 | rust-gpu | `60d1e25` (2026-10-27), `nightly-2026-08-15` | `rust/gpu-spirv/Cargo.toml`, its `rust-toolchain.toml` | `just spirv` |
+| SPIRV-Tools | Homebrew `spirv-tools` 1.4.363.0, `SPIRV-Tools v2026.4`: runs `spirv-opt` after `spirv_exact`, and `spirv-val` | not pinned ⚠: `just spirv` uses what is on the PATH | `spirv-opt --version` |
 | CUDA | 13.3.1 (`nvcr.io/nvidia/cuda:13.3.1-cudnn-devel-ubuntu24.04`, arm64), compile only; driver 580 or later for CUDA 13 ⚠ | `docker/Dockerfile.ptx` | `just ptx` |
 | Linux Rust for replays | `rust:1.90-bookworm`, same Debian as the reference | `scripts/rust_in_ref.sh` | `just snl1-cmp` |
 | CPU Vulkan | Mesa lavapipe 22.3.6 from source, SHA-256 pinned, `LP_MAX_TGSI_LOOP_ITERATIONS` and the shader-buffer limits raised, LLVM 15 | `docker/Dockerfile.lavapipe` | `just spirv-replay` |

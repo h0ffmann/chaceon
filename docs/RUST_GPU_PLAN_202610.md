@@ -159,7 +159,7 @@ to C MPI, or GPU-aware transport.
 | gfortran on arm64 fuses `a*b+c` by default (v, probe) | Default reference differs from Rust's arithmetic | The reference is built with `-ffp-contract=off` (ADR-0005) |
 | An arm64 reference is not LabECO's operational x86_64 build | Bits proved here are this reference's | Contraction off keeps the arithmetic IEEE; libm results may still differ ⚠ |
 | `Float64` is missing on Apple GPUs ⚠ | No `DB1` on the Mac, and no `W3SNL1` either: `ww3-libm`'s `expf` needs `f64` and `i64` | Stop with a message; no demotion |
-| SPIR-V was not bit-identical on `W3SDS4` (v). `W3XYP3` and `W3KTP3` became bit-identical on lavapipe with `NoContraction` and exact division, each necessary (v, `W3PRO3.md`); the source terms are measured separately ⚠ | `spirv` needs tolerances that a large difference may not fit | Measure on a real device before fixing tolerances; `NoContraction` through inline assembly is untried |
+| SPIR-V is bit-identical on lavapipe (v, [log](log/2026-10-31-spirv-bit-parity.md)), and no device has run ⚠ | `f64` division, subnormals and `OpFConvert`'s rounding are still free on a device | Measure on a real device before fixing tolerances |
 | 52 storage buffers in `W3SRCE` ⚠ | A device with a low limit cannot bind them | Read `maxPerStageDescriptorStorageBuffers` on the device; pack tables if needed |
 | Soft `fma64` and `sqrtf` are slow on a device ⚠ | Wall time | Replace them on PTX in Batch 6, once `fma.rn` and `sqrt.rn` are shown to give the same bits |
 | Rust-CUDA's LLVM 7 path is its legacy one (v) | A language or `core` change may stop building | Pinned nightly; kept plain; cuda-oxide is the fallback |

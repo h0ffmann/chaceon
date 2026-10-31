@@ -46,7 +46,7 @@ just libm-bits   # expf: 4 294 967 296 inputs, 0 differ
   they capture. The arithmetic is unchanged, and the replay shows it.
 - `x**11` is GCC's power tree, `XFR**IFRP` is libgcc's `__powisf2`.
 - `expf` needs no fused multiply-add: the plain Rust form equals aarch64 glibc on every input.
-- `W3SNL1` stays bit-identical on lavapipe, unlike `W3SDS4`: its only math call is `expf`, its divisions are by variables, and its sums have no error-free tricks to simplify.
+- `W3SNL1` was bit-identical on lavapipe before the other kernels were: it has no chain of constants for `spirv-opt` to fold, and `expf` holds none (v, 0 differ on 11 captures under every module of [the log](../../docs/log/2026-10-31-spirv-bit-parity.md)).
 
 ## Not covered ⚠
 
