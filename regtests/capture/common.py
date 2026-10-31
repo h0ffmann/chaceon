@@ -6,6 +6,7 @@ import gdb
 
 OUT = os.environ["CAPTURE_OUT"]
 STRIDE = int(os.environ.get("CAPTURE_STRIDE", "50"))
+LIMIT = int(os.environ.get("CAPTURE_LIMIT", "0"))
 
 
 def inf():
@@ -73,6 +74,8 @@ class Entry(gdb.Breakpoint):
             if not self.started:
                 self.header(self.out)
                 self.started = True
+            if LIMIT and self.kept >= LIMIT:
+                return True
             self.calls += 1
             if (self.calls - 1) % STRIDE == 0:
                 self.record(self.out)

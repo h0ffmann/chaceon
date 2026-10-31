@@ -59,8 +59,8 @@ just spirv && just spirv-replay sds4 strain 20
 
 ## Not covered ⚠
 
-- `INSIN4`: `SATINDICES`, `SATWEIGHTS`, `CUMULW`, `DCKI`, `QBI`, `IKTAB` and `DIKCUMUL` are read from the
-  capture until `INSIN4` is ported, so these tables are not translated yet.
+- `sds4_cmp` still reads its tables from the capture. They are translated now, and `st4_cmp` shows
+  `INSIN4`'s equal the reference's ([`W3SIN4`](W3SIN4.md)).
 - `SSDSC(18) = 0`, and the `SSDSC(21)` viscous term with a non-zero value.
 - Other spectral grids, `W3SDS4` inside `W3SRCE`, threads, x86_64, any GPU.
 

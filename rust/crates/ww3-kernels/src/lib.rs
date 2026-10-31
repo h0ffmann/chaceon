@@ -3,7 +3,13 @@
 //! `AGENTS.md`, "Translate, don't improve", and `docs/FLOAT_REPRESENTATION_202610.md`.
 #![no_std]
 
+#[macro_use]
+mod util;
+
+pub use util::nint;
+
 pub mod constants;
 pub mod real;
 pub mod sds4;
+pub mod sin4;
 pub mod snl1;

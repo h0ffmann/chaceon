@@ -8,4 +8,5 @@ image=rust:1.90-bookworm
 docker run --rm --platform linux/arm64 -v "$PWD/rust:/rust" -v chaceon-cargo:/usr/local/cargo/registry \
   -e CARGO_TARGET_DIR=/rust/target/linux -w /rust "$image" cargo build --release -q --bin "$bin"
 docker run --rm --platform linux/arm64 -v "$PWD/rust:/rust:ro" -v "$PWD/work:/work" \
+  -e ST4_NO_TABLES \
   --entrypoint "/rust/target/linux/release/$bin" chaceon-ref:switch_chaceon_shrd "$@"

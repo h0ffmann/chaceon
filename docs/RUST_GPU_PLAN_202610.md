@@ -90,9 +90,9 @@ NVIDIA's cuda-oxide, which ADR-0003 keeps as the fallback.
 
 ### Batch 2: source terms on the device
 
-In the order the profile sets, pending Batch 0's new one: `W3SNL1` (`routine`), `W3SDS4` (`routine`),
-`W3SIN4`, `W3SPR4`, `W3SRCE`, `W3SDB1`, `W3SBT1`, `W3SLN1`, `W3SBT4`, and their setup routines.
-`W3SDS4` reads `INSIN4`'s tables from the capture for now: `INSIN4` comes with `W3SIN4`.
+In the order the profile sets, pending Batch 0's new one: `W3SNL1`, `W3SDS4`, `W3SIN4`, `W3SPR4`, `CALC_USTAR`
+(all `routine`, with `INSIN4` and the `TABU_` tables), then `W3SRCE`, `W3SDB1`, `W3SBT1`, `W3SLN1`,
+`W3SBT4`. All of ST4 is translated.
 
 - Source: the Fortran at the pin, never ww3-gpu's C++, which translates NOAA's ST4 and misses
   MetOcean's `USTAR` floors and `ISNAN` guards (`w3src4md.F90:680`, `:780`, `:835`, `:1683`;

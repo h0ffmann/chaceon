@@ -3,6 +3,7 @@
 
 use crate::insnl1::{Snl1Tables, insnl1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point};
+use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Params, Spr4Point};
 use ww3_kernels::snl1::Snl1Params;
 
 /// One `W3SNL1` call: its inputs and the reference's outputs.
@@ -219,5 +220,164 @@ impl Sds4Capture {
             qbi: qbi.data,
             calls,
         }
+    }
+}
+
+/// One `W3SIN4` call: its inputs and the reference's outputs.
+pub struct Sin4Call {
+    pub point: Sin4Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub k: Vec<f32>,
+    pub out: Sin4Out,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+    pub llws: Vec<u32>,
+}
+
+/// What `regtests/capture/sin4.py` records: the kernel's tables, `INSIN4`'s inputs and outputs, calls.
+pub struct Sin4Capture {
+    pub ints: Vec<i32>,
+    /// BBETA ZZWND AALPHA ZZALP TTAUWSHELTER SSINTHP ZZ0RAT DTH ZZ0MAX FACHFE XFR SSDSCOS SSDSBRF1
+    /// SSDSBINT SSDSPBK SSDSABK SSDSHCK SSDSBCK SSDSDTH, then DELUST DELTAIL DELTAUW DELU DELALP DELAB.
+    pub reals: Vec<f32>,
+    pub sswellf: Vec<f32>,
+    pub ssdsc: Vec<f32>,
+    pub sig: Vec<f32>,
+    pub sig2: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub dden2: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub th: Vec<f32>,
+    pub dsip: Vec<f32>,
+    pub fwtable: Vec<f32>,
+    pub taut: Vec<f32>,
+    pub tauhft: Vec<f32>,
+    pub tauhft2: Vec<f32>,
+    pub satindices: Table<i32>,
+    pub satweights: Table<f32>,
+    pub cumulw: Table<f32>,
+    pub iktab: Table<i32>,
+    pub dcki: Table<f32>,
+    pub qbi: Table<f32>,
+    pub calls: Vec<Sin4Call>,
+}
+
+impl Sin4Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIN4");
+        let ints = r.ints(8);
+        let reals = r.reals(25);
+        let sswellf = r.table_r().data;
+        let ssdsc = r.table_r().data;
+        let (sig, sig2, dden, dden2) = (r.table_r().data, r.table_r().data, r.table_r().data, r.table_r().data);
+        let (ecos, esin, th, dsip) = (r.table_r().data, r.table_r().data, r.table_r().data, r.table_r().data);
+        let (fwtable, taut, tauhft, tauhft2) =
+            (r.table_r().data, r.table_r().data, r.table_r().data, r.table_r().data);
+        let satindices = r.table_i();
+        let satweights = r.table_r();
+        let cumulw = r.table_r();
+        let iktab = r.table_i();
+        let dcki = r.table_r();
+        let qbi = r.table_r();
+        let (nk, nspec) = (ints[0] as usize, ints[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let f = r.reals(7);
+            let point = Sin4Point { ustar: f[1], drat: f[2], usdir: f[4], z0: f[5] };
+            let (a, cg, k, _brlambda) = (r.reals(nspec), r.reals(nk), r.reals(nspec), r.reals(nspec));
+            let o = r.reals(4);
+            let out = Sin4Out { tauwx: o[0], tauwy: o[1], tauwnx: o[2], tauwny: o[3] };
+            let (s, d) = (r.reals(nspec), r.reals(nspec));
+            let llws = r.u32s(nspec);
+            calls.push(Sin4Call { point, a, cg, k, out, s, d, llws });
+        }
+        Self {
+            ints, reals, sswellf, ssdsc, sig, sig2, dden, dden2, ecos, esin, th, dsip, fwtable, taut,
+            tauhft, tauhft2, satindices, satweights, cumulw, iktab, dcki, qbi, calls,
+        }
+    }
+
+    pub fn params(&self) -> Sin4Params {
+        let (i, f) = (&self.ints, &self.reals);
+        let mut p = Sin4Params {
+            nk: i[0],
+            nth: i[1],
+            nspec: i[2],
+            bbeta: f[0],
+            zzwnd: f[1],
+            aalpha: f[2],
+            zzalp: f[3],
+            ttauwshelter: f[4],
+            ssinthp: f[5],
+            zz0rat: f[6],
+            dth: f[7],
+            delust: f[19],
+            deltail: f[20],
+            delalp: f[23],
+            delab: f[24],
+            ..Default::default()
+        };
+        p.sswellf.copy_from_slice(&self.sswellf);
+        p
+    }
+}
+
+/// One `W3SPR4` call: its inputs and the reference's outputs.
+pub struct Spr4Call {
+    pub point: Spr4Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub llws: Vec<u32>,
+    pub out: Vec<f32>,
+}
+
+pub struct Spr4Capture {
+    pub params: Spr4Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub taut: Vec<f32>,
+    pub calls: Vec<Spr4Call>,
+}
+
+impl Spr4Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR4");
+        let i = r.ints(3);
+        let f = r.reals(10);
+        let params = Spr4Params {
+            nk: i[0],
+            nth: i[1],
+            nspec: i[2],
+            wwnmeanp: f[0],
+            wwnmeanptail: f[1],
+            fte: f[2],
+            ftf: f[3],
+            sstxftftail: f[4],
+            sstxftwn: f[5],
+            zzwnd: f[6],
+            aalpha: f[7],
+            deltauw: f[8],
+            delu: f[9],
+        };
+        let (sig, dden, ecos, esin) = (r.table_r().data, r.table_r().data, r.table_r().data, r.table_r().data);
+        let taut = r.table_r().data;
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let s = r.reals(6);
+            let point =
+                Spr4Point { u: s[0], udir: s[1], ustar: s[2], usdir: s[3], tauwx: s[4], tauwy: s[5] };
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let llws = r.u32s(nspec);
+            calls.push(Spr4Call { point, a, cg, wn, llws, out: r.reals(12) });
+        }
+        Self { params, sig, dden, ecos, esin, taut, calls }
     }
 }

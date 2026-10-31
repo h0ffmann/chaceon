@@ -100,7 +100,8 @@ A missing tool is a reason to install it, not to skip the gate.
 - **Evidence before a whole model runs** is a capture of the routine from the running reference, a
   replay on the host in call and batch layouts and on the compiled SPIR-V, and a fault run through
   the comparison (ADR-0007). Read which branches the captures reached, and add namelist variants for
-  the rest. It gives the status `routine`, never `host`, `cuda` or `spirv`.
+  the rest. Run a fault through every guard: when no capture catches it, poke the input at the
+  routine's entry, and list what still stays unreached in the routine's report. It gives the status `routine`, never `host`, `cuda` or `spirv`.
 - **Every routine** has a row in `rust/ports.tsv` and a report in `rust/port_report/<ROUTINE>.md`:
   what was translated, its comparison, its timing. `translated` never means `host`.
 - **Licence.** Every file, translated or not, starts with `// SPDX-License-Identifier: MPL-2.0`

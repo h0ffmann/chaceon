@@ -646,6 +646,39 @@ pub fn atan2f(y: f32, x: f32) -> f32 {
     }
 }
 
+/// glibc 2.36 `log10f`, fdlibm's over `logf`.
+#[inline]
+pub fn log10f(x0: f32) -> f32 {
+    const TWO25: f32 = f32::from_bits(0x4c000000);
+    const IVLN10: f32 = f32::from_bits(0x3ede5bd9);
+    const LOG10_2HI: f32 = f32::from_bits(0x3e9a2080);
+    const LOG10_2LO: f32 = f32::from_bits(0x355427db);
+    let mut x = x0;
+    let mut hx = x.to_bits() as i32;
+    let mut k = 0;
+    if hx & 0x7fffffff == 0 {
+        return f32::NEG_INFINITY;
+    }
+    if hx < 0 {
+        return f32::NAN;
+    }
+    if hx < 0x00800000 {
+        k -= 25;
+        x *= TWO25;
+        hx = x.to_bits() as i32;
+    }
+    if hx >= 0x7f800000 {
+        return x + x;
+    }
+    k += (hx >> 23) - 127;
+    let i = ((k as u32) & 0x80000000) >> 31;
+    let hx = (hx & 0x007fffff) | ((0x7f - i as i32) << 23);
+    let y = (k + i as i32) as f32;
+    let x = f32::from_bits(hx as u32);
+    let z = fma32(y, LOG10_2LO, IVLN10 * logf(x));
+    fma32(y, LOG10_2HI, z)
+}
+
 /// glibc's `sqrtf` by digit recurrence, correctly rounded with no hardware square root, so it is
 /// the same on every target. A device's IEEE `sqrt` can replace it for speed once Batch 6 shows
 /// that the bits agree.

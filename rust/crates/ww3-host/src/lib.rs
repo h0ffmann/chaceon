@@ -3,4 +3,5 @@
 //! are the reference's only on its Linux image.
 
 pub mod capture;
+pub mod insin4;
 pub mod insnl1;

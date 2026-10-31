@@ -30,6 +30,10 @@ snl1-cmp depth="2500":
 sds4-cmp variant="default" depth="2500":
     bash scripts/rust_in_ref.sh sds4_cmp /work/capture/sds4_{{variant}}_{{depth}}m.bin
 
+# Replays W3SIN4 or W3SPR4 calls and rebuilds ST4's tables, every bit
+st4-cmp routine="sin4" variant="default" depth="2500":
+    bash scripts/rust_in_ref.sh st4_cmp {{routine}} /work/capture/{{routine}}_{{variant}}_{{depth}}m.bin
+
 # ww3-libm against the reference's glibc: every f32, and samples for two arguments
 libm-bits samples="8000000000":
     bash scripts/rust_in_ref.sh libm_bits {{samples}}

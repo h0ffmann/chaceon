@@ -16,6 +16,10 @@ longer history; its facts are at NOAA's pin.
   `-fdump-tree-optimized` and read it before suspecting the physics.
 - A literal power such as `x**11` is a multiplication chain at `-O3`. A run-time `XFR**IFRP` is
   `__powisf2`. Write each out; never `powi` or `powf` for an integer power.
+- `-O3` folds with one rounding what it can see, even inside a loop: it peels `DO IKD=1,NKD` and folds
+  `1.01**(1-1000)`, while every later pass calls `__powisf2`. Only `IKD=1` differs, by 2^-15. A
+  difference in one row or the first index suggests this.
+- `x**2.` is `x*x` at any optimisation level; other real exponents stay `powf`.
 - `REAL` is `f32`. A literal without `D` is `f32` even inside an `f64` expression.
 - `d = a*b` is `(a * b) as f64`. Put each `as` where gfortran converts.
 - `f32::max` hides NaN. Read what gfortran's `MAX` compiled to at that site.
@@ -60,6 +64,11 @@ longer history; its facts are at NOAA's pin.
 - A host replay with zero offsets cannot see an offset bug: also replay in one buffer, as a device does.
 - If every loop of a shader stops after one pass from some point on, suspect llvmpipe's limit, which
   `docker/Dockerfile.lavapipe` raises.
+- A table of zeros passes everything: `DCKI` and `QBI` matched on every default capture only because
+  those settings leave them empty. Print the count of nonzero values and read it.
+- A guard can be out of reach of any run: MetOcean's `W3SRCE` floors `USTAR` at 0.001, so `W3SIN4`'s
+  0.0001 floor never acts. Show that with a fault run, then poke the input at the routine's entry
+  (`regtests/capture/sin4.py`), so the real Fortran runs that line.
 - A case can hide a branch. `ww3_ts1` is 2500 m deep, where `EXP(X2)` in `W3SNL1` vanishes: a wrong
   `expf` still matched there, and only a shallow run caught it. Ask what each input never reaches.
 
