@@ -1,0 +1,13 @@
+# Host workspace. The two GPU crates of Batch 0 get their own workspaces, each with its compiler's
+# nightly in rust-toolchain.toml, because Rust-CUDA and rust-gpu pin different nightlies.
+[workspace]
+resolver = "3"
+members = ["crates/ww3-kernels"]
+
+[workspace.package]
+edition = "2024"
+version = "0.0.0"
+publish = false
+
+[profile.release]
+panic = "abort"
