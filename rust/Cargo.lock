@@ -60,6 +60,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "srce_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "st4_cmp"
 version = "0.0.0"
 dependencies = [

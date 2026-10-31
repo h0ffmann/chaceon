@@ -47,6 +47,12 @@ longer history; its facts are at NOAA's pin.
 - A kernel that needs `f64` declares it, and the host checks the device before starting.
 - Never run on a device without the owner.
 
+## Reading a routine
+
+- Preprocess with the target's switches before reading: `gfortran -E -cpp -P` with `-DW3_<SWITCH>` for
+  each switch cut `W3SRCE` from 2692 lines to about 400, and leaves no chance of translating code
+  this build does not have.
+
 ## ww3-libm
 
 - A fused site is read from the reference's `libm.so.6` with `objdump`, never predicted. GCC fuses a
@@ -69,6 +75,10 @@ longer history; its facts are at NOAA's pin.
 - A guard can be out of reach of any run: MetOcean's `W3SRCE` floors `USTAR` at 0.001, so `W3SIN4`'s
   0.0001 floor never acts. Show that with a fault run, then poke the input at the routine's entry
   (`regtests/capture/sin4.py`), so the real Fortran runs that line.
+- Count what ran. `srce_cmp` prints how many calls had `W3SDB1` and `W3SBT1` active: `W3SDB1` is idle at
+  12 m/s even in 6 m of water, so its faults mean nothing there.
+- A fault that nothing catches may be a line with no effect: `USTAR=0.001` at `IT=0` is overwritten by
+  the next `W3SPR4`. Say which it is.
 - A case can hide a branch. `ww3_ts1` is 2500 m deep, where `EXP(X2)` in `W3SNL1` vanishes: a wrong
   `expf` still matched there, and only a shallow run caught it. Ask what each input never reaches.
 

@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 # CPU Vulkan (Mesa lavapipe), to execute compiled SPIR-V without a GPU. Same Debian as the reference.
 #
-# Built from source for one reason: llvmpipe ends every loop once a whole shader invocation has made
-# LP_MAX_TGSI_LOOP_ITERATIONS (65535) back-edges, silently, and W3SDS4 makes more. A real GPU has no
-# such limit. This is the only change to Mesa.
+# Built from source for two limits a real GPU does not share, and these are the only changes to Mesa:
+# llvmpipe ends every loop once a whole shader invocation has made LP_MAX_TGSI_LOOP_ITERATIONS (65535)
+# back-edges, silently, and W3SDS4 makes more; and it allows 32 storage buffers, where W3SRCE binds 52.
 FROM debian:bookworm-slim AS build
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential meson ninja-build \
@@ -15,7 +15,12 @@ RUN curl -sSfL -o /mesa.tar.xz https://archive.mesa3d.org/older-versions/22.x/me
  && tar xf /mesa.tar.xz -C / \
  && sed -i 's/#define LP_MAX_TGSI_LOOP_ITERATIONS 65535/#define LP_MAX_TGSI_LOOP_ITERATIONS 2147483647/' \
       /mesa-22.3.6/src/gallium/auxiliary/gallivm/lp_bld_limits.h \
- && grep -q 'LOOP_ITERATIONS 2147483647' /mesa-22.3.6/src/gallium/auxiliary/gallivm/lp_bld_limits.h
+ && grep -q 'LOOP_ITERATIONS 2147483647' /mesa-22.3.6/src/gallium/auxiliary/gallivm/lp_bld_limits.h \
+ && sed -i 's/#define LP_MAX_TGSI_SHADER_BUFFERS 32/#define LP_MAX_TGSI_SHADER_BUFFERS 64/' \
+      /mesa-22.3.6/src/gallium/auxiliary/gallivm/lp_bld_limits.h \
+ && sed -i 's/#define PIPE_MAX_SHADER_BUFFERS   32/#define PIPE_MAX_SHADER_BUFFERS   64/' \
+      /mesa-22.3.6/src/gallium/include/pipe/p_state.h \
+ && grep -q 'PIPE_MAX_SHADER_BUFFERS   64' /mesa-22.3.6/src/gallium/include/pipe/p_state.h
 RUN cd /mesa-22.3.6 && meson setup /b -Dbuildtype=release -Dplatforms= -Dgallium-drivers=swrast \
       -Dvulkan-drivers=swrast -Dllvm=enabled -Dshared-llvm=enabled -Dglx=disabled -Degl=disabled \
       -Dgbm=disabled -Dopengl=false -Dgles1=disabled -Dgles2=disabled -Ddri3=disabled \

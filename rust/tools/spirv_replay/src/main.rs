@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4> <capture>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce> <capture>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
 use std::ffi::CStr;
-use ww3_host::capture::{Sds4Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr4Call, Spr4Capture};
+use ww3_host::capture::{
+    Sds4Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
+};
+use ww3_kernels::srce::{SrceOut, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
 
 struct Buffer {
@@ -375,6 +378,77 @@ fn spr4_run(code: &[u8], path: &str) -> bool {
     compare("W3SPR4", &out[12], &ro)
 }
 
+/// `path` is `<dir>/srce_<tag>.bin`: the tables come from the same case's other captures.
+fn srce_run(code: &[u8], path: &str) -> bool {
+    let sib = |r: &str| path.replace("/srce_", &format!("/{r}_"));
+    let c = SrceCapture::read(path);
+    let (snl, sds, sin, spr) = (
+        Snl1Capture::read(&sib("snl1")),
+        Sds4Capture::read(&sib("sds4")),
+        Sin4Capture::read(&sib("sin4")),
+        Spr4Capture::read(&sib("spr4")),
+    );
+    let st = snl.rebuild();
+    let p = c.params(st.params, sds.params, sin.params(), spr.params);
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let concat = |f: fn(&SrceCall) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (spec, wn1, cg1) = (concat(|x| &x.spec), concat(|x| &x.wn1), concat(|x| &x.cg1));
+    let (rs, ro, rw) = (concat(|x| &x.spec_out), concat(|x| &x.out), concat(|x| &x.whitecap));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (l_snl, l_sds, l_ids) = work_lens(&p);
+    let one = [0u8; 4];
+    let tab = |b: &[u8]| -> Vec<u8> { if b.is_empty() { one.to_vec() } else { b.to_vec() } };
+    let owned = [tab(bytes(&sds.cumulw)), tab(bytes(&sds.iktab)), tab(bytes(&sds.dcki)), tab(bytes(&sds.qbi))];
+    let mut slots = vec![
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&sin.sig)),
+        Slot::In(bytes(&sin.sig2)),
+        Slot::In(bytes(&sin.dden)),
+        Slot::In(bytes(&sin.dden2)),
+        Slot::In(bytes(&sds.ec2)),
+        Slot::In(bytes(&sds.es2)),
+        Slot::In(bytes(&sds.esc)),
+        Slot::In(bytes(&sin.ecos)),
+        Slot::In(bytes(&sin.esin)),
+        Slot::In(bytes(&st.af11)),
+        Slot::In(bytes(&st.pm)),
+        Slot::In(bytes(&st.ic)),
+        Slot::In(bytes(&sds.satindices)),
+        Slot::In(bytes(&sds.satweights)),
+        Slot::In(&owned[0]),
+        Slot::In(&owned[1]),
+        Slot::In(&owned[2]),
+        Slot::In(&owned[3]),
+        Slot::In(bytes(&sin.fwtable)),
+        Slot::In(bytes(&sin.tauhft)),
+        Slot::In(bytes(&sin.tauhft2)),
+        Slot::In(bytes(&sin.taut)),
+        Slot::In(bytes(&pts)),
+        Slot::In(bytes(&wn1)),
+        Slot::In(bytes(&cg1)),
+        Slot::In(bytes(&spec)),
+        Slot::Out(points * size_of::<SrceOut>()),
+    ];
+    // After SPEC, out: 18 spectrum-sized arrays, w_snl, w_sds, iw_sds, w_small.
+    const WHITECAP: usize = 28 + 22;
+    for _ in 0..18 {
+        slots.push(Slot::Out(points * nspec * 4));
+    }
+    slots.push(Slot::Out(points * l_snl * 4));
+    slots.push(Slot::Out(points * l_sds * 4));
+    slots.push(Slot::Out(points * l_ids * 4));
+    slots.push(Slot::Out(points * work_small(&p) * 4));
+    slots.push(Slot::Out(points * 16));
+    slots.push(Slot::Out(points * 16));
+    slots.push(Slot::Out(points * 48));
+    let out = dispatch(code, c"srce", &slots, points);
+    let ours = floats(&out[27]);
+    compare("SPEC", &out[26], &rs) & compare("scalars", bytes(&ours), &ro) & compare("WHITECAP", &out[WHITECAP], &rw)
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let (spv, kernel, path) =
@@ -385,6 +459,7 @@ fn main() {
         "sds4" => sds4_run(&code, &path),
         "sin4" => sin4_run(&code, &path),
         "spr4" => spr4_run(&code, &path),
+        "srce" => srce_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });

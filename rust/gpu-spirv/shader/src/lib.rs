@@ -9,6 +9,7 @@ use ww3_kernels::real::Real;
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
+use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce};
 use ww3_kernels::{sds4, snl1};
 
 #[spirv(compute(threads(64)))]
@@ -142,4 +143,72 @@ pub fn spr4(
         p, sig, dden, ecos, esin, taut, a, cg, wn, llws, &pt, w, out,
         point * p.nspec as usize, point * nk, point * 2 * nk, point,
     );
+}
+
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn srce(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &SrceParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] sig2: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] dden: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] dden2: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] ec2: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] es2: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] esc: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] ecos: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] esin: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] af11: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 11)] pm: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 12)] ic: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 13)] satindices: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 14)] satweights: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 15)] cumulw: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 16)] iktab: & [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 17)] dcki: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 18)] qbi: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 19)] fwtable: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 20)] tauhft: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 21)] tauhft2: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 22)] taut: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 23)] points: & [SrcePoint],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 24)] wn1: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 25)] cg1: & [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 26)] spec: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 27)] out: &mut [SrceOut],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 28)] specinit: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 29)] dam: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 30)] wn2: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 31)] vsln: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 32)] vsin: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 33)] vdin: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 34)] vsnl: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 35)] vdnl: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 36)] vsds: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 37)] vdds: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 38)] vsbt: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 39)] vdbt: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 40)] vsdb: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 41)] vddb: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 42)] vs: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 43)] vd: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 44)] brlambda: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 45)] llws: &mut [u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 46)] w_snl: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 47)] w_sds: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 48)] iw_sds: &mut [i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 49)] w_small: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 50)] whitecap: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 51)] sin_out: &mut [Sin4Out],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 52)] spr_out: &mut [Spr4Out],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    let t = SrceTables { sig, sig2, dden, dden2, ec2, es2, esc, ecos, esin, af11, pm, ic, satindices, satweights, cumulw, iktab, dcki, qbi, fwtable, tauhft, tauhft2, taut };
+    let mut w = SrceWork { specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda, llws, w_snl, w_sds, iw_sds, w_small, whitecap, sin_out, spr_out };
+    w3srce(p, &t, &pt, spec, wn1, cg1, &mut w, out, point);
 }
