@@ -9,7 +9,7 @@ Every pinned version, read on 2026-10-30 (v) unless marked.
 | Rust-CUDA | `3a82c35` (2026-09-30), `nightly-2026-04-02`, LLVM 7 by default, LLVM 21 by feature | to pin in Batch 0 | `rust-toolchain.toml` of that commit |
 | rust-gpu | `60d1e25` (2026-10-27), `nightly-2026-08-15` | to pin in Batch 0 | `rust-toolchain.toml` of that commit |
 | CUDA, driver | CUDA 12 or 13; driver 580 or later for 13 | to pin in Batch 0 | `guide/src/guide/getting_started.md` of Rust-CUDA |
-| Reference compiler | Debian bookworm's gfortran; read from `BUILD_INFO` | `docker/Dockerfile.reference` | `just ref-build` |
+| Reference compiler | gfortran 12.2.0, glibc 2.36 (Debian bookworm, amd64) | `docker/Dockerfile.reference` | `just ref-build`, which prints `BUILD_INFO` |
 | WW3 regtest data | not fetched yet ⚠ | Batch 0 | `WW3/model/bin/ww3_from_ftp.sh` |
 
 ww3-gpu's own WW3 is NOAA's `03adda91`, a different model: its timings and verdicts do not carry

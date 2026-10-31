@@ -63,7 +63,7 @@ Mathematical functions need both widths. `W3SDB1` calls `exp`, `tanh` and `sqrt`
 ## Four ways the obvious Rust is wrong
 
 Each row was run on 2026-10-30 (v): gfortran 14.3.0 `-O3` in `gcc:14-bookworm` against rustc 1.99.1
-([log](log/2026-10-30-scaffold.md)). `a = 0.1` and `b = 3.3` are `REAL`; `d` is `REAL*8`.
+([log](log/2026-10-30-scaffold.md)). The reference is gfortran 12.2.0; to repeat with it in Batch 0 ⚠. `a = 0.1` and `b = 3.3` are `REAL`; `d` is `REAL*8`.
 
 | Fortran | gfortran's bits | Correct Rust | Wrong Rust, and its bits |
 |---|---|---|---|

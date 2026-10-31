@@ -53,7 +53,8 @@ The first five batches give a working forecast for the target switch,
 Nothing else is worth starting until these hold, because the two compilers are the plan's largest
 risk: both projects call themselves early-stage (v, their READMEs, 2026-10-30).
 
-1. Build the reference with `just ref-build`, on a native x86_64 machine for any bit verdict.
+1. Build the reference with `just ref-build`, on a native x86_64 machine for any bit verdict. It
+   builds under emulation on the Mac (v, 2026-10-30), which proves the build only.
 2. Run `ww3_ts1` ST4, `ww3_tp2.4` and `ww3_tp2.15` on it, twice, to learn which files WW3 itself
    does not reproduce. Keep the outputs by checksum.
 3. Profile the reference at this pin. ww3-gpu's profiles are NOAA's pin, and MetOcean's ST4 differs.
