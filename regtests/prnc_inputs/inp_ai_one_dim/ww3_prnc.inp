@@ -1,0 +1,8 @@
+$ ww3_prnc.inp written by scripts/prnc_cdl_gen.py
+  'CUR' 'AI' T T
+$
+  time
+$
+  ucur vcur
+$
+  '../input/in.nc'

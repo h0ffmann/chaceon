@@ -38,6 +38,10 @@
 | `READNL` | `W3GRID`'s scan of the namelist file `GRID%NML` for a group named `&SIN4`, `&MISC` and so on |
 | `ww3_prep`, `W3PREP` | The input preprocessor (`ww3_prep.F90`): reads a water level, current, wind, ice, mud, momentum or density field, or assimilation data, from a file and writes the forcing file `ww3_shel` reads (`current.ww3`, `wind.ww3`, `ice.ww3`, ...) |
 | `AI`, `LL`, `F1`, `F2`, `DAT` | The input types of `ww3_prep`: the field is already on the model grid (`AI`), on a regular longitude-latitude grid (`LL`), on a grid given by a file (`F1`), two such grids averaged (`F2`), or it is assimilation data (`DAT`) |
+| `ww3_prnc`, `W3PRNC` | The NetCDF forcing preprocessor (`ww3_prnc.F90`): reads a wind, current, ice, level, mud, momentum or air density field from a NetCDF file and writes the same forcing file as `ww3_prep`. Its input is `ww3_prnc.nml`, or the older `ww3_prnc.inp` |
+| `AI`, `LL`, `AT` of `ww3_prnc` | Its input types: the field is on the model grid (`AI`, `ITYPE` 1), on a longitude-latitude grid, regular or curvilinear, to be interpolated (`LL`, `ITYPE` 2), or a time series on the model grid to be reduced to tidal constituents (`AT`, `ITYPE` 6, refused here). `FORCING%GRID%ASIS` and `LATLON` of the namelist select `AI` and `LL` |
+| CDL, `ncgen` | The text form of a NetCDF file, and the tool that builds the file from it. `regtests/prnc_inputs/` holds CDL because the NetCDF inputs of the regtests are not in the WW3 copy |
+| `INTERP` | The bilinear interpolation of `ww3_prnc` from the weights of `W3GRMP`; it skips corners holding the fill value and rescales the weights that remain |
 | `W3FLDO`, `W3FLDG` | The routines that open a forcing file and write or read its header (`W3FLDO`) and its fields at one time (`W3FLDG`), `w3fldsmd.F90` |
 | `FNMPRE` | The file name preamble (`./` by default) that `ww3_prep` puts before every file name it opens |
 | `INA2R`, `INA2I` | WW3's reads of a real or integer array from a file, by layout (`IDLA`) and format (`IDFM`) indicators |

@@ -1,0 +1,7 @@
+! a comment line
+&forcing_nml forcing%field%winds=.true., forcing%grid%latlon = t, ! trailing comment
+  forcing%timestart = '19680606 000000' /
+&file_nml
+  file%filename = "../input/in.nc", file%longitude = 'longitude', file%latitude = 'latitude'
+  file%var = 'U', 'V'
+/

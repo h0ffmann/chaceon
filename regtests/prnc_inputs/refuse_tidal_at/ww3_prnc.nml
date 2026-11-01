@@ -1,0 +1,11 @@
+&FORCING_NML
+  FORCING%FIELD%WATER_LEVELS = T
+  FORCING%GRID%ASIS = T
+  FORCING%TIDAL = 'M2 S2'
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'x'
+  FILE%LATITUDE      = 'y'
+  FILE%VAR(1)        = 'wlv'
+/

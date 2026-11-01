@@ -1,0 +1,10 @@
+&FORCING_NML
+  FORCING%FIELD%AIR_DENSITY = T
+  FORCING%GRID%ASIS = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'x'
+  FILE%LATITUDE      = 'y'
+  FILE%VAR(1)        = 'rho'
+/

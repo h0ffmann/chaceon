@@ -1,0 +1,11 @@
+&FORCING_NML
+  FORCING%FIELD%ATM_MOMENTUM = T
+  FORCING%GRID%LATLON = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'longitude'
+  FILE%LATITUDE      = 'latitude'
+  FILE%VAR(1)        = 'tx'
+  FILE%VAR(2)        = 'ty'
+/

@@ -1,0 +1,8 @@
+netcdf in {
+dimensions:
+	x = 3 ;
+variables:
+	float U(x) ;
+data:
+ U = 1, 2, 3 ;
+}

@@ -115,6 +115,22 @@ prep-interp mode="all" pattern=".":
 strt-variants:
     bash scripts/strt_variants.sh
 
+# Host verdict on ww3_prnc: the reference's forcing file, log and status and Rust's, by cmp. <case> is a directory of regtests/prnc_inputs
+prnc-pair case:
+    bash scripts/prnc_pair.sh {{case}}
+
+# The cases shaped like the ww3_prnc inputs of WW3's regtests (the NetCDF data are synthetic, built from CDL), through prnc-pair
+prnc-all:
+    bash scripts/prnc_all.sh
+
+# ww3_prnc cases no regtest has (other fields, units, ww3_prnc.inp, errors) and the forms Rust refuses
+prnc-variants:
+    bash scripts/prnc_variants.sh
+
+# Rewrites the CDL, namelist and case.conf files of regtests/prnc_inputs/ (deterministic)
+prnc-gen:
+    python3 scripts/prnc_cdl_gen.py
+
 # Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
 grid-pair case suffix="":
     bash scripts/grid_pair.sh {{case}} {{suffix}}

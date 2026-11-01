@@ -1,0 +1,8 @@
+$ ww3_prnc.inp written by scripts/prnc_cdl_gen.py
+  'IC1' 'LL' T T
+$
+  x y
+$
+  ice
+$
+  '../input/in.nc'
