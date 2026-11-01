@@ -149,6 +149,9 @@ Fortran's byte for byte. `ww3_grid` also writes `ST4TABUHF2.bin`, so the tables 
 Status on 2026-10-31: `ww3_strt` and `ww3_grid` have Rust ports, byte-identical on the regtests of
 `rust/port_report/WW3_STRT.md` and `WW3_GRID.md`. Rust's `ww3_grid` does not write `ST4TABUHF2.bin`, the cache
 that only `ww3_grid` reads back, and stops on unstructured and SMC grids.
+`just rust-only` runs the chain from namelists on 17 cases, byte-identical on every file up to `restart.ww3`
+([log](log/2026-10-31-rust-only-chain.md)). The exit above is not met: there is no NetCDF step yet, and
+`ww3_prep` is not ported.
 
 ### Batch 6: speed
 

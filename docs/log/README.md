@@ -2,6 +2,7 @@
 
 One dated entry per thing tried, negative results included. Append; never rewrite.
 
+- [2026-10-31: a run with no Fortran program, 17 cases byte-identical](2026-10-31-rust-only-chain.md)
 - [2026-10-31: ww3_grid byte-identical on 28 regtests](2026-10-31-grid-parity.md)
 - [2026-10-31: runtime MPI for ww3_shel, 120 runs byte-identical](2026-10-31-runtime-mpi.md)
 - [2026-10-31: Lean proof of the SPIR-V division widening](2026-10-31-lean-division.md)
