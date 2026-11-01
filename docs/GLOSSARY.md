@@ -75,4 +75,8 @@
 | `FIELD%TYPE`, `NCVARTYPE` | `ww3_ounf`'s variable type: 2 packed `short` with a scale factor, 3 `short` for most fields and `float` for a few, 4 `float` |
 | `NINT` | Fortran's round to the nearest integer, halves away from zero; on aarch64 one `fcvtas`, which saturates out of range |
 | `SINGLEFILE` | An uninitialised logical of `ww3_ounf` that the reference reads as true: one file named from the first output time |
+| `ww3_ounp` | WW3's postprocessor for point output: reads `mod_def.ww3`, `out_pnt.ww3` and `ww3_ounp.nml`, writes NetCDF files, one for all stations or one per station; `SINGLEFILE` is the same uninitialised logical |
+| `POINT%TYPE`, `SPECTRA%OUTPUT`, `PARAM%OUTPUT` | The `ITYPE` and `OTYPE` of `ww3_ounp.nml`: type 1 is spectra (output 3 the file of `efth`), type 2 is mean parameters (output 1 depth and wind, 2 wave parameters, 5 validation, 6 WMO) |
+| `DIMORDER` | `ww3_ounp.nml`: true gives variables of shape (time, station) in C order, false (station, time) |
+| `FNMPRE` | The file name preamble of WW3, `./`; it is part of the file names `ww3_ounp` writes and of `product_name` less its first two characters |
 | ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |
