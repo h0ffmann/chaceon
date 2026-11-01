@@ -94,6 +94,18 @@ f64-census:
 strt-pair case suffix="":
     bash scripts/strt_pair.sh {{case}} {{suffix}}
 
+# Host verdict on ww3_prep: the reference's forcing file (current.ww3, wind.ww3, ice.ww3, ...) and Rust's, by cmp
+prep-pair case input suffix="":
+    bash scripts/prep_pair.sh {{case}} {{input}} {{suffix}}
+
+# Every single-grid regtest ww3_prep input, through prep-pair
+prep-all:
+    bash scripts/prep_all.sh
+
+# ww3_prep inputs no regtest has (other field ids, layouts, formats) and the ones Rust refuses
+prep-variants:
+    bash scripts/prep_variants.sh
+
 # Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
 grid-pair case suffix="":
     bash scripts/grid_pair.sh {{case}} {{suffix}}
@@ -110,7 +122,7 @@ iogr-roundtrip *dirs:
 mpi-pair *cases:
     bash scripts/mpi_pair.sh {{cases}}
 
-# A run with no Fortran program: Rust's ww3_grid, ww3_strt, ww3_shel on every case tp_all and ts1_pair prepared
+# A run with no Fortran program: Rust's ww3_grid, ww3_strt, ww3_prep, ww3_shel on every case tp_all and ts1_pair prepared
 rust-only:
     bash scripts/rust_only_all.sh
 

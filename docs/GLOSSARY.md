@@ -36,6 +36,10 @@
 | `mod_def.ww3` | WW3's model definition file: grid, spectral discretisation, namelist constants and the source-term tables, written by `ww3_grid` and read by every other program |
 | `W3GRID`, `W3IOGR` | The grid preprocessor's subroutine (`w3gridmd.F90`) and the routine that writes and reads `mod_def.ww3` (`w3iogrmd.F90`) |
 | `READNL` | `W3GRID`'s scan of the namelist file `GRID%NML` for a group named `&SIN4`, `&MISC` and so on |
+| `ww3_prep`, `W3PREP` | The input preprocessor (`ww3_prep.F90`): reads a water level, current, wind, ice, mud, momentum or density field, or assimilation data, from a file and writes the forcing file `ww3_shel` reads (`current.ww3`, `wind.ww3`, `ice.ww3`, ...) |
+| `AI`, `LL`, `F1`, `F2`, `DAT` | The input types of `ww3_prep`: the field is already on the model grid (`AI`), on a regular longitude-latitude grid (`LL`), on a grid given by a file (`F1`), two such grids averaged (`F2`), or it is assimilation data (`DAT`) |
+| `W3FLDO`, `W3FLDG` | The routines that open a forcing file and write or read its header (`W3FLDO`) and its fields at one time (`W3FLDG`), `w3fldsmd.F90` |
+| `FNMPRE` | The file name preamble (`./` by default) that `ww3_prep` puts before every file name it opens |
 | `INA2R`, `INA2I` | WW3's reads of a real or integer array from a file, by layout (`IDLA`) and format (`IDFM`) indicators |
 | `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points |
 | `ICLOSE` | Grid closure: none (-1), simple (2) or tripole (8) |

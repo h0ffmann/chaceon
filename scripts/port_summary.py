@@ -201,10 +201,12 @@ def build():
           f"| `routine`: every captured call identical | {fmt(done['routine'])} |",
           f"| `translated`: exists, not fully reached | {fmt(done['translated'])} |", ""]
     o += ["**What still depends on Fortran.** No Rust binary links Fortran. A run still reads files that Fortran "
-          "programs wrote where Rust stops: `current.ww3` from `ww3_prep` when a case has a current file, and "
-          "`mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or unformatted data files (`IDFM` 2 "
-          "and 3), the old `ww3_grid.inp` and tripole closure. `restart.ww3` can come from Rust's `ww3_strt`, except "
-          f"for start type 2. `ww3_prep` is {fmt(prep)} lines, {pct(prep, total['lines'])} of `model/src`. Every verdict "
+          "programs wrote where Rust stops: `mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or "
+          "unformatted data files (`IDFM` 2 and 3), the old `ww3_grid.inp` and tripole closure; and the forcing file of "
+          "`ww3_prep` for input types `LL`, `F1`, `F2` and `DAT`, binary input (`IDFM` 3) and a format that reverses. "
+          "`restart.ww3` can come from Rust's `ww3_strt`, except "
+          f"for start type 2. `ww3_prep` is {fmt(prep)} lines, {pct(prep, total['lines'])} of `model/src`; Rust's covers "
+          "the input type `AI`, a field already on the model grid. Every verdict "
           "also needs the Fortran reference, by design: it is what Rust is compared with.", "", END]
     return "\n".join(o), build_badges(total["code"], ev)
 

@@ -52,8 +52,8 @@ w3iogomd:calc_u3stokes	model/src/w3iogomd.F90:4031-4261	231	host	USF only; ww3_t
 w3iogomd:calc_wbt	model/src/w3iogomd.F90:4287-4527	241	host	just ts1-pair; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/iogo.rs
 w3updtmd:w3ucur	model/src/w3updtmd.F90:171-472	302	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
 w3updtmd:w3uini	model/src/w3updtmd.F90:1049-1302	254	host	ww3_tp2.15; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
-w3fldsmd:w3fldo	model/src/w3fldsmd.F90:88-527	440	host	read, current.ww3 of ww3_tp1.6; wind.ww3 has not run; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
-w3fldsmd:w3fldg	model/src/w3fldsmd.F90:954-1470	517	host	read, current.ww3 of ww3_tp1.6; wind.ww3 has not run; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
+w3fldsmd:w3fldo	model/src/w3fldsmd.F90:88-527	440	host	read, current.ww3 of ww3_tp1.6; wind.ww3 has not run; the WRITE branch (header and fields of every id, AI input) in prep.rs, just prep-all and just prep-variants; rust/port_report/W3PRO3.md and WW3_PREP.md	rust/crates/ww3-host/src/shel.rs
+w3fldsmd:w3fldg	model/src/w3fldsmd.F90:954-1470	517	host	read, current.ww3 of ww3_tp1.6; wind.ww3 has not run; the WRITE branch (header and fields of every id, AI input) in prep.rs, just prep-all and just prep-variants; rust/port_report/W3PRO3.md and WW3_PREP.md	rust/crates/ww3-host/src/shel.rs
 w3pro3md:w3cflxy	model/src/w3pro3md.F90:1866-2033	168	host	ww3_tp1.3 asks for CFX; rust/port_report/W3OUTG.md	rust/crates/ww3-host/src/shel.rs
 w3gsrumd:w3cgdm	model/src/w3gsrumd.F90:4014-4363	350	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 w3gsrumd:dxydp	model/src/w3gsrumd.F90:8410-8687	278	host	no mask, ww3_tp2.4 curv and ww3_tp2.15; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
@@ -64,13 +64,14 @@ w3gsrumd:w3splx	model/src/w3gsrumd.F90:5971-5995	25	host	from a pole; rust/port_
 w3gsrumd:spddp	model/src/w3gsrumd.F90:8986-9038	53	host	rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 w3gsrumd:spddq	model/src/w3gsrumd.F90:9042-9094	53	host	rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 ww3_strt:w3strt	model/src/ww3_strt.F90:37-1025	989	host	just strt-pair on 16 cases: restart.ww3 byte-identical for ITYPE 1, 3, 4 and 5; ITYPE 2 stops with a message, not translated ⚠; rust/port_report/WW3_STRT.md	rust/crates/ww3-host/src/strt.rs
+ww3_prep:w3prep	model/src/ww3_prep.F90:17-1755	1739	host	just prep-all: 14 forcing files of 6 regtests byte-identical (ww3_tp1.6, ww3_tbt1.1, ww3_tbt2.1, ww3_tic2.2, ww3_tic2.3, ww3_ts3); just prep-variants: 12 more byte-identical, 4 refused; input type AI only, LL, F1, F2, DAT, IDFM 3, format reversal stop with status 64 ⚠ not translated; rust/port_report/WW3_PREP.md	rust/crates/ww3-host/src/prep.rs
 w3servmd:nextln	model/src/w3servmd.F90:221-334	114	host	just strt-pair; through ww3_strt.inp; rust/port_report/WW3_STRT.md	rust/crates/ww3-host/src/strt.rs
 w3gsrumd:w3dist	model/src/w3gsrumd.F90:5802-5877	76	host	just strt-pair: spherical branch on ww3_tp1.2, Cartesian on ww3_tp1.1 and others; rust/port_report/WW3_STRT.md	rust/crates/ww3-host/src/strt.rs
 ww3_grid:ww3_grid	model/src/ww3_grid.F90	77	host	just grid-all: mod_def.ww3 byte-identical on 28 regtests; rust/port_report/WW3_GRID.md	rust/tools/ww3_grid/src/main.rs
 w3gridmd:w3grid	model/src/w3gridmd.F90:1151-7366	6216	host	just grid-all on 28 regtests, RECT and CURV from ww3_grid.nml; UNST, SMCG, ww3_grid.inp, IDFM 2 and 3, tripole closure stop with a message; excluded points and bodies, odd TRFLAG, PTM 2 to 5 not reached ⚠; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridpre.rs
 w3gridmd:readnl	model/src/w3gridmd.F90:7392-7705	314	host	just grid-all; the groups SIN4, SDS4, SNL1, MISC, OUTS, PRO3 read from the regtests; SLN1, SBT1, SDB1 only as defaults; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridio.rs
 w3nmlgridmd:w3nmlgrid	model/src/w3nmlgridmd.F90:248-2391	2144	translated	just grid-all: the groups SPECTRUM, RUN, TIMESTEPS, GRID, RECT, CURV, DEPTH, MASK, OBST, INBND, EXCL and OUTBND; UNST, SMC, SLOPE and SED are not read; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridpre.rs
-w3arrymd:ina2r	model/src/w3arrymd.F90:76-291	216	host	just grid-all: IDFM 1 (free format), IDLA 1 to 4, repeat counts; IDFM 2 and 3 stop with a message; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridio.rs
+w3arrymd:ina2r	model/src/w3arrymd.F90:76-291	216	host	just grid-all: IDFM 1 (free format), IDLA 1 to 4, repeat counts; IDFM 2 and 3 stop with a message; rust/port_report/WW3_GRID.md; IDFM 2 (formatted) and IDLA 1 to 4 in prep.rs, just prep-all and just prep-variants, binary and format reversal refused (WW3_PREP.md)	rust/crates/ww3-host/src/gridio.rs
 w3arrymd:ina2i	model/src/w3arrymd.F90:293-461	169	host	just grid-all: the mask of ww3_tp2.15, IDFM 1 and IDLA 1; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridio.rs
 w3gsrumd:gsu_create	model/src/w3gsrumd.F90:7354-7849	496	host	just grid-pair ww3_tp2.2: 200 output boundary points; ICLO none and simple only; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridsru.rs
 w3gsrumd:w3gfcl_r8	model/src/w3gsrumd.F90:1369-1669	301	host	just grid-pair ww3_tp2.2; the closest-cell search is not translated; rust/port_report/WW3_GRID.md	rust/crates/ww3-host/src/gridsru.rs

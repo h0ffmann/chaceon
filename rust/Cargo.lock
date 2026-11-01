@@ -425,6 +425,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ww3_prep"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+]
+
+[[package]]
 name = "ww3_shel"
 version = "0.0.0"
 dependencies = [

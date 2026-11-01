@@ -150,8 +150,15 @@ Status on 2026-10-31: `ww3_strt` and `ww3_grid` have Rust ports, byte-identical 
 `rust/port_report/WW3_STRT.md` and `WW3_GRID.md`. Rust's `ww3_grid` does not write `ST4TABUHF2.bin`, the cache
 that only `ww3_grid` reads back, and stops on unstructured and SMC grids.
 `just rust-only` runs the chain from namelists on 17 cases, byte-identical on every file up to `restart.ww3`
-([log](log/2026-10-31-rust-only-chain.md)). The exit above is not met: there is no NetCDF step yet, and
-`ww3_prep` is not ported.
+([log](log/2026-10-31-rust-only-chain.md)). The exit above is not met: there is no NetCDF step yet.
+
+Status on 2026-11-01: `ww3_prep` has a Rust port for the input type `AI` (a field already on the model grid) and
+every field id, with free-format and formatted input. 14 forcing files of the six regtests that have a `ww3_prep`
+input and run on `switch_chaceon_shrd` are byte-identical, and so are 12 more files from inputs built for the other
+field ids and layouts; `LL`, `F1`, `F2`, `DAT`, binary input and a reversing format are refused
+([log](log/2026-11-01-prep-parity.md), `rust/port_report/WW3_PREP.md`). `just rust-only` no longer copies
+`current.ww3` from the Fortran: `ww3_tp1.6` is a run with no Fortran program. The `mww3_test_*` inputs need
+`ww3_multi` and are not run.
 
 ### Batch 6: speed
 
