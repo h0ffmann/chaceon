@@ -89,3 +89,8 @@
 | `DIMORDER` | `ww3_ounp.nml`: true gives variables of shape (time, station) in C order, false (station, time) |
 | `FNMPRE` | The file name preamble of WW3, `./`; it is part of the file names `ww3_ounp` writes and of `product_name` less its first two characters |
 | ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |
+| `W3PART` | WW3's spectral partitioning of one spectrum into wind sea and swells (`w3partmd.F90`); `PTMETH` 1 to 5 picks the method |
+| `W3CPRT` | Runs `W3PART` on every sea point before an output that needs partitions (`w3iosfmd.F90`) |
+| `W3IOBC` | Reads, writes and dumps the boundary data files `nest.ww3` and `nestNN.ww3` (`w3iobcmd.F90`) |
+| `ww3_bounc` | WW3's pre-processor that turns NetCDF spectra into `nest.ww3` |
+| `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |

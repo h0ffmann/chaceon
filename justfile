@@ -210,3 +210,11 @@ rust-only:
 # Builds the Lean proofs in lean/ in Docker and prints the axioms each theorem uses
 lean:
     bash scripts/lean.sh check
+
+# Partition fields (W3PART) and boundary output files (W3IOBC WRITE), byte-compared with the reference
+bnd-all:
+    bash scripts/bnd_all.sh
+
+# Rust's ww3_shel on every case in work/pair, run in copies so the shared directory is not written
+bnd-regress:
+    bash scripts/bnd_regress.sh
