@@ -123,7 +123,7 @@ scalars, `UST` among them, still return per step, since the host owns them.
 | Water levels, ice, icebergs, boundary input | refused; these runs have no `nest.ww3`, so `W3IOBC` clears `FLBPI` |
 | `TRFLAG` 1 and 2 | `ww3_tp2.15` has 4 |
 | Track output, partitions, `MPI`, tripole, SMC, unstructured grids | not ported, and refused where they could be asked for |
-| `ww3_grid`, `ww3_strt`, `ww3_prep` | their files still come from the Fortran |
+| `ww3_prep` | its files still come from the Fortran; `ww3_grid` and `ww3_strt` have Rust ports (`WW3_GRID.md`, `WW3_STRT.md`) |
 
 The cell for a point exactly on a node assumes `W3GFCL` walks a bucket's cells in ascending order: verified on
 `ww3_tp1.7`, not read from how buckets are filled ⚠. A point near a pole or a branch cut stops the run.

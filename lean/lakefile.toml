@@ -1,0 +1,11 @@
+name = "chaceon_lean"
+defaultTargets = ["Chaceon"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.35.0"
+
+[[lean_lib]]
+name = "Chaceon"

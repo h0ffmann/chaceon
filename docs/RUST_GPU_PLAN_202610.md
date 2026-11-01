@@ -127,7 +127,11 @@ The owner, 2026-10-31: "chaceon must also allow MPI/OpenMP runtime option." WW3 
 for several thread and rank counts.
 
 Status: threads done (`ww3_shel <case> --threads N`, verified byte-identical for N of 1, 2, 4 and 8 on eight
-cases, see `rust/port_report/WW3_SHEL_TS1.md`); MPI open ⚠ (not built yet).
+cases, see `rust/port_report/WW3_SHEL_TS1.md`). Ranks done on the host CPU: `mpirun -n R ww3_shel <case> [--threads N]`
+built with the Cargo feature `mpi` (`ww3-host`, `ww3_shel`), the sea points dealt round-robin and the spectral
+components by `IAPPRO` as WW3's `DIST` does, rank 0 writing the files; byte-identical to the reference on eight cases
+for R of 1 to 4 and R=2 with two threads (`scripts/mpi_pair.sh`, table in `rust/port_report/WW3_SHEL_TS1.md`).
+Not built: a rank layout with a device (`spirv_shel`, `gpu-*` take no ranks), MPI across hosts ⚠, and any speed claim.
 
 ### Batch 4: outputs
 
@@ -141,6 +145,13 @@ the device, reading only what an output needs.
 `ww3_grid`, `ww3_strt`, `ww3_prnc`, `ww3_prep`, `ww3_bound`, `ww3_bounc`, `ww3_uprstr`, `w3gridmd`,
 `w3gsrumd`. Exit: a regtest from namelists to NetCDF, Rust only, whose `mod_def.ww3` equals the
 Fortran's byte for byte. `ww3_grid` also writes `ST4TABUHF2.bin`, so the tables must match too.
+
+Status on 2026-10-31: `ww3_strt` and `ww3_grid` have Rust ports, byte-identical on the regtests of
+`rust/port_report/WW3_STRT.md` and `WW3_GRID.md`. Rust's `ww3_grid` does not write `ST4TABUHF2.bin`, the cache
+that only `ww3_grid` reads back, and stops on unstructured and SMC grids.
+`just rust-only` runs the chain from namelists on 17 cases, byte-identical on every file up to `restart.ww3`
+([log](log/2026-10-31-rust-only-chain.md)). The exit above is not met: there is no NetCDF step yet, and
+`ww3_prep` is not ported.
 
 ### Batch 6: speed
 

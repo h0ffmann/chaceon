@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MPL-2.0
 //! rust-gpu emits no `NoContraction`, so a Vulkan driver may fuse `a*b+c` (ADR-0005). This adds the
 //! decoration to every `OpFAdd`, `OpFSub`, `OpFMul`, `OpFDiv` and `OpFNegate` result. Vulkan also allows
-//! 2.5 ULP in `OpFDiv`, so an `f32` division becomes an `f64` one, rounded to `f32`: double rounding is
-//! innocuous for a quotient, since 53 >= 2*24+2. Usage: spirv_exact <in.spv> <out.spv>, with
+//! 2.5 ULP in `OpFDiv`, so an `f32` division becomes an `f64` one, rounded to `f32`. For a quotient in the
+//! normal range this gives the correctly rounded `f32` quotient even with that error: the quotient of two
+//! 24-bit significands is never a midpoint and keeps a relative margin of 2^-49 from one, wider than
+//! 2.5 * 2^-52 (lean/Chaceon/Division.lean, docs/LEAN_202610.md). Not covered: subnormal results,
+//! overflow, zero, infinity, NaN. Usage: spirv_exact <in.spv> <out.spv>, with
 //! `SPIRV_EXACT=contract,div` to leave out the steps named, for a measurement.
 
 const OP_TYPE_FLOAT: u32 = 22;

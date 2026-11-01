@@ -93,3 +93,27 @@ f64-census:
 # Host verdict on ww3_strt: the reference's restart.ww3 and Rust's, by cmp
 strt-pair case suffix="":
     bash scripts/strt_pair.sh {{case}} {{suffix}}
+
+# Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
+grid-pair case suffix="":
+    bash scripts/grid_pair.sh {{case}} {{suffix}}
+
+# Every regtest ww3_grid is judged on
+grid-all:
+    bash scripts/grid_all.sh
+
+# The mod_def.ww3 writer alone: Rust reads each work/grid/<tag>/mod_def.reference, writes it again, cmp judges
+iogr-roundtrip *dirs:
+    bash scripts/iogr_roundtrip.sh {{dirs}}
+
+# Runtime MPI: ww3_shel under mpirun for R of 1 to 4, byte-compared with the reference
+mpi-pair *cases:
+    bash scripts/mpi_pair.sh {{cases}}
+
+# A run with no Fortran program: Rust's ww3_grid, ww3_strt, ww3_shel on every case tp_all and ts1_pair prepared
+rust-only:
+    bash scripts/rust_only_all.sh
+
+# Builds the Lean proofs in lean/ in Docker and prints the axioms each theorem uses
+lean:
+    bash scripts/lean.sh check

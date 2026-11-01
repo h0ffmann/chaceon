@@ -9,3 +9,6 @@ publish.workspace = true
 [dependencies]
 ww3-host = { path = "../../crates/ww3-host" }
 ww3-kernels = { path = "../../crates/ww3-kernels" }
+
+[features]
+mpi = ["ww3-host/mpi"]

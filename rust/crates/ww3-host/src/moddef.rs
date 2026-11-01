@@ -63,6 +63,11 @@ impl Rec<'_> {
     pub fn f(&mut self) -> f32 {
         f32::from_bits(self.i() as u32)
     }
+    pub fn d(&mut self) -> f64 {
+        let v = f64::from_be_bytes(self.b[self.p..self.p + 8].try_into().unwrap());
+        self.p += 8;
+        v
+    }
     /// Blanks at the end are Fortran's padding.
     pub fn text(&mut self, n: usize) -> String {
         let s = String::from_utf8_lossy(&self.b[self.p..self.p + n]).trim_end().to_string();
@@ -84,6 +89,16 @@ impl Rec<'_> {
 /// The grid: every field of `mod_def.ww3` this port reads.
 #[derive(Default)]
 pub struct ModDef {
+    /// `IDSTR` and `VERGRD`, the 35 and 10 characters of the first record.
+    pub idstr: String,
+    pub vergrd: String,
+    pub nbi: i32,
+    pub nfbpo: i32,
+    /// `FNAME0..6`, `FNAMEP`, `FNAMEG`, `FNAMEF`, `FNAMEI`: 30 characters each, in file order.
+    pub fnames: Vec<String>,
+    /// `NBO(0:NFBPO)` and `NBO2(0:NFBPO)`.
+    pub nbo: Vec<i32>,
+    pub nbo2: Vec<i32>,
     pub nx: i32,
     pub ny: i32,
     pub nsea: i32,
@@ -111,8 +126,62 @@ pub struct ModDef {
     pub dtcfl: f32,
     pub dtcfli: f32,
     pub ctmax: f32,
+    pub fice0: f32,
+    pub ficen: f32,
+    pub ficel: f32,
+    pub pfmove: f32,
+    pub flbpo: bool,
+    /// `CLATS(0)`, `CLATIS(0)`, `CTHG0S(0)`: the three entries at index 0 that `W3DIMX` sets to 1.
+    pub clat0: [f32; 3],
     pub clats: Vec<f32>,
+    /// `CLATIS(1:NSEA)`.
+    pub clatis: Vec<f32>,
     pub cthg0s: Vec<f32>,
+    pub iicehmin: f32,
+    pub iicehinit: f32,
+    pub iicedisp: bool,
+    /// `CALTYPE`, 8 characters.
+    pub caltype: String,
+    pub cmprtrck: bool,
+    pub iicehfac: f32,
+    /// In the order `W3IOGR` writes them: `IICEHDISP`, `IICEDDISP`, `IICEFDISP`.
+    pub iicehdisp: f32,
+    pub iiceddisp: f32,
+    pub iicefdisp: f32,
+    pub gridshift: f64,
+    pub mapth: Vec<i32>,
+    pub ussp_wn: Vec<f32>,
+    pub xbpo: Vec<f32>,
+    pub ybpo: Vec<f32>,
+    /// `RDBPO(NBO(NFBPO),4)`, `IPBPO(NBO(NFBPO),4)` and `ISBPO(4*NBO(NFBPO))`.
+    pub rdbpo: Vec<f32>,
+    pub ipbpo: Vec<i32>,
+    pub isbpo: Vec<i32>,
+    pub ihmax: i32,
+    pub hspmin: f32,
+    pub wsmult: f32,
+    pub wscut: f32,
+    pub flcomb: bool,
+    pub ptmeth: i32,
+    pub ptfcut: f32,
+    pub fxfm: f32,
+    pub fxpm: f32,
+    pub xft: f32,
+    pub xfc: f32,
+    pub facsd: f32,
+    pub ffacberg: f32,
+    pub zz0max: f32,
+    pub sswellfpar: i32,
+    pub ssinbr: f32,
+    pub ssdscos: f32,
+    pub sstxftf: f32,
+    pub ssdsbrf1: f32,
+    pub ssdsbrf2: f32,
+    pub ssdsbck: f32,
+    pub ssdsabk: f32,
+    pub ssdspbk: f32,
+    pub ssdsbint: f32,
+    pub ssdshck: f32,
     pub fldry: bool,
     pub flbpi: bool,
     pub mapwn: Vec<i32>,
@@ -223,9 +292,9 @@ pub struct ModDef {
     pub aairgb: f32,
 }
 
-const NKHS: usize = 2000;
-const NKD: usize = 1300;
-const NDTAB: usize = 2000;
+pub const NKHS: usize = 2000;
+pub const NKD: usize = 1300;
+pub const NDTAB: usize = 2000;
 
 impl ModDef {
     pub fn read(path: &str) -> Self {
@@ -233,16 +302,25 @@ impl ModDef {
         let mut m = ModDef::default();
 
         let mut c = r.next();
-        c.skip(35 + 10);
+        m.idstr = c.text(35);
+        m.vergrd = c.text(10);
         (m.nx, m.ny, m.nsea, m.nth, m.nk) = (c.i(), c.i(), c.i(), c.i(), c.i());
-        c.skip(2 * 4); // NBI NFBPO
+        (m.nbi, m.nfbpo) = (c.i(), c.i());
         m.gname = c.text(30);
+        for _ in 0..11 {
+            m.fnames.push(c.text(30));
+        }
+        c.done("IDSTR");
         let (nx, ny, nsea) = (m.nx as usize, m.ny as usize, m.nsea as usize);
         let (nth, nk) = (m.nth as usize, m.nk as usize);
         let nspec = nth * nk;
         let nfull = nspec + nth;
 
-        r.next(); // NBO, NBO2
+        let mut c = r.next();
+        let nb = m.nfbpo as usize + 1;
+        m.nbo = c.is(nb);
+        m.nbo2 = c.is(nb);
+        c.done("NBO");
         let mut c = r.next();
         let gtype = c.i();
         m.flagll = c.i() != 0;
@@ -277,7 +355,7 @@ impl ModDef {
         m.mapsf = c.is(nsea * 3);
         m.trflag = c.i();
         c.done("ZB");
-        // W3IOGR's read fills the third column.
+        // The file holds zeros in the third column; W3IOGR's read fills it.
         for i in 0..nsea {
             m.mapsf[i + 2 * nsea] = m.mapsf[i + nsea] + (m.mapsf[i] - 1) * m.ny;
         }
@@ -295,7 +373,7 @@ impl ModDef {
         m.dtmin = c.f();
         m.dmin = c.f();
         m.ctmax = c.f();
-        c.skip(4 * 4); // FICE0 FICEN FICEL PFMOVE
+        (m.fice0, m.ficen, m.ficel, m.pfmove) = (c.f(), c.f(), c.f(), c.f());
         m.fldry = c.i() != 0;
         m.flcx = c.i() != 0;
         m.flcy = c.i() != 0;
@@ -303,29 +381,35 @@ impl ModDef {
         m.flck = c.i() != 0;
         m.flsou = c.i() != 0;
         m.flbpi = c.i() != 0;
-        c.i(); // FLBPO
+        m.flbpo = c.i() != 0;
         // CLATS, CLATIS and CTHG0S are (0:NSEA).
-        c.f();
+        m.clat0[0] = c.f();
         m.clats = c.fs(nsea);
-        c.skip((nsea + 1) * 4); // CLATIS
-        c.f();
+        m.clat0[1] = c.f();
+        m.clatis = c.fs(nsea);
+        m.clat0[2] = c.f();
         m.cthg0s = c.fs(nsea);
         (m.stexu, m.steyu, m.stedu) = (c.f(), c.f(), c.f());
-        // From here the sizes depend on the grid, so the end of the record is the anchor: ICESCALES(4),
-        // CALTYPE*8, CMPRTRCK, IICEHFAC, IICEDDISP, IICEHDISP, IICEFDISP, BTBETA, AAIRCMIN, AAIRGB.
-        c.skip(c.len() - 56 - c.p);
+        (m.iicehmin, m.iicehinit) = (c.f(), c.f());
+        m.iicedisp = c.i() != 0;
         m.icescales = c.fs(4);
-        c.skip(28);
+        m.caltype = c.text(8);
+        m.cmprtrck = c.i() != 0;
+        m.iicehfac = c.f();
+        // The reader names these in another order than the writer; the file holds the writer's.
+        (m.iicehdisp, m.iiceddisp, m.iicefdisp) = (c.f(), c.f(), c.f());
         m.btbeta = c.f();
         m.aaircmin = c.f();
         m.aairgb = c.f();
         c.done("DTCFL");
 
-        r.next(); // GRIDSHIFT
+        let mut c = r.next();
+        m.gridshift = c.d();
+        c.done("GRIDSHIFT");
 
         let mut c = r.next();
         m.mapwn = c.is(nfull);
-        c.skip(nfull * 4); // MAPTH
+        m.mapth = c.is(nfull);
         m.dth = c.f();
         m.th = c.fs(nth);
         m.esin = c.fs(nfull);
@@ -357,19 +441,35 @@ impl ModDef {
         m.p2msf = c.is(3);
         m.us3df = c.is(3);
         m.usspf = c.is(2);
-        r.next(); // XBPO YBPO RDBPO IPBPO ISBPO
+        m.ussp_wn = c.fs(25);
+        c.done("E3DF");
         let mut c = r.next();
-        c.skip(5 * 4); // IHMAX HSPMIN WSMULT WSCUT FLCOMB
+        let nbot = *m.nbo.last().unwrap() as usize;
+        m.xbpo = c.fs(nbot);
+        m.ybpo = c.fs(nbot);
+        m.rdbpo = c.fs(nbot * 4);
+        m.ipbpo = c.is(nbot * 4);
+        m.isbpo = c.is(nbot * 4);
+        c.done("XBPO");
+        let mut c = r.next();
+        m.ihmax = c.i();
+        m.hspmin = c.f();
+        m.wsmult = c.f();
+        m.wscut = c.f();
+        m.flcomb = c.i() != 0;
         m.noswll = c.i();
+        m.ptmeth = c.i();
+        m.ptfcut = c.f();
+        c.done("IHMAX");
 
         let mut c = r.next();
         m.facp = c.f();
         m.xrel = c.f();
         m.xflt = c.f();
-        c.skip(2 * 4); // FXFM FXPM
-        c.skip(3 * 4); // XFT XFC FACSD
+        (m.fxfm, m.fxpm) = (c.f(), c.f());
+        (m.xft, m.xfc, m.facsd) = (c.f(), c.f(), c.f());
         m.fhmax = c.f();
-        c.f(); // FFACBERG
+        m.ffacberg = c.f();
         m.delab = c.f();
         m.fwtable = c.fs(301);
         c.done("FACP");
@@ -381,14 +481,14 @@ impl ModDef {
         let mut c = r.next();
         m.zzwnd = c.f();
         m.aalpha = c.f();
-        c.f(); // ZZ0MAX
+        m.zz0max = c.f();
         m.bbeta = c.f();
         m.ssinthp = c.f();
         m.zzalp = c.f();
         m.ttauwshelter = c.f();
-        c.i(); // SSWELLFPAR
+        m.sswellfpar = c.i();
         m.sswellf = c.fs(7);
-        c.f(); // SSINBR
+        m.ssinbr = c.f();
         m.zz0rat = c.f();
         m.ssdsc = c.fs(21);
         m.ssdsiso = c.i();
@@ -396,23 +496,26 @@ impl ModDef {
         m.ssdsbt = c.f();
         m.ssdsbm = c.fs(5);
         m.ssdsp = c.f();
-        c.f(); // SSDSCOS
+        m.ssdscos = c.f();
         m.ssdsdth = c.f();
         m.wwnmeanp = c.f();
         m.wwnmeanptail = c.f();
-        c.f(); // SSTXFTF
+        m.sstxftf = c.f();
         m.sstxftftail = c.f();
         m.sstxftwn = c.f();
         c.f(); // SSTXFTF again
         c.f(); // SSTXFTWN again
-        c.f(); // SSDSBRF1
-        c.f(); // SSDSBRF2
+        m.ssdsbrf1 = c.f();
+        m.ssdsbrf2 = c.f();
         m.ssdsbrfdf = c.i();
-        c.skip(4 * 4); // SSDSBCK SSDSABK SSDSPBK SSDSBINT
+        m.ssdsbck = c.f();
+        m.ssdsabk = c.f();
+        m.ssdspbk = c.f();
+        m.ssdsbint = c.f();
         m.ffxpm = c.f();
         m.ffxfm = c.f();
         m.ffxfa = c.f();
-        c.f(); // SSDSHCK
+        m.ssdshck = c.f();
         m.delust = c.f();
         m.deltail = c.f();
         m.deltauw = c.f();
