@@ -4,6 +4,8 @@
 
 pub mod capture;
 pub mod disp;
+pub mod finp;
+pub mod fortfmt;
 pub mod grid;
 pub mod gridio;
 pub mod gridpre;
@@ -15,6 +17,11 @@ pub mod iogo;
 pub mod iors;
 pub mod moddef;
 pub mod nml;
+pub mod prep;
+pub mod outf;
+pub mod outp;
+pub mod ounf;
+pub mod ounfmeta;
 pub mod shel;
 pub mod strt;
 pub mod wtime;

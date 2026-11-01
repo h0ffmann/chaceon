@@ -36,6 +36,10 @@
 | `mod_def.ww3` | WW3's model definition file: grid, spectral discretisation, namelist constants and the source-term tables, written by `ww3_grid` and read by every other program |
 | `W3GRID`, `W3IOGR` | The grid preprocessor's subroutine (`w3gridmd.F90`) and the routine that writes and reads `mod_def.ww3` (`w3iogrmd.F90`) |
 | `READNL` | `W3GRID`'s scan of the namelist file `GRID%NML` for a group named `&SIN4`, `&MISC` and so on |
+| `ww3_prep`, `W3PREP` | The input preprocessor (`ww3_prep.F90`): reads a water level, current, wind, ice, mud, momentum or density field, or assimilation data, from a file and writes the forcing file `ww3_shel` reads (`current.ww3`, `wind.ww3`, `ice.ww3`, ...) |
+| `AI`, `LL`, `F1`, `F2`, `DAT` | The input types of `ww3_prep`: the field is already on the model grid (`AI`), on a regular longitude-latitude grid (`LL`), on a grid given by a file (`F1`), two such grids averaged (`F2`), or it is assimilation data (`DAT`) |
+| `W3FLDO`, `W3FLDG` | The routines that open a forcing file and write or read its header (`W3FLDO`) and its fields at one time (`W3FLDG`), `w3fldsmd.F90` |
+| `FNMPRE` | The file name preamble (`./` by default) that `ww3_prep` puts before every file name it opens |
 | `INA2R`, `INA2I` | WW3's reads of a real or integer array from a file, by layout (`IDLA`) and format (`IDFM`) indicators |
 | `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points |
 | `ICLOSE` | Grid closure: none (-1), simple (2) or tripole (8) |
@@ -53,3 +57,22 @@
 | `sorry` | Lean's placeholder for a missing proof; `just lean` refuses any |
 | midpoint | The real number halfway between two adjacent `f32` values; a quotient on one side of it rounds one way |
 | OpFDiv, OpFConvert | SPIR-V's float division and float-width conversion |
+| `ww3_outp` | WW3's point output postprocessor: reads `out_pnt.ww3`, writes tables, spectra files and print plots |
+| `ww3_outf` | WW3's field output postprocessor: reads `out_grd.ww3`, writes print plots, statistics and transfer files |
+| `W3EXPO`, `W3EXGO` | The internal subroutines of `ww3_outp` and `ww3_outf` that write one output time |
+| `ITYPE`, `OTYPE` | The output type and subtype lines of `ww3_outp.inp`; `ITYPE` is also the first item of `ww3_outf.inp`'s type line |
+| `IDLA`, `IDFM` | Layout (1 to 5) and format (free, fixed, unformatted) indicators of a `ww3_outf` transfer file |
+| `PRT1DS`, `PRT2DS`, `PRTBLK`, `OUTA2I` | `w3arrymd` print plots of a 1-D spectrum, a 2-D spectrum, a field block, and the writer of an integer array |
+| `STME21` | `w3timemd`: a time as the text `YYYY/MM/DD HH:MM:SS UTC` |
+| edit descriptor | A Fortran format item such as `F8.2`, `E11.3`, `I4.2`; `rust/crates/ww3-host/src/fortfmt.rs` prints them as gfortran does |
+| `ww3_ounf` | WW3's postprocessor for gridded output: reads `mod_def.ww3` and `out_grd.ww3`, writes NetCDF files |
+| NetCDF | The self-describing array file format `ww3_ounf` writes; `FILE%NETCDF` 3 is the classic format, 4 is HDF5-based |
+| HDF5 | The container under NetCDF-4 files; the reference's HDF5 is 1.10.8 |
+| `libnetcdf` | The NetCDF C library, `libnetcdf.so.19` on bookworm, the only foreign library `ww3_ounf` calls (ADR-0001) |
+| `NF90_*` | The Fortran 90 interface of NetCDF that `ww3_ounf` calls; it reverses dimension order against the C functions Rust calls |
+| `W3EXNC`, `W3CRNC` | `ww3_ounf`'s routines that write one output time and create one file |
+| `S2GRID`, `W3S2XY` | Spread the sea-point array of a field onto the `(NX+1,NY)` grid; `S2GRID` also converts directions and replaces `UNDEF` by `NOVAL` |
+| `FIELD%TYPE`, `NCVARTYPE` | `ww3_ounf`'s variable type: 2 packed `short` with a scale factor, 3 `short` for most fields and `float` for a few, 4 `float` |
+| `NINT` | Fortran's round to the nearest integer, halves away from zero; on aarch64 one `fcvtas`, which saturates out of range |
+| `SINGLEFILE` | An uninitialised logical of `ww3_ounf` that the reference reads as true: one file named from the first output time |
+| ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |

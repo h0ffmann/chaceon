@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+# NetCDF for ww3_ounf, linux/arm64. Two targets on Debian bookworm, so libnetcdf is the
+# reference's (libnetcdf19 4.9.0-3, libnetcdf.so.19) and the libc matches glibc 2.36:
+#   builder  rust:1.90-bookworm plus libnetcdf-dev (the libnetcdf.so link) and libhdf5-dev. The binding in
+#            rust/tools/ww3_ounf/src/nc.rs declares the C functions by hand, so no bindgen and no clang.
+#   run      the reference image chaceon-ref (docker/Dockerfile.reference) plus netcdf-bin (ncdump, nccopy).
+#   scripts/rust_netcdf.sh --image
+FROM rust:1.90-bookworm AS builder
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libnetcdf-dev libhdf5-dev netcdf-bin \
+ && rm -rf /var/lib/apt/lists/* \
+ && { dpkg-query -W -f='libnetcdf-dev ${Version}\n' libnetcdf-dev; }
+
+FROM chaceon-ref:switch_chaceon_shrd AS run
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends netcdf-bin \
+ && rm -rf /var/lib/apt/lists/* \
+ && { dpkg-query -W -f='netcdf-bin ${Version}\n' netcdf-bin; dpkg-query -W -f='libnetcdf19 ${Version}\n' libnetcdf19; }

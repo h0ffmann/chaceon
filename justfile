@@ -94,9 +94,37 @@ f64-census:
 strt-pair case suffix="":
     bash scripts/strt_pair.sh {{case}} {{suffix}}
 
+# Host verdict on ww3_prep: the reference's forcing file (current.ww3, wind.ww3, ice.ww3, ...) and Rust's, by cmp
+prep-pair case input suffix="":
+    bash scripts/prep_pair.sh {{case}} {{input}} {{suffix}}
+
+# Every single-grid regtest ww3_prep input, through prep-pair
+prep-all:
+    bash scripts/prep_all.sh
+
+# ww3_prep inputs no regtest has (other field ids, layouts, formats) and the ones Rust refuses
+prep-variants:
+    bash scripts/prep_variants.sh
+
 # Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
 grid-pair case suffix="":
     bash scripts/grid_pair.sh {{case}} {{suffix}}
+
+# Host verdict on ww3_outp: the reference's log and files and Rust's, by cmp. <input> is a path under WW3/regtests
+outp-pair case input name="":
+    bash scripts/outp_pair.sh {{case}} {{input}} {{name}}
+
+# Host verdict on ww3_outf, the same way
+outf-pair case input name="":
+    bash scripts/outf_pair.sh {{case}} {{input}} {{name}}
+
+# Every ww3_outp input of the regtests, and the ones written here
+outp-all:
+    bash scripts/outp_all.sh
+
+# Every ww3_outf input of the regtests, and the ones written here
+outf-all:
+    bash scripts/outf_all.sh
 
 # Every regtest ww3_grid is judged on
 grid-all:
@@ -106,11 +134,31 @@ grid-all:
 iogr-roundtrip *dirs:
     bash scripts/iogr_roundtrip.sh {{dirs}}
 
+# Host verdict on ww3_ounf: the reference's NetCDF files and Rust's, by cmp (variant: a namelist variant of scripts/ounf_pair.sh)
+ounf-pair case variant="":
+    bash scripts/ounf_pair.sh {{case}} {{variant}}
+
+# Every case in work/pair that has an out_grd.reference, through ww3_ounf
+ounf-all variant="":
+    bash scripts/ounf_all.sh {{variant}}
+
+# The namelist variants of ww3_ounf on the cases that reach every field group
+ounf-variants *cases:
+    bash scripts/ounf_variants.sh {{cases}}
+
+# Whether the reference's ww3_ounf writes the same bytes twice (the basis of cmp as the verdict)
+ounf-selfcmp case="--all" variant="":
+    bash scripts/ounf_selfcmp.sh {{case}} {{variant}}
+
+# Builds the NetCDF images (docker/Dockerfile.netcdf)
+netcdf-image:
+    bash scripts/rust_netcdf.sh --image
+
 # Runtime MPI: ww3_shel under mpirun for R of 1 to 4, byte-compared with the reference
 mpi-pair *cases:
     bash scripts/mpi_pair.sh {{cases}}
 
-# A run with no Fortran program: Rust's ww3_grid, ww3_strt, ww3_shel on every case tp_all and ts1_pair prepared
+# A run with no Fortran program: Rust's ww3_grid, ww3_strt, ww3_prep, ww3_shel on every case tp_all and ts1_pair prepared
 rust-only:
     bash scripts/rust_only_all.sh
 

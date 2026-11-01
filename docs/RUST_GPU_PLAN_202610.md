@@ -140,6 +140,19 @@ Not built: a rank layout with a device (`spirv_shel`, `gpu-*` take no ranks), MP
 Batch 4 finds a pure Rust writer that reproduces the files ⚠. Field computation (`W3OUTG`) runs on
 the device, reading only what an output needs.
 
+Status on 2026-11-01: `ww3_outp` and `ww3_outf` have Rust ports, byte-identical (log, exit status and every file) on
+21 and 19 inputs of WW3's regtests and on 22 and 27 inputs written here, `rust/port_report/WW3_OUTP.md` and
+`WW3_OUTF.md` ([log](log/2026-11-01-outf-outp-parity.md)). Refused with a message: `ww3_outp` `ITYPE` 3 and 4 and the
+nondimensional tables, both on `GTYPE` 3 grids, `ww3_outf` group 10. `ww3_ounf`, `ww3_ounp`, `w3iobcmd`, `w3partmd`
+and NetCDF are not started.
+Status on 2026-11-01: `ww3_ounf` has a Rust port, `rust/tools/ww3_ounf`, through the system `libnetcdf` (19 declarations, the
+Cargo feature `netcdf`, [`VERSIONS.md`](../VERSIONS.md)). Its NetCDF files are byte-identical to the reference's on 36 cases
+and 40 files, and on namelist variants and every field the grids can hold, classic and HDF5 formats, one file or one per
+field, `TIMESPLIT`, partitions ([report](../rust/port_report/WW3_OUNF.md), [log](log/2026-11-01-ounf-parity.md)). `cmp` is
+the verdict because the reference writes the same bytes twice. A pure Rust writer was not tried ⚠. Still open in this
+batch: `ww3_ounp`, `ww3_outf`, `ww3_outp`, `w3iobcmd`, `w3partmd`, and `ww3_ounf`'s unstructured, SMC and rotated-pole
+branches, forecast variables, `ounfmeta.inp` and the old `ww3_ounf.inp`.
+
 ### Batch 5: preprocessors
 
 `ww3_grid`, `ww3_strt`, `ww3_prnc`, `ww3_prep`, `ww3_bound`, `ww3_bounc`, `ww3_uprstr`, `w3gridmd`,
@@ -150,8 +163,15 @@ Status on 2026-10-31: `ww3_strt` and `ww3_grid` have Rust ports, byte-identical 
 `rust/port_report/WW3_STRT.md` and `WW3_GRID.md`. Rust's `ww3_grid` does not write `ST4TABUHF2.bin`, the cache
 that only `ww3_grid` reads back, and stops on unstructured and SMC grids.
 `just rust-only` runs the chain from namelists on 17 cases, byte-identical on every file up to `restart.ww3`
-([log](log/2026-10-31-rust-only-chain.md)). The exit above is not met: there is no NetCDF step yet, and
-`ww3_prep` is not ported.
+([log](log/2026-10-31-rust-only-chain.md)). The exit above is not met: there is no NetCDF step yet.
+
+Status on 2026-11-01: `ww3_prep` has a Rust port for the input type `AI` (a field already on the model grid) and
+every field id, with free-format and formatted input. 14 forcing files of the six regtests that have a `ww3_prep`
+input and run on `switch_chaceon_shrd` are byte-identical, and so are 12 more files from inputs built for the other
+field ids and layouts; `LL`, `F1`, `F2`, `DAT`, binary input and a reversing format are refused
+([log](log/2026-11-01-prep-parity.md), `rust/port_report/WW3_PREP.md`). `just rust-only` no longer copies
+`current.ww3` from the Fortran: `ww3_tp1.6` is a run with no Fortran program. The `mww3_test_*` inputs need
+`ww3_multi` and are not run.
 
 ### Batch 6: speed
 

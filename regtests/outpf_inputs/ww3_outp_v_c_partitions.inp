@@ -1,0 +1,7 @@
+$ pair: ww3_tp1.4
+$ An input written for chaceon, not a WW3 regtest: it reaches a branch the regtest inputs do not.
+  19680606 120000 3600. 3
+  1
+ -1
+  4
+  1 61 19680606 120000 'UTC'
