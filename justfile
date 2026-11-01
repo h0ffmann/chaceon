@@ -175,6 +175,26 @@ ounf-variants *cases:
 ounf-selfcmp case="--all" variant="":
     bash scripts/ounf_selfcmp.sh {{case}} {{variant}}
 
+# Host verdict on ww3_ounp: the reference's NetCDF files, nml log, stdout and status and Rust's, by cmp (variant: see scripts/ounp_pair.sh)
+ounp-pair case variant="":
+    bash scripts/ounp_pair.sh {{case}} {{variant}}
+
+# Every case in work/pair (and the ts2 of ounp-src) that has a ww3_ounp namelist in its regtest input, through ww3_ounp
+ounp-all variant="":
+    bash scripts/ounp_all.sh {{variant}}
+
+# The namelist variants of ww3_ounp on the cases that reach the types, flags and stops the regtests miss
+ounp-variants *cases:
+    bash scripts/ounp_variants.sh {{cases}}
+
+# Whether the reference's ww3_ounp writes the same bytes twice (the basis of cmp as the verdict)
+ounp-selfcmp case="--all" variant="":
+    bash scripts/ounp_selfcmp.sh {{case}} {{variant}}
+
+# The reference's mod_def.ww3 and out_pnt.ww3 for a regtest that work/pair does not hold (ww3_ts2), in work/ounp_src
+ounp-src regtest="ww3_ts2" tag="ts2":
+    bash scripts/ounp_src.sh {{regtest}} {{tag}}
+
 # Builds the NetCDF images (docker/Dockerfile.netcdf)
 netcdf-image:
     bash scripts/rust_netcdf.sh --image
