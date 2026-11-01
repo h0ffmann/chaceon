@@ -140,6 +140,12 @@ Not built: a rank layout with a device (`spirv_shel`, `gpu-*` take no ranks), MP
 Batch 4 finds a pure Rust writer that reproduces the files ⚠. Field computation (`W3OUTG`) runs on
 the device, reading only what an output needs.
 
+Status on 2026-11-01: `ww3_outp` and `ww3_outf` have Rust ports, byte-identical (log, exit status and every file) on
+21 and 19 inputs of WW3's regtests and on 22 and 27 inputs written here, `rust/port_report/WW3_OUTP.md` and
+`WW3_OUTF.md` ([log](log/2026-11-01-outf-outp-parity.md)). Refused with a message: `ww3_outp` `ITYPE` 3 and 4 and the
+nondimensional tables, both on `GTYPE` 3 grids, `ww3_outf` group 10. `ww3_ounf`, `ww3_ounp`, `w3iobcmd`, `w3partmd`
+and NetCDF are not started.
+
 ### Batch 5: preprocessors
 
 `ww3_grid`, `ww3_strt`, `ww3_prnc`, `ww3_prep`, `ww3_bound`, `ww3_bounc`, `ww3_uprstr`, `w3gridmd`,

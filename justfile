@@ -110,6 +110,22 @@ prep-variants:
 grid-pair case suffix="":
     bash scripts/grid_pair.sh {{case}} {{suffix}}
 
+# Host verdict on ww3_outp: the reference's log and files and Rust's, by cmp. <input> is a path under WW3/regtests
+outp-pair case input name="":
+    bash scripts/outp_pair.sh {{case}} {{input}} {{name}}
+
+# Host verdict on ww3_outf, the same way
+outf-pair case input name="":
+    bash scripts/outf_pair.sh {{case}} {{input}} {{name}}
+
+# Every ww3_outp input of the regtests, and the ones written here
+outp-all:
+    bash scripts/outp_all.sh
+
+# Every ww3_outf input of the regtests, and the ones written here
+outf-all:
+    bash scripts/outf_all.sh
+
 # Every regtest ww3_grid is judged on
 grid-all:
     bash scripts/grid_all.sh

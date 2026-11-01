@@ -57,3 +57,11 @@
 | `sorry` | Lean's placeholder for a missing proof; `just lean` refuses any |
 | midpoint | The real number halfway between two adjacent `f32` values; a quotient on one side of it rounds one way |
 | OpFDiv, OpFConvert | SPIR-V's float division and float-width conversion |
+| `ww3_outp` | WW3's point output postprocessor: reads `out_pnt.ww3`, writes tables, spectra files and print plots |
+| `ww3_outf` | WW3's field output postprocessor: reads `out_grd.ww3`, writes print plots, statistics and transfer files |
+| `W3EXPO`, `W3EXGO` | The internal subroutines of `ww3_outp` and `ww3_outf` that write one output time |
+| `ITYPE`, `OTYPE` | The output type and subtype lines of `ww3_outp.inp`; `ITYPE` is also the first item of `ww3_outf.inp`'s type line |
+| `IDLA`, `IDFM` | Layout (1 to 5) and format (free, fixed, unformatted) indicators of a `ww3_outf` transfer file |
+| `PRT1DS`, `PRT2DS`, `PRTBLK`, `OUTA2I` | `w3arrymd` print plots of a 1-D spectrum, a 2-D spectrum, a field block, and the writer of an integer array |
+| `STME21` | `w3timemd`: a time as the text `YYYY/MM/DD HH:MM:SS UTC` |
+| edit descriptor | A Fortran format item such as `F8.2`, `E11.3`, `I4.2`; `rust/crates/ww3-host/src/fortfmt.rs` prints them as gfortran does |

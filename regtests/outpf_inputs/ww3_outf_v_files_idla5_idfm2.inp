@@ -1,0 +1,7 @@
+$ pair: ww3_tp1.6
+$ An input written for chaceon, not a WW3 regtest: it reaches a branch the regtest inputs do not.
+  19680607 000000 86400. 1
+N
+DPT CUR HS
+  3 0
+  1 999 1 999 5 2

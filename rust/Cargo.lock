@@ -425,6 +425,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ww3_outf"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+]
+
+[[package]]
+name = "ww3_outp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+]
+
+[[package]]
 name = "ww3_prep"
 version = "0.0.0"
 dependencies = [

@@ -32,6 +32,11 @@ impl Dispersion {
         Self { dsie, n1max, ewn1, ecg1 }
     }
 
+    /// `DSIE`, `N1MAX`, `EWN1(0:NAR1D)` and `ECG1(0:NAR1D)`, which `W3EXPO` reads inline.
+    pub fn tables(&self) -> (Real, i32, &[Real], &[Real]) {
+        (self.dsie, self.n1max, &self.ewn1, &self.ecg1)
+    }
+
     pub fn wavnu1(&self, si: Real, h: Real) -> (Real, Real) {
         let sqrth = sqrtf(h);
         let six = si * sqrth;
