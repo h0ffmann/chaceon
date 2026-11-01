@@ -103,11 +103,20 @@ for side in ref rust; do
   edit "WW3/regtests/$reg/input/$nml" > "$work/$side/ww3_ounp.nml"
 done
 [ -z "${OUNP_PREP_ONLY:-}" ] || exit 0
-# One retry: now and then the container does not see the directory the host has just filled (a file-sharing delay).
+# Now and then the container does not see the directory the host has just filled (a file-sharing delay). The two logs
+# are created before the program starts, so that case exits 75 with ww3_ounp never run and the run is repeated; a status
+# of ww3_ounp itself is never retried. Five failures stop the script rather than reach the comparison.
 # A run that does not end in OUNP_LIMIT seconds (60) is stopped (status 124): the Fortran has inputs that loop for ever.
 limit="${OUNP_LIMIT:-60}"
-run_ref() { bash scripts/rust_netcdf.sh --run-ref bash -c "cd /work/ounp/$tag/ref && timeout $limit ww3_ounp > ounp.log 2> ounp.err; echo \$? > exit.code"; }
-run_ref || { echo "$tag: the reference run failed, once more" >&2; sleep 3; run_ref; }
+run_ref() { bash scripts/rust_netcdf.sh --run-ref bash -c "cd /work/ounp/$tag/ref && : > ounp.log && : > ounp.err || exit 75; timeout $limit ww3_ounp > ounp.log 2> ounp.err; echo \$? > exit.code"; }
+ran=""
+for _ in 1 2 3 4 5; do
+  if run_ref 2> "$work/run_ref.err"; then ran=1; break; fi
+  echo "$tag: the reference run failed, once more" >&2
+  sleep 3
+done
+rm -f "$work/run_ref.err"
+[ -n "$ran" ] || { echo "$tag: the container never saw the directory, the reference did not run" >&2; exit 1; }
 set +e
 NETCDF_TIMEOUT="$limit" bash scripts/rust_netcdf.sh ww3_ounp "/work/ounp/$tag/rust" > "$work/rust/ounp.log" 2> "$work/rust/ounp.err"
 echo $? > "$work/rust/exit.code"

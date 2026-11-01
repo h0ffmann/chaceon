@@ -930,7 +930,7 @@ pub fn run(dir: &str) -> ! {
                 yg[j + i * nyi] = f64::from(ala[i + j * nxi]);
             }
         }
-        let gsi = Gsu::create(m.flagll, iclo, nxi as i32, nyi as i32, xg, yg);
+        let gsi = Gsu::create(false, m.flagll, iclo, nxi as i32, nyi as i32, xg, yg);
         for iy in 0..ny {
             for ix in 0..nx {
                 let k = ix + iy * nx;

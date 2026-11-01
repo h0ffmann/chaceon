@@ -755,7 +755,7 @@ pub fn w3cprt(p: &Part, g: &CprtInput) -> Prt {
                 e2[(ik - 1) + (ith - 1) * nk] = g.va[nspec * jsea + (ith - 1) + (ik - 1) * nth] * fact;
             }
         }
-        if depth != depth {
+        if depth.is_nan() {
             println!("IOSF:{jsea}");
             println!(" FOUND NaN in depth");
             println!("STOP CRITICAL ERROR IN DEPTH ARRAY");

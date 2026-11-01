@@ -2,6 +2,7 @@
 
 One dated entry per thing tried, negative results included. Append; never rewrite.
 
+- [2026-11-01: ww3_prnc, ww3_ounp, partitions and interpolation on one tree; two harness faults](2026-11-01-forcing-points-integration.md)
 - [2026-11-01: ww3_prep types LL, F1, F2 and DAT, binary input, format reversal; ww3_strt type 2](2026-11-01-prep-interp-parity.md)
 - [2026-11-01: ww3_prnc byte-identical on 81 cases, NetCDF inputs rebuilt from CDL](2026-11-01-prnc-parity.md)
 - [2026-11-01: partition fields and boundary output files byte-identical; ww3_bounc crashes in the reference](2026-11-01-boundary-partition-parity.md)
