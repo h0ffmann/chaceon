@@ -122,7 +122,10 @@ its inputs. Mesa folds an undecorated module too. `scripts/spirv.sh` now decorat
 So Rust-CUDA can reach the CPU's bits with the right builder settings. rust-gpu on lavapipe does reach them. A
 Vulkan device is a separate question ⚠: `NoContraction` binds it, but `f64` division may be off by 2.5 ULP there, which
 `W3SDB1`, `exp`, `expm1` and `tanh` would see, and an `f32` quotient survives only by the margin to a rounding tie
-that `rust/tools/spirv_exact` relies on (`2^-49`, against a 2.5 ULP error in `f64`). Subnormals and the rounding of `OpFConvert` are unread there too. ADR-0005 judges `spirv` by tolerance until a device has run.
+that `rust/tools/spirv_exact` relies on: for a quotient in the normal range, a relative `2^-49`
+against a relative `2.5 * 2^-52` in `f64`, proved in Lean (v, 2026-10-31, `just lean`,
+[`docs/LEAN_202610.md`](LEAN_202610.md)). The earlier wording of this claim, "53 >= 2*24+2" in `spirv_exact`'s comment and the bare `2^-49` margin here, did not state the normal-range limit: in the subnormal range the
+midpoints have fewer bits and the quotient can be an exact tie, where the claim fails. Subnormals and the rounding of `OpFConvert` are unread there too. ADR-0005 judges `spirv` by tolerance until a device has run.
 
 ## Memory and files
 

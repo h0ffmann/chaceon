@@ -109,3 +109,6 @@ iogr-roundtrip *dirs:
 # Runtime MPI: ww3_shel under mpirun for R of 1 to 4, byte-compared with the reference
 mpi-pair *cases:
     bash scripts/mpi_pair.sh {{cases}}
+# Builds the Lean proofs in lean/ in Docker and prints the axioms each theorem uses
+lean:
+    bash scripts/lean.sh check

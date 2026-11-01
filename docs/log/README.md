@@ -4,6 +4,7 @@ One dated entry per thing tried, negative results included. Append; never rewrit
 
 - [2026-10-31: ww3_grid byte-identical on 28 regtests](2026-10-31-grid-parity.md)
 - [2026-10-31: runtime MPI for ww3_shel, 120 runs byte-identical](2026-10-31-runtime-mpi.md)
+- [2026-10-31: Lean proof of the SPIR-V division widening](2026-10-31-lean-division.md)
 - [2026-10-31: ww3_strt byte-identical on 16 regtests](2026-10-31-strt-parity.md)
 - [2026-10-31: the whole model core on one resident spectrum](2026-10-31-resident-spectrum.md)
 - [2026-10-31: SPIR-V bit-identical on lavapipe; spirv-opt ran before NoContraction](2026-10-31-spirv-bit-parity.md)

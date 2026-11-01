@@ -15,6 +15,7 @@ Every pinned version, read on 2026-10-30 (v) unless marked.
 | Runtime MPI, run | Open MPI 4.1.4 (`libopenmpi3` 4.1.4-3+b1) on the reference image, glibc 2.36 | `docker/Dockerfile.mpi` (target `run`) | `docker run --rm --entrypoint mpirun chaceon-ref-mpi:switch_chaceon_shrd --version` |
 | CPU Vulkan | Mesa lavapipe 22.3.6 from source, SHA-256 pinned, `LP_MAX_TGSI_LOOP_ITERATIONS` and the shader-buffer limits raised, LLVM 15 | `docker/Dockerfile.lavapipe` | `just spirv-replay` |
 | Reference compiler | gfortran 12.2.0, glibc 2.36 (Debian bookworm, linux/arm64), `-ffp-contract=off` | `docker/Dockerfile.reference` | `just ref-build`, which prints `BUILD_INFO` |
+| Lean 4 and mathlib | Lean `v4.35.0`, mathlib `v4.35.0` = commit `56a00585`; Ubuntu 24.04 arm64 image, elan, never on the host. `lake exe cache get` fetches the built mathlib | `lean/lean-toolchain`, `lean/lakefile.toml`, `lean/lake-manifest.json`, `docker/Dockerfile.lean` | `just lean` |
 | WW3 regtest data | not fetched yet ⚠ | Batch 0 | `WW3/model/bin/ww3_from_ftp.sh` |
 
 ww3-gpu's own WW3 is NOAA's `03adda91`, a different model: its timings and verdicts do not carry

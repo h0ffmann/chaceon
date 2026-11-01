@@ -45,3 +45,11 @@
 | `IAPPRO` | WW3's table from spectral component to the rank that propagates it (`W3INIT`, `w3initmd.F90:853`) |
 | `W3GATH`, `W3SCAT` | Gather one component's values over all sea points into the field `W3XYP3` takes, and scatter the result back (`w3wavemd.F90`) |
 | rsmpi | The `mpi` crate: Rust bindings to the system MPI library through bindgen |
+| Lean 4 | A proof assistant and programming language; a theorem is accepted only when its kernel checks the proof |
+| mathlib | Lean's community library of mathematics, pinned in `VERSIONS.md` |
+| `lake` | Lean's build tool; `lake exe cache get` downloads mathlib already built |
+| elan | Lean's toolchain manager, installed in `docker/Dockerfile.lean` |
+| Aeneas | A tool that translates safe Rust to a pure model in Lean (and other provers) to verify it |
+| `sorry` | Lean's placeholder for a missing proof; `just lean` refuses any |
+| midpoint | The real number halfway between two adjacent `f32` values; a quotient on one side of it rounds one way |
+| OpFDiv, OpFConvert | SPIR-V's float division and float-width conversion |
