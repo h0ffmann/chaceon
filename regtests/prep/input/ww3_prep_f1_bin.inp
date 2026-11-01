@@ -1,0 +1,10 @@
+$ ww3_prep input made by scripts/prep_interp.sh
+  'ICE' 'F1' F T
+  19680606 000000
+  18 16 F
+  'NAME' 1 3 '(..F..)'
+  21 '../input/f1_latlon.bin'
+  'NAME' 1 3 '(..F..)'
+  22 '../input/f1_mask.bin'
+  'NAME' 2 3 '(I8,1X,I6)' '(..F..)'
+  23 '../input/f1_ice.bin'

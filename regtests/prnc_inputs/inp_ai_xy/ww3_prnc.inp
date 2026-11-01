@@ -1,0 +1,10 @@
+$ ww3_prnc.inp written by scripts/prnc_cdl_gen.py
+  'WND' 'AI' F T
+$
+  x y
+$
+  uwnd vwnd
+$
+  19680606 120000
+$
+  '../input/in.nc'

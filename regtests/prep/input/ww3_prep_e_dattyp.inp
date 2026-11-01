@@ -1,0 +1,6 @@
+$ ww3_prep input made by scripts/prep_interp.sh
+  'DAT' 'AI' F T
+  19680606 000000
+  3 3 -999.
+  'UNIT' 1 1 '(I8,1X,I6)' '(..F..)'
+  10 'dummy'

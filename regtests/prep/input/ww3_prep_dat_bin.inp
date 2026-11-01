@@ -1,0 +1,5 @@
+$ ww3_prep input made by scripts/prep_interp.sh
+  'DAT' 'AI' T T
+  0 3 -999.
+  'NAME' 1 3 '(I8,1X,I6)' '(..F..)'
+  21 '../input/dat.bin'

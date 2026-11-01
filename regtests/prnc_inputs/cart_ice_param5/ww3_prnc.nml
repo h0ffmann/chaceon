@@ -1,0 +1,10 @@
+&FORCING_NML
+  FORCING%FIELD%ICE_PARAM5 = T
+  FORCING%GRID%LATLON = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'x'
+  FILE%LATITUDE      = 'y'
+  FILE%VAR(1)        = 'ice'
+/

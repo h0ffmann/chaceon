@@ -1,0 +1,40 @@
+! ww3_prep interpolation tests: a small spherical grid, made by scripts/prep_interp.sh
+&SPECTRUM_NML
+  SPECTRUM%XFR       =  1.1
+  SPECTRUM%FREQ1     =  0.040
+  SPECTRUM%NK        =  9
+  SPECTRUM%NTH       =  24
+/
+&RUN_NML
+  RUN%FLCX         =  T
+  RUN%FLCY         =  T
+  RUN%FLCTH        =  T
+/
+&TIMESTEPS_NML
+  TIMESTEPS%DTMAX        =  2200.
+  TIMESTEPS%DTXY         =  2200.
+  TIMESTEPS%DTKTH        =  2200.
+  TIMESTEPS%DTMIN        =  2200.
+/
+&GRID_NML
+  GRID%NAME         =  'PREP INTERPOLATION wrap'
+  GRID%NML          =  '../input/namelists_2-D.nml'
+  GRID%TYPE         =  'RECT'
+  GRID%COORD        =  'SPHE'
+  GRID%CLOS         =  'NONE'
+  GRID%ZLIM         =  -5.
+  GRID%DMIN         =  5.75
+/
+&RECT_NML
+  RECT%NX           =  20
+  RECT%NY           =  12
+  RECT%SX           =  1.
+  RECT%SY           =  1.
+  RECT%X0           =  355.
+  RECT%Y0           =  40.
+/
+&DEPTH_NML
+  DEPTH%SF        =  -2500.
+  DEPTH%FILENAME  =  '../input/prep_wrap.depth'
+  DEPTH%IDLA      =  1
+/

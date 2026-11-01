@@ -1,0 +1,10 @@
+&FORCING_NML
+  FORCING%FIELD%WATER_LEVELS = T
+  FORCING%GRID%ASIS = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'time'
+  FILE%LATITUDE      = ''
+  FILE%VAR(1)        = 'wlv'
+/

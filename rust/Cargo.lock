@@ -433,6 +433,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ww3_ounp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "ww3_outf"
 version = "0.0.0"
 dependencies = [
@@ -448,6 +456,13 @@ dependencies = [
 
 [[package]]
 name = "ww3_prep"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+]
+
+[[package]]
+name = "ww3_prnc"
 version = "0.0.0"
 dependencies = [
  "ww3-host",

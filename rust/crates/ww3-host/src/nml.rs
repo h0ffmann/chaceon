@@ -95,6 +95,7 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
         field: span("DATE%FIELD"),
         point: span("DATE%POINT"),
         restart: span("DATE%RESTART"),
+        boundary: span("DATE%BOUNDARY"),
         wind: forcing("INPUT%FORCING%WINDS", "wind.ww3", winds),
         current: forcing("INPUT%FORCING%CURRENTS", "current.ww3", currents),
         points,

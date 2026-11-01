@@ -102,9 +102,34 @@ prep-pair case input suffix="":
 prep-all:
     bash scripts/prep_all.sh
 
-# ww3_prep inputs no regtest has (other field ids, layouts, formats) and the ones Rust refuses
+# ww3_prep inputs no regtest has (other field ids, layouts, formats, a comma in a field, LL on the model's grid, DAT)
 prep-variants:
     bash scripts/prep_variants.sh
+
+# ww3_prep types LL, F1, F2 and DAT, binary input and format reversal on inputs of regtests/prep, the stops whose
+# exit status Rust repeats and the forms Rust refuses. mode: gen, run or all; pattern selects cases by name
+prep-interp mode="all" pattern=".":
+    bash scripts/prep_interp.sh {{mode}} {{pattern}}
+
+# ww3_strt start type 2 (JONSWAP): ww3_tp2.11 and ww3_tp2.5 and variants of the input
+strt-variants:
+    bash scripts/strt_variants.sh
+
+# Host verdict on ww3_prnc: the reference's forcing file, log and status and Rust's, by cmp. <case> is a directory of regtests/prnc_inputs
+prnc-pair case:
+    bash scripts/prnc_pair.sh {{case}}
+
+# The cases shaped like the ww3_prnc inputs of WW3's regtests (the NetCDF data are synthetic, built from CDL), through prnc-pair
+prnc-all:
+    bash scripts/prnc_all.sh
+
+# ww3_prnc cases no regtest has (other fields, units, ww3_prnc.inp, errors) and the forms Rust refuses
+prnc-variants:
+    bash scripts/prnc_variants.sh
+
+# Rewrites the CDL, namelist and case.conf files of regtests/prnc_inputs/ (deterministic)
+prnc-gen:
+    python3 scripts/prnc_cdl_gen.py
 
 # Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
 grid-pair case suffix="":
@@ -150,6 +175,26 @@ ounf-variants *cases:
 ounf-selfcmp case="--all" variant="":
     bash scripts/ounf_selfcmp.sh {{case}} {{variant}}
 
+# Host verdict on ww3_ounp: the reference's NetCDF files, nml log, stdout and status and Rust's, by cmp (variant: see scripts/ounp_pair.sh)
+ounp-pair case variant="":
+    bash scripts/ounp_pair.sh {{case}} {{variant}}
+
+# Every case in work/pair (and the ts2 of ounp-src) that has a ww3_ounp namelist in its regtest input, through ww3_ounp
+ounp-all variant="":
+    bash scripts/ounp_all.sh {{variant}}
+
+# The namelist variants of ww3_ounp on the cases that reach the types, flags and stops the regtests miss
+ounp-variants *cases:
+    bash scripts/ounp_variants.sh {{cases}}
+
+# Whether the reference's ww3_ounp writes the same bytes twice (the basis of cmp as the verdict)
+ounp-selfcmp case="--all" variant="":
+    bash scripts/ounp_selfcmp.sh {{case}} {{variant}}
+
+# The reference's mod_def.ww3 and out_pnt.ww3 for a regtest that work/pair does not hold (ww3_ts2), in work/ounp_src
+ounp-src regtest="ww3_ts2" tag="ts2":
+    bash scripts/ounp_src.sh {{regtest}} {{tag}}
+
 # Builds the NetCDF images (docker/Dockerfile.netcdf)
 netcdf-image:
     bash scripts/rust_netcdf.sh --image
@@ -165,3 +210,11 @@ rust-only:
 # Builds the Lean proofs in lean/ in Docker and prints the axioms each theorem uses
 lean:
     bash scripts/lean.sh check
+
+# Partition fields (W3PART) and boundary output files (W3IOBC WRITE), byte-compared with the reference
+bnd-all:
+    bash scripts/bnd_all.sh
+
+# Rust's ww3_shel on every case in work/pair, run in copies so the shared directory is not written
+bnd-regress:
+    bash scripts/bnd_regress.sh

@@ -6,7 +6,8 @@
 #   rust_netcdf.sh --build <bin>       build only
 #   rust_netcdf.sh <bin> [args]        build, then run <bin> with args in the reference image
 #   rust_netcdf.sh --run-ref <cmd...>  run a command (ncdump, nccopy, ww3_ounf of the reference) in the run image
-# NETCDF_TARGET names another build directory under rust/target (a fault run uses one); NETCDF_SKIP_BUILD skips the build.
+# NETCDF_TARGET names another build directory under rust/target (a fault run uses one); NETCDF_SKIP_BUILD skips the build;
+# NETCDF_TIMEOUT (seconds) stops a run that does not end, with status 124 (a Fortran loop that never ends is an input to name).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 builder=chaceon-rust-netcdf:bookworm
@@ -33,5 +34,9 @@ case "${1:-}" in
 esac
 bin="$1"; shift
 if [ -z "${NETCDF_SKIP_BUILD:-}" ]; then build "$bin"; fi
+if [ -n "${NETCDF_TIMEOUT:-}" ]; then
+  exec docker run --rm --platform linux/arm64 -v "$PWD/rust:/rust:ro" -v "$PWD/work:/work" \
+    --entrypoint timeout "$runner" "$NETCDF_TIMEOUT" "$target/release/$bin" "$@"
+fi
 docker run --rm --platform linux/arm64 -v "$PWD/rust:/rust:ro" -v "$PWD/work:/work" \
   --entrypoint "$target/release/$bin" "$runner" "$@"

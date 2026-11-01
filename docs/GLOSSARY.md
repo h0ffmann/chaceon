@@ -38,10 +38,19 @@
 | `READNL` | `W3GRID`'s scan of the namelist file `GRID%NML` for a group named `&SIN4`, `&MISC` and so on |
 | `ww3_prep`, `W3PREP` | The input preprocessor (`ww3_prep.F90`): reads a water level, current, wind, ice, mud, momentum or density field, or assimilation data, from a file and writes the forcing file `ww3_shel` reads (`current.ww3`, `wind.ww3`, `ice.ww3`, ...) |
 | `AI`, `LL`, `F1`, `F2`, `DAT` | The input types of `ww3_prep`: the field is already on the model grid (`AI`), on a regular longitude-latitude grid (`LL`), on a grid given by a file (`F1`), two such grids averaged (`F2`), or it is assimilation data (`DAT`) |
+| `ww3_prnc`, `W3PRNC` | The NetCDF forcing preprocessor (`ww3_prnc.F90`): reads a wind, current, ice, level, mud, momentum or air density field from a NetCDF file and writes the same forcing file as `ww3_prep`. Its input is `ww3_prnc.nml`, or the older `ww3_prnc.inp` |
+| `AI`, `LL`, `AT` of `ww3_prnc` | Its input types: the field is on the model grid (`AI`, `ITYPE` 1), on a longitude-latitude grid, regular or curvilinear, to be interpolated (`LL`, `ITYPE` 2), or a time series on the model grid to be reduced to tidal constituents (`AT`, `ITYPE` 6, refused here). `FORCING%GRID%ASIS` and `LATLON` of the namelist select `AI` and `LL` |
+| CDL, `ncgen` | The text form of a NetCDF file, and the tool that builds the file from it. `regtests/prnc_inputs/` holds CDL because the NetCDF inputs of the regtests are not in the WW3 copy |
+| `INTERP` | The bilinear interpolation of `ww3_prnc` from the weights of `W3GRMP`; it skips corners holding the fill value and rescales the weights that remain |
 | `W3FLDO`, `W3FLDG` | The routines that open a forcing file and write or read its header (`W3FLDO`) and its fields at one time (`W3FLDG`), `w3fldsmd.F90` |
 | `FNMPRE` | The file name preamble (`./` by default) that `ww3_prep` puts before every file name it opens |
 | `INA2R`, `INA2I` | WW3's reads of a real or integer array from a file, by layout (`IDLA`) and format (`IDFM`) indicators |
-| `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points |
+| `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points and `ww3_prep` for the `LL`, `F1` and `F2` input types |
+| `W3FLDP`, `W3FLDD` | `w3fldsmd.F90`: `W3FLDP` computes the interpolation factors from an input grid with a land mask to the model grid (`F1`, `F2`), `W3FLDD` writes the assimilation data records of the `DAT` type |
+| `MSKC`, `NNBR`, `W3NNSC` | In `W3GRMP`: how the cell around a target point is masked (none, partly, fully), the number of nearest unmasked points a fully masked cell falls back on, and the table of index offsets (`W3NNSC`) it searches |
+| `LMSK`, `MAPOVR` | In `ww3_prep`: the land mask of an input grid as a logical array, and the count of input grids that cover each model point (land points keep `ILAND`) |
+| `EJ5P` | The JONSWAP one-dimensional spectrum of `w3servmd.F90`, used by `ww3_strt` start type 2 |
+| `WNT1`, `CRT1` | Switches that make `ww3_prep` correct an interpolated wind, momentum or current for conservation of velocity (the factor `MIN(1.5, A2/A1)`) |
 | `ICLOSE` | Grid closure: none (-1), simple (2) or tripole (8) |
 | `TRFLAG` | Obstruction-transparency flag of `&MISC FLAGTR`: 0 none, odd between grid points, even at grid points |
 | MPI, rank | Message Passing Interface; a rank is one of the processes `mpirun -n R` starts |
@@ -75,4 +84,13 @@
 | `FIELD%TYPE`, `NCVARTYPE` | `ww3_ounf`'s variable type: 2 packed `short` with a scale factor, 3 `short` for most fields and `float` for a few, 4 `float` |
 | `NINT` | Fortran's round to the nearest integer, halves away from zero; on aarch64 one `fcvtas`, which saturates out of range |
 | `SINGLEFILE` | An uninitialised logical of `ww3_ounf` that the reference reads as true: one file named from the first output time |
+| `ww3_ounp` | WW3's postprocessor for point output: reads `mod_def.ww3`, `out_pnt.ww3` and `ww3_ounp.nml`, writes NetCDF files, one for all stations or one per station; `SINGLEFILE` is the same uninitialised logical |
+| `POINT%TYPE`, `SPECTRA%OUTPUT`, `PARAM%OUTPUT` | The `ITYPE` and `OTYPE` of `ww3_ounp.nml`: type 1 is spectra (output 3 the file of `efth`), type 2 is mean parameters (output 1 depth and wind, 2 wave parameters, 5 validation, 6 WMO) |
+| `DIMORDER` | `ww3_ounp.nml`: true gives variables of shape (time, station) in C order, false (station, time) |
+| `FNMPRE` | The file name preamble of WW3, `./`; it is part of the file names `ww3_ounp` writes and of `product_name` less its first two characters |
 | ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |
+| `W3PART` | WW3's spectral partitioning of one spectrum into wind sea and swells (`w3partmd.F90`); `PTMETH` 1 to 5 picks the method |
+| `W3CPRT` | Runs `W3PART` on every sea point before an output that needs partitions (`w3iosfmd.F90`) |
+| `W3IOBC` | Reads, writes and dumps the boundary data files `nest.ww3` and `nestNN.ww3` (`w3iobcmd.F90`) |
+| `ww3_bounc` | WW3's pre-processor that turns NetCDF spectra into `nest.ww3` |
+| `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |

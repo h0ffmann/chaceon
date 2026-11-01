@@ -1,0 +1,10 @@
+$ ww3_prep input made by scripts/prep_interp.sh
+  'ICE' 'F1' F T
+  19680606 000000
+  18 16 F
+  'UNIT' 1 1 '(..F..)'
+  21 'dummy'
+  'UNIT' 1 1 '(..F..)'
+  22 'dummy'
+  'UNIT' 1 1 '(I8,1X,I6)' '(..F..)'
+  23 'dummy'

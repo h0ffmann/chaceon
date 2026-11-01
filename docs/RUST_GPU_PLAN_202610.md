@@ -31,7 +31,7 @@ on `host` is a bug in the port.
 
 Lines are the Fortran files' lines, comments included (`just port-status`, from
 [`rust/port_files.tsv`](../rust/port_files.tsv), which gives every one of the 135 `.F90` files a
-batch). The `.f`, `.f90` and `.c` files, `SCRIP/` and `PDLIB/` are not counted; Batch 8 takes them.
+batch). The `.f`, `.f90` and `.c` files, `SCRIP/` and `PDLIB/` are not counted in this table; Batch 8 takes them, and the README's Fortran target includes them.
 The first five batches give a working forecast for the target switch,
 [`switch_chaceon_shrd`](../switches/switch_chaceon_shrd), and the last three cover the rest.
 
@@ -153,6 +153,12 @@ the verdict because the reference writes the same bytes twice. A pure Rust write
 batch: `ww3_ounp`, `ww3_outf`, `ww3_outp`, `w3iobcmd`, `w3partmd`, and `ww3_ounf`'s unstructured, SMC and rotated-pole
 branches, forecast variables, `ounfmeta.inp` and the old `ww3_ounf.inp`.
 
+Status on 2026-11-01: `ww3_ounp` has a Rust port for `POINT%TYPE` 1 and 2, byte-identical with its NetCDF, logs and
+exit status ([report](../rust/port_report/WW3_OUNP.md), [log](log/2026-11-01-ounp-parity.md)). `w3partmd` and the
+partition fields of `out_grd.ww3` are ported, and so is the WRITE side of `w3iobcmd`
+([log](log/2026-11-01-boundary-partition-parity.md)). Still open: `W3IOBC` READ, boundary input in a run, which needs
+a change in `W3XYP3`'s sub-step loop, the `SEA8HS` fields, and `ww3_ounp` types that need the source terms.
+
 ### Batch 5: preprocessors
 
 `ww3_grid`, `ww3_strt`, `ww3_prnc`, `ww3_prep`, `ww3_bound`, `ww3_bounc`, `ww3_uprstr`, `w3gridmd`,
@@ -172,6 +178,13 @@ field ids and layouts; `LL`, `F1`, `F2`, `DAT`, binary input and a reversing for
 ([log](log/2026-11-01-prep-parity.md), `rust/port_report/WW3_PREP.md`). `just rust-only` no longer copies
 `current.ww3` from the Fortran: `ww3_tp1.6` is a run with no Fortran program. The `mww3_test_*` inputs need
 `ww3_multi` and are not run.
+
+Status on 2026-11-01: `ww3_prep` takes `LL`, `F1`, `F2`, `DAT`, binary input and format reversal, and `ww3_strt`
+takes start type 2 ([log](log/2026-11-01-prep-interp-parity.md)). `ww3_prnc` takes `AI` and `LL`, from `ww3_prnc.nml`
+or `ww3_prnc.inp`; `AT`, `F1`, `F2` and `DAT` are refused, and its inputs are synthetic NetCDF built from CDL under
+`regtests/prnc_inputs/` because the regtests' files are not in the repository ⚠
+([log](log/2026-11-01-prnc-parity.md)). `ww3_bounc` and `ww3_bound` are not ported: the reference's `ww3_bounc` stops
+with a segmentation fault on the only input available here, `ww3_tp1.11` (`rust/port_report/WW3_BOUNC.md`).
 
 ### Batch 6: speed
 
