@@ -102,9 +102,18 @@ prep-pair case input suffix="":
 prep-all:
     bash scripts/prep_all.sh
 
-# ww3_prep inputs no regtest has (other field ids, layouts, formats) and the ones Rust refuses
+# ww3_prep inputs no regtest has (other field ids, layouts, formats, a comma in a field, LL on the model's grid, DAT)
 prep-variants:
     bash scripts/prep_variants.sh
+
+# ww3_prep types LL, F1, F2 and DAT, binary input and format reversal on inputs of regtests/prep, the stops whose
+# exit status Rust repeats and the forms Rust refuses. mode: gen, run or all; pattern selects cases by name
+prep-interp mode="all" pattern=".":
+    bash scripts/prep_interp.sh {{mode}} {{pattern}}
+
+# ww3_strt start type 2 (JONSWAP): ww3_tp2.11 and ww3_tp2.5 and variants of the input
+strt-variants:
+    bash scripts/strt_variants.sh
 
 # Host verdict on ww3_grid: the reference's mod_def.ww3 and Rust's, by cmp
 grid-pair case suffix="":

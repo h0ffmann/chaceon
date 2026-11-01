@@ -1,0 +1,5 @@
+$ ww3_prep input made by scripts/prep_interp.sh
+  'WND' 'AI' F T
+  19680606 000000
+  'NAME' 2 3 '(I8,1X,I6)' '(..F..)'
+  21 '../input/ai_nohdr.bin'

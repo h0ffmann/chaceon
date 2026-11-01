@@ -1213,7 +1213,7 @@ pub fn build(dir: &str) -> (ModDef, Vec<String>) {
     let gsu = if n_line > 0 {
         let xg: Vec<f64> = m.xgrd.iter().map(|x| *x as f64).collect();
         let yg: Vec<f64> = m.ygrd.iter().map(|y| *y as f64).collect();
-        Some(gridsru::Gsu::create(m.flagll, m.iclose, nx as i32, ny as i32, xg, yg))
+        Some(gridsru::Gsu::create(false, m.flagll, m.iclose, nx as i32, ny as i32, xg, yg))
     } else {
         None
     };
