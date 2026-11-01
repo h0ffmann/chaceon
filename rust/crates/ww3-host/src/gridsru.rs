@@ -3,7 +3,7 @@
 //! (`model/src/w3gsrumd.F90:7354-7849`), `W3GFCL_R8` (`:1369-1669`, without the closest-cell search),
 //! `W3CKCL_R8` (`:3615-3840`), `GETPQR` (`:7853-7960`) and the bilinear branch of `W3GRMP_R8`
 //! (`:2570-2895`) at metocean/WW3 `92e2cf66`, for a grid stored `XG(J,I)` (`IJG` false), `REAL(8)`
-//! coordinates and no mask. Closure `ICLO_NONE` and `ICLO_SMPL` only; a target near a pole stops with a message.
+//! coordinates and no mask. Closure `ICLO_NONE` and `ICLO_SMPL` only. A cell within 10 degrees of a pole is projected with `W3SPLX` (`:5971-5995`) before `GETPQR`, as `ww3_prnc` needs for a global input.
 
 const D360: f64 = 360.;
 const D180: f64 = 180.;
@@ -404,6 +404,22 @@ fn getpqr(xt: f64, yt: f64, xs: &[f64; 4], ys: &[f64; 4]) -> (f64, f64) {
     (pr, qr)
 }
 
+/// `W3SPLX_0D_R8` with `C0 = 0`: stereographic projection about `(lam0, phi0)`, in metres.
+fn splx(lam0: f64, phi0: f64, lam: f64, phi: f64) -> (f64, f64) {
+    const PI: f64 = std::f64::consts::PI;
+    let d2r = PI / 180.;
+    let rearth = 4.0e7 / (2. * PI);
+    let clam = ((lam - lam0) * d2r).cos();
+    let slam = ((lam - lam0) * d2r).sin();
+    let cphi0 = (phi0 * d2r).cos();
+    let cphi = (phi * d2r).cos();
+    let sphi0 = (phi0 * d2r).sin();
+    let sphi = (phi * d2r).sin();
+    let k0 = (0.5 * 0. * d2r).cos().powi(2);
+    let k = 2. * k0 * rearth / (1. + sphi0 * sphi + cphi0 * cphi * clam);
+    (k * cphi * slam, k * (cphi0 * sphi - sphi0 * cphi * clam))
+}
+
 /// `W3GRMP` without a mask: `(INGRID, IS, JS, RW)`, `RW` narrowed to `REAL`.
 pub fn w3grmp(g: &Gsu, xtin: f32, ytin: f32) -> (bool, [i32; 4], [i32; 4], [f32; 4]) {
     let mut xt = xtin as f64;
@@ -458,12 +474,17 @@ pub fn w3grmp(g: &Gsu, xtin: f32, ytin: f32) -> (bool, [i32; 4], [i32; 4], [f32;
     };
     let lon0 = (xs[0] + xs[1] + xs[2] + xs[3]) / 4.;
     let lat0 = (ys[0] + ys[1] + ys[2] + ys[3]) / 4.;
-    if D90 - lat0.abs() <= NEAR_POLE {
-        eprintln!("ww3_grid: an output boundary point in a cell near a pole (W3SPLX) is not implemented in this port");
-        std::process::exit(2);
-    }
-    let _ = lon0;
-    let (ixr, jxr) = getpqr(xt, yt, &xs, &ys);
+    let (ixr, jxr) = if D90 - lat0.abs() > NEAR_POLE {
+        getpqr(xt, yt, &xs, &ys)
+    } else {
+        // Near a pole the cell is projected onto the plane tangent at its centre (`W3SPLX`, `:5971-5995`).
+        let (xtc, ytc) = splx(lon0, lat0, xt, yt);
+        let (mut xsc, mut ysc) = ([0.; 4], [0.; 4]);
+        for i in 0..4 {
+            (xsc[i], ysc[i]) = splx(lon0, lat0, xs[i], ys[i]);
+        }
+        getpqr(xtc, ytc, &xsc, &ysc)
+    };
     let dw = [(1. - ixr) * (1. - jxr), ixr * (1. - jxr), ixr * jxr, (1. - ixr) * jxr];
     (true, is, js, [dw[0] as f32, dw[1] as f32, dw[2] as f32, dw[3] as f32])
 }

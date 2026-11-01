@@ -1,0 +1,10 @@
+&FORCING_NML
+  FORCING%FIELD%DATA_ASSIM = T
+  FORCING%GRID%LATLON = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'longitude'
+  FILE%LATITUDE      = 'latitude'
+  FILE%VAR(1)        = 'U'
+/

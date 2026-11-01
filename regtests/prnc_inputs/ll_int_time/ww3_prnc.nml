@@ -1,0 +1,13 @@
+&FORCING_NML
+  FORCING%TIMESTART            = '19680606 030000'
+  FORCING%TIMESTOP             = '19680606 090000'
+  FORCING%FIELD%WINDS = T
+  FORCING%GRID%LATLON = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'longitude'
+  FILE%LATITUDE      = 'latitude'
+  FILE%VAR(1)        = 'U'
+  FILE%VAR(2)        = 'V'
+/

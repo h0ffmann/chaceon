@@ -1,0 +1,8 @@
+$ ww3_prnc.inp written by scripts/prnc_cdl_gen.py
+  'DAT' 'AI' T T
+$
+  longitude latitude
+$
+  U
+$
+  '../input/in.nc'

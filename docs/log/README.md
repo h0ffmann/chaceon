@@ -2,6 +2,7 @@
 
 One dated entry per thing tried, negative results included. Append; never rewrite.
 
+- [2026-11-01: ww3_prnc byte-identical on 81 cases, NetCDF inputs rebuilt from CDL](2026-11-01-prnc-parity.md)
 - [2026-11-01: ww3_prep byte-identical on 14 regtest inputs, ww3_tp1.6 with no Fortran](2026-11-01-prep-parity.md)
 - [2026-11-01: `ww3_outp` and `ww3_outf` byte-identical on 40 regtest inputs](2026-11-01-outf-outp-parity.md)
 - [2026-11-01: ww3_ounf byte-identical on 36 regtests, NetCDF through libnetcdf](2026-11-01-ounf-parity.md)

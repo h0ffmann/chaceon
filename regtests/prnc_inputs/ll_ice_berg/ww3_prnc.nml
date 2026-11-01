@@ -1,0 +1,11 @@
+&FORCING_NML
+  FORCING%FIELD%ICE_BERG = T
+  FORCING%GRID%LATLON = T
+/
+&FILE_NML
+  FILE%FILENAME      = '../input/in.nc'
+  FILE%LONGITUDE     = 'longitude'
+  FILE%LATITUDE      = 'latitude'
+  FILE%VAR(1)        = 'ice'
+  FILE%VAR(2)        = 'berg'
+/

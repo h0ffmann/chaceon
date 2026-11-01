@@ -1,0 +1,10 @@
+$ ww3_prnc.inp written by scripts/prnc_cdl_gen.py
+  'WND' 'LL' F T
+$
+  longitude latitude
+$
+  U V
+$
+  1968 53000
+$
+  '../input/in.nc'
