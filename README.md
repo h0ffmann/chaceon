@@ -24,6 +24,11 @@ to 4 (v, `just mpi-pair`). With `W3SRCE`, `W3XYP3` and `W3KTP3` as compiled SPIR
 the device, the same files are byte-identical too. **Nothing has run on a real GPU**, the PTX has never executed, and
 there are no timings: this is a verification result, not a speed one.
 
+**2026-11-01:** Rust's `ww3_ounf` writes the NetCDF files of `out_grd.ww3` byte-identical to the reference's on 36 cases,
+40 files and 14 201 708 bytes (v, `just ounf-all`), through the system `libnetcdf` (the Cargo feature `netcdf`, listed in
+`VERSIONS.md`). The reference writes the same bytes twice, so `cmp` of the whole file is the verdict and nothing is
+excluded.
+
 ## Port status
 
 <!-- port-summary:begin -->

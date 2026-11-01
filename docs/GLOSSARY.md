@@ -65,3 +65,14 @@
 | `PRT1DS`, `PRT2DS`, `PRTBLK`, `OUTA2I` | `w3arrymd` print plots of a 1-D spectrum, a 2-D spectrum, a field block, and the writer of an integer array |
 | `STME21` | `w3timemd`: a time as the text `YYYY/MM/DD HH:MM:SS UTC` |
 | edit descriptor | A Fortran format item such as `F8.2`, `E11.3`, `I4.2`; `rust/crates/ww3-host/src/fortfmt.rs` prints them as gfortran does |
+| `ww3_ounf` | WW3's postprocessor for gridded output: reads `mod_def.ww3` and `out_grd.ww3`, writes NetCDF files |
+| NetCDF | The self-describing array file format `ww3_ounf` writes; `FILE%NETCDF` 3 is the classic format, 4 is HDF5-based |
+| HDF5 | The container under NetCDF-4 files; the reference's HDF5 is 1.10.8 |
+| `libnetcdf` | The NetCDF C library, `libnetcdf.so.19` on bookworm, the only foreign library `ww3_ounf` calls (ADR-0001) |
+| `NF90_*` | The Fortran 90 interface of NetCDF that `ww3_ounf` calls; it reverses dimension order against the C functions Rust calls |
+| `W3EXNC`, `W3CRNC` | `ww3_ounf`'s routines that write one output time and create one file |
+| `S2GRID`, `W3S2XY` | Spread the sea-point array of a field onto the `(NX+1,NY)` grid; `S2GRID` also converts directions and replaces `UNDEF` by `NOVAL` |
+| `FIELD%TYPE`, `NCVARTYPE` | `ww3_ounf`'s variable type: 2 packed `short` with a scale factor, 3 `short` for most fields and `float` for a few, 4 `float` |
+| `NINT` | Fortran's round to the nearest integer, halves away from zero; on aarch64 one `fcvtas`, which saturates out of range |
+| `SINGLEFILE` | An uninitialised logical of `ww3_ounf` that the reference reads as true: one file named from the first output time |
+| ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |

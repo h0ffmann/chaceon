@@ -145,6 +145,13 @@ Status on 2026-11-01: `ww3_outp` and `ww3_outf` have Rust ports, byte-identical 
 `WW3_OUTF.md` ([log](log/2026-11-01-outf-outp-parity.md)). Refused with a message: `ww3_outp` `ITYPE` 3 and 4 and the
 nondimensional tables, both on `GTYPE` 3 grids, `ww3_outf` group 10. `ww3_ounf`, `ww3_ounp`, `w3iobcmd`, `w3partmd`
 and NetCDF are not started.
+Status on 2026-11-01: `ww3_ounf` has a Rust port, `rust/tools/ww3_ounf`, through the system `libnetcdf` (19 declarations, the
+Cargo feature `netcdf`, [`VERSIONS.md`](../VERSIONS.md)). Its NetCDF files are byte-identical to the reference's on 36 cases
+and 40 files, and on namelist variants and every field the grids can hold, classic and HDF5 formats, one file or one per
+field, `TIMESPLIT`, partitions ([report](../rust/port_report/WW3_OUNF.md), [log](log/2026-11-01-ounf-parity.md)). `cmp` is
+the verdict because the reference writes the same bytes twice. A pure Rust writer was not tried ⚠. Still open in this
+batch: `ww3_ounp`, `ww3_outf`, `ww3_outp`, `w3iobcmd`, `w3partmd`, and `ww3_ounf`'s unstructured, SMC and rotated-pole
+branches, forecast variables, `ounfmeta.inp` and the old `ww3_ounf.inp`.
 
 ### Batch 5: preprocessors
 

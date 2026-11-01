@@ -134,6 +134,26 @@ grid-all:
 iogr-roundtrip *dirs:
     bash scripts/iogr_roundtrip.sh {{dirs}}
 
+# Host verdict on ww3_ounf: the reference's NetCDF files and Rust's, by cmp (variant: a namelist variant of scripts/ounf_pair.sh)
+ounf-pair case variant="":
+    bash scripts/ounf_pair.sh {{case}} {{variant}}
+
+# Every case in work/pair that has an out_grd.reference, through ww3_ounf
+ounf-all variant="":
+    bash scripts/ounf_all.sh {{variant}}
+
+# The namelist variants of ww3_ounf on the cases that reach every field group
+ounf-variants *cases:
+    bash scripts/ounf_variants.sh {{cases}}
+
+# Whether the reference's ww3_ounf writes the same bytes twice (the basis of cmp as the verdict)
+ounf-selfcmp case="--all" variant="":
+    bash scripts/ounf_selfcmp.sh {{case}} {{variant}}
+
+# Builds the NetCDF images (docker/Dockerfile.netcdf)
+netcdf-image:
+    bash scripts/rust_netcdf.sh --image
+
 # Runtime MPI: ww3_shel under mpirun for R of 1 to 4, byte-compared with the reference
 mpi-pair *cases:
     bash scripts/mpi_pair.sh {{cases}}
