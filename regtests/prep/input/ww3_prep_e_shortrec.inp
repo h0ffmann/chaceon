@@ -1,0 +1,4 @@
+$ ww3_prep input made by scripts/prep_interp.sh
+  'WND' 'AI' T T
+  'NAME' 2 3 '(I8,1X,I6)' '(..F..)'
+  21 '../input/ll_wnd.bin'

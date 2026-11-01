@@ -41,7 +41,12 @@
 | `W3FLDO`, `W3FLDG` | The routines that open a forcing file and write or read its header (`W3FLDO`) and its fields at one time (`W3FLDG`), `w3fldsmd.F90` |
 | `FNMPRE` | The file name preamble (`./` by default) that `ww3_prep` puts before every file name it opens |
 | `INA2R`, `INA2I` | WW3's reads of a real or integer array from a file, by layout (`IDLA`) and format (`IDFM`) indicators |
-| `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points |
+| `GSU`, `W3GRMP` | The grid search utility object (`w3gsrumd.F90`) and its bilinear-weights call, which `ww3_grid` uses for output boundary points and `ww3_prep` for the `LL`, `F1` and `F2` input types |
+| `W3FLDP`, `W3FLDD` | `w3fldsmd.F90`: `W3FLDP` computes the interpolation factors from an input grid with a land mask to the model grid (`F1`, `F2`), `W3FLDD` writes the assimilation data records of the `DAT` type |
+| `MSKC`, `NNBR`, `W3NNSC` | In `W3GRMP`: how the cell around a target point is masked (none, partly, fully), the number of nearest unmasked points a fully masked cell falls back on, and the table of index offsets (`W3NNSC`) it searches |
+| `LMSK`, `MAPOVR` | In `ww3_prep`: the land mask of an input grid as a logical array, and the count of input grids that cover each model point (land points keep `ILAND`) |
+| `EJ5P` | The JONSWAP one-dimensional spectrum of `w3servmd.F90`, used by `ww3_strt` start type 2 |
+| `WNT1`, `CRT1` | Switches that make `ww3_prep` correct an interpolated wind, momentum or current for conservation of velocity (the factor `MIN(1.5, A2/A1)`) |
 | `ICLOSE` | Grid closure: none (-1), simple (2) or tripole (8) |
 | `TRFLAG` | Obstruction-transparency flag of `&MISC FLAGTR`: 0 none, odd between grid points, even at grid points |
 | MPI, rank | Message Passing Interface; a rank is one of the processes `mpirun -n R` starts |

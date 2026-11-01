@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 //! The part of the grid search utility that `W3GRID` uses for output boundary points: `GSU_CREATE`
 //! (`model/src/w3gsrumd.F90:7354-7849`), `W3GFCL_R8` (`:1369-1669`, without the closest-cell search),
-//! `W3CKCL_R8` (`:3615-3840`), `GETPQR` (`:7853-7960`) and the bilinear branch of `W3GRMP_R8`
-//! (`:2570-2895`) at metocean/WW3 `92e2cf66`, for a grid stored `XG(J,I)` (`IJG` false), `REAL(8)`
-//! coordinates and no mask. Closure `ICLO_NONE` and `ICLO_SMPL` only; a target near a pole stops with a message.
+//! `W3CKCL_R8` (`:3615-3840`), `GETPQR` (`:7853-7960`) and `W3GRMP_R8` (`:2570-2895`) at metocean/WW3
+//! `92e2cf66`: the bilinear branch for `ww3_grid` (grid stored `XG(J,I)`, `IJG` false, no mask), and for
+//! `ww3_prep` the same on `XG(I,J)` (`IJG` true) with the land mask, the nearest-neighbour branch for a fully
+//! masked cell (`W3NNSC`, `W3SORT`, `W3ISRT`, `W3DIST`) and the pole cell (`W3SPLX`). Closure `ICLO_NONE` and
+//! `ICLO_SMPL` only; the closest-cell search (`FNCL`, `DCIN` > 0) is not translated because neither caller
+//! asks for it.
 
 const D360: f64 = 360.;
 const D180: f64 = 180.;
@@ -11,17 +14,19 @@ const D90: f64 = 90.;
 const EPS_DEFAULT: f64 = 1.0e-6;
 const NEAR_POLE: f64 = 10.0;
 const NCB_DEFAULT: i32 = 10;
+const NNP_DEFAULT: i32 = 2;
 const ICLO_NONE: i32 = -1;
 const ICLO_SMPL: i32 = 2;
 
 pub struct Gsu {
+    ijg: bool,
     llg: bool,
     iclo: i32,
     lclo: bool,
     l360: bool,
     nx: i32,
     ny: i32,
-    /// `XG(J,I)`: `j + i*ny` with both from 0.
+    /// `XG(J,I)` (`j + i*ny`) or, with `ijg`, `XG(I,J)` (`i + j*nx`), both from 0.
     xg: Vec<f64>,
     yg: Vec<f64>,
     xmin: f64,
@@ -44,8 +49,13 @@ fn maxval(v: &[f64]) -> f64 {
 }
 
 impl Gsu {
-    fn at(&self, j: i32, i: i32) -> usize {
-        (j - 1) as usize + (i - 1) as usize * self.ny as usize
+    /// The position of `XG(J,I)`, or of `XG(I,J)` when the grid is stored that way.
+    pub fn at(&self, j: i32, i: i32) -> usize {
+        if self.ijg {
+            (i - 1) as usize + (j - 1) as usize * self.nx as usize
+        } else {
+            (j - 1) as usize + (i - 1) as usize * self.ny as usize
+        }
     }
 
     /// The four corners of cell `(i,j)`, with the closure applied: `IC(1:4), JC(1:4)`.
@@ -64,9 +74,10 @@ impl Gsu {
     }
 
     /// `GSU_CREATE` with `LBX = LBY = 1`.
-    pub fn create(llg: bool, iclo: i32, nx: i32, ny: i32, xg: Vec<f64>, yg: Vec<f64>) -> Gsu {
+    pub fn create(ijg: bool, llg: bool, iclo: i32, nx: i32, ny: i32, xg: Vec<f64>, yg: Vec<f64>) -> Gsu {
         assert!(iclo == ICLO_NONE || iclo == ICLO_SMPL, "closure {iclo} is not implemented in the search utility");
         let mut g = Gsu {
+            ijg,
             llg,
             iclo,
             lclo: llg && iclo != ICLO_NONE,
@@ -404,12 +415,92 @@ fn getpqr(xt: f64, yt: f64, xs: &[f64; 4], ys: &[f64; 4]) -> (f64, f64) {
     (pr, qr)
 }
 
-/// `W3GRMP` without a mask: `(INGRID, IS, JS, RW)`, `RW` narrowed to `REAL`.
-pub fn w3grmp(g: &Gsu, xtin: f32, ytin: f32) -> (bool, [i32; 4], [i32; 4], [f32; 4]) {
+/// The enclosing cell: `IS`, `JS`, `XS`, `YS`.
+type Cell = ([i32; 4], [i32; 4], [f64; 4], [f64; 4]);
+
+/// `W3GRMP_R4` (and the `REAL(8)` routine it calls), as `ww3_prep` and `W3FLDP` call it.
+pub struct Grmp {
+    pub ingrid: bool,
+    pub is: [i32; 4],
+    pub js: [i32; 4],
+    pub rw: [f32; 4],
+    /// `MSKC_NONE` 0, `MSKC_PART` 1, `MSKC_FULL` 2; 0 when there is no mask or the point is outside.
+    pub mskc: i32,
+    /// `NNBR` on return: the number of unmasked neighbours a fully masked cell found.
+    pub nnbr: i32,
+    /// The enclosing cell has its centre within `NEAR_POLE` degrees of a pole: the weights went through `W3SPLX`.
+    pub near_pole: bool,
+}
+
+/// `W3SPLX` (point, `REAL(8)`): the stereographic projection about `(lam0, phi0)`, `C0` = 0 here.
+fn splx(lam0: f64, phi0: f64, c0: f64, lam: f64, phi: f64) -> (f64, f64) {
+    const D2R: f64 = std::f64::consts::PI / 180.;
+    const REARTH: f64 = 4.0e7 / (2. * std::f64::consts::PI);
+    let clam = ((lam - lam0) * D2R).cos();
+    let slam = ((lam - lam0) * D2R).sin();
+    let cphi0 = (phi0 * D2R).cos();
+    let cphi = (phi * D2R).cos();
+    let sphi0 = (phi0 * D2R).sin();
+    let sphi = (phi * D2R).sin();
+    let k0 = (0.5 * c0 * D2R).cos();
+    let k0 = k0 * k0;
+    let k = 2. * k0 * REARTH / (1. + sphi0 * sphi + cphi0 * cphi * clam);
+    (k * cphi * slam, k * (cphi0 * sphi - sphi0 * cphi * clam))
+}
+
+/// `W3DIST_R8` with `DIST_WITH_SINE` (`:5879-5930`), the `REAL(8)` entry `W3GRMP` calls.
+fn w3dist(llg: bool, xt: f64, yt: f64, xs: f64, ys: f64) -> f64 {
+    const D2R: f64 = std::f64::consts::PI / 180.;
+    const R2D: f64 = 1. / D2R;
+    let mut dx = xt - xs;
+    let dy = yt - ys;
+    if llg {
+        if dx.abs() > 270. {
+            dx -= D360.copysign(dx);
+        }
+        let slam = (0.5 * dx * D2R).sin();
+        let sphi = (0.5 * dy * D2R).sin();
+        let argd = (f64::cos(yt * D2R) * f64::cos(ys * D2R) * slam * slam + sphi * sphi).sqrt();
+        R2D * 2. * argd.asin()
+    } else {
+        (dx * dx + dy * dy).sqrt()
+    }
+}
+
+type Offsets = Vec<(i32, i32)>;
+
+/// `W3NNSC ( 2 )` (`:6819-6879`): `N1(l)`, `N2(l)` and the index deltas `DI(n)`, `DJ(n)`.
+fn nns(nlvl: i32) -> (Offsets, Offsets) {
+    let mut n12 = vec![(0, 0)];
+    let mut d = vec![(0, 0)];
+    for l in 1..=nlvl {
+        n12.push(((2 * l - 1) * (2 * l - 1), (2 * l + 1) * (2 * l + 1) - 1));
+        for i in -l..l {
+            d.push((i, -l));
+        }
+        for j in -l..l {
+            d.push((l, j));
+        }
+        for i in (-l + 1..=l).rev() {
+            d.push((i, l));
+        }
+        for j in (-l + 1..=l).rev() {
+            d.push((-l, j));
+        }
+    }
+    (n12, d)
+}
+
+/// `W3GRMP ( GSU, X, Y, IS, JS, RW )` for a `REAL(4)` target. `mask` (true = land, `LMSK`) is stored as the
+/// coordinates are; with `nnbr` too it is `W3FLDP`'s call, `NNBR = 2`.
+pub fn w3grmp_mask(g: &Gsu, xtin: f32, ytin: f32, mask: Option<&[bool]>, nnbr: Option<i32>) -> Grmp {
+    const BIG: f64 = 1e16;
+    const SMALL: f64 = 1e-6;
     let mut xt = xtin as f64;
     let yt = ytin as f64;
+    let mut out = Grmp { ingrid: false, is: [0; 4], js: [0; 4], rw: [0.; 4], mskc: 0, nnbr: nnbr.unwrap_or(0), near_pole: false };
     // W3GFCL_R8
-    let mut found: Option<([i32; 4], [i32; 4], [f64; 4], [f64; 4])> = None;
+    let mut found: Option<Cell> = None;
     if g.llg {
         xt %= D360;
         if g.lclo || g.l360 {
@@ -453,19 +544,144 @@ pub fn w3grmp(g: &Gsu, xtin: f32, ytin: f32) -> (bool, [i32; 4], [i32; 4], [f32;
             }
         }
     }
-    let Some((is, js, xs, ys)) = found else {
-        return (false, [0; 4], [0; 4], [0.; 4]);
+    let Some((mut is, mut js, xs, ys)) = found else {
+        return out;
     };
     let lon0 = (xs[0] + xs[1] + xs[2] + xs[3]) / 4.;
     let lat0 = (ys[0] + ys[1] + ys[2] + ys[3]) / 4.;
-    if D90 - lat0.abs() <= NEAR_POLE {
-        eprintln!("ww3_grid: an output boundary point in a cell near a pole (W3SPLX) is not implemented in this port");
-        std::process::exit(2);
+    let (ixr, jxr) = if D90 - lat0.abs() > NEAR_POLE {
+        getpqr(xt, yt, &xs, &ys)
+    } else {
+        out.near_pole = true;
+        let (xtc, ytc) = splx(lon0, lat0, 0., xt, yt);
+        let mut xsc = [0.; 4];
+        let mut ysc = [0.; 4];
+        for i in 0..4 {
+            (xsc[i], ysc[i]) = splx(lon0, lat0, 0., xs[i], ys[i]);
+        }
+        getpqr(xtc, ytc, &xsc, &ysc)
+    };
+    let mut dw = [(1. - ixr) * (1. - jxr), ixr * (1. - jxr), ixr * jxr, (1. - ixr) * jxr];
+    let narrow = |d: &[f64; 4]| [d[0] as f32, d[1] as f32, d[2] as f32, d[3] as f32];
+    out.ingrid = true;
+    out.is = is;
+    out.js = js;
+    out.rw = narrow(&dw);
+    let Some(mask) = mask else { return out };
+    // 4. A partially masked cell.
+    let msk: Vec<bool> = (0..4).map(|l| mask[g.at(js[l], is[l])]).collect();
+    let mut dsum = 0.;
+    let mut ns = 4;
+    for l in 0..4 {
+        if msk[l] {
+            ns -= 1;
+            dw[l] = 0.;
+        }
+        dsum += dw[l];
     }
-    let _ = lon0;
-    let (ixr, jxr) = getpqr(xt, yt, &xs, &ys);
-    let dw = [(1. - ixr) * (1. - jxr), ixr * (1. - jxr), ixr * jxr, (1. - ixr) * jxr];
-    (true, is, js, [dw[0] as f32, dw[1] as f32, dw[2] as f32, dw[3] as f32])
+    if ns == 4 {
+        return out;
+    }
+    if ns > 0 && dsum > SMALL {
+        for d in dw.iter_mut() {
+            *d /= dsum;
+        }
+        out.rw = narrow(&dw);
+        out.mskc = 1;
+        return out;
+    }
+    out.mskc = 2;
+    let Some(want) = nnbr else { return out };
+    // 5. A fully masked cell: the closest unmasked points of the neighbourhood, weighted by inverse distance.
+    let mut dmin = BIG;
+    let (mut icc, mut jcc) = (0, 0);
+    for l in 0..4 {
+        let dd = w3dist(g.llg, xt, yt, xs[l], ys[l]);
+        if dd < dmin {
+            dmin = dd;
+            icc = is[l];
+            jcc = js[l];
+        }
+    }
+    let (n12, dij) = nns(NNP_DEFAULT);
+    let mut d = [BIG; 4];
+    let mut ns = 0usize;
+    'level: for &(n1, n2) in &n12 {
+        for n in n1..=n2 {
+            let (di, dj) = dij[n as usize];
+            let (mut i, mut j) = (icc + di, jcc + dj);
+            if g.iclo == ICLO_NONE && (i < 1 || i > g.nx || j < 1 || j > g.ny) {
+                continue;
+            }
+            if g.iclo % 2 == 0 {
+                i = 1 + (g.nx - 1 + (i - 1 + 1) % g.nx) % g.nx;
+            }
+            if g.iclo % 3 == 0 {
+                j = 1 + (g.ny - 1 + (j - 1 + 1) % g.ny) % g.ny;
+            }
+            if mask[g.at(j, i)] {
+                continue;
+            }
+            let dd = w3dist(g.llg, xt, yt, g.xg[g.at(j, i)], g.yg[g.at(j, i)]);
+            if (ns as i32) < want {
+                is[ns] = i;
+                js[ns] = j;
+                d[ns] = dd;
+                ns += 1;
+                if ns as i32 == want {
+                    // W3SORT
+                    for k in 0..ns.saturating_sub(1) {
+                        for l in k + 1..ns {
+                            if d[l] < d[k] {
+                                is.swap(k, l);
+                                js.swap(k, l);
+                                d.swap(k, l);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // W3ISRT
+                for k in 0..ns {
+                    if dd < d[k] {
+                        for l in (k + 1..ns).rev() {
+                            is[l] = is[l - 1];
+                            js[l] = js[l - 1];
+                            d[l] = d[l - 1];
+                        }
+                        is[k] = i;
+                        js[k] = j;
+                        d[k] = dd;
+                        break;
+                    }
+                }
+            }
+        }
+        if ns as i32 == want {
+            break 'level;
+        }
+    }
+    out.is = is;
+    out.js = js;
+    out.nnbr = ns as i32;
+    if ns == 0 {
+        return out;
+    }
+    let mut dsum = 0.;
+    for dl in d.iter().take(ns) {
+        dsum += 1. / (dl + SMALL);
+    }
+    for l in 0..ns {
+        dw[l] = 1. / (d[l] + SMALL) / dsum;
+    }
+    out.rw = narrow(&dw);
+    out
+}
+
+/// `W3GRMP` without a mask, for `ww3_grid`: `(INGRID, IS, JS, RW)`, `RW` narrowed to `REAL`.
+pub fn w3grmp(g: &Gsu, xtin: f32, ytin: f32) -> (bool, [i32; 4], [i32; 4], [f32; 4]) {
+    let r = w3grmp_mask(g, xtin, ytin, None, None);
+    (r.ingrid, r.is, r.js, r.rw)
 }
 
 impl Gsu {
