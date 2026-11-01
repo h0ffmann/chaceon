@@ -76,3 +76,8 @@
 | `NINT` | Fortran's round to the nearest integer, halves away from zero; on aarch64 one `fcvtas`, which saturates out of range |
 | `SINGLEFILE` | An uninitialised logical of `ww3_ounf` that the reference reads as true: one file named from the first output time |
 | ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |
+| `W3PART` | WW3's spectral partitioning of one spectrum into wind sea and swells (`w3partmd.F90`); `PTMETH` 1 to 5 picks the method |
+| `W3CPRT` | Runs `W3PART` on every sea point before an output that needs partitions (`w3iosfmd.F90`) |
+| `W3IOBC` | Reads, writes and dumps the boundary data files `nest.ww3` and `nestNN.ww3` (`w3iobcmd.F90`) |
+| `ww3_bounc` | WW3's pre-processor that turns NetCDF spectra into `nest.ww3` |
+| `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 //! `W3OUTG` and `W3IOGO` (`model/src/w3iogomd.F90`), `out_grd.ww3`, for the fields a case asks for.
 //! `W3OUTG` loops `IK`, `ITH`, `JSEA`; here each sea point has its own pass, which keeps the order of every
-//! per-point sum. A field this file does not hold stops the run in `ids`: partitions, `WBT`, 3-D Stokes.
+//! per-point sum. A field this file does not hold stops the run in `ids`: `SEA8HS` and the rest of group 4 past `PNR`,
+//! `TH2M`, `WN`, `USP`.
 
 #![allow(clippy::approx_constant)]
 
 use crate::moddef::ModDef;
+use crate::partition::{Prt, DIMP};
 use crate::wtime::Time;
-use ww3_kernels::constants::{DWAT, GRAV, PI, RADE, TPI, TPIINV};
+use ww3_kernels::constants::{DERA, DWAT, GRAV, PI, RADE, TPI, TPIINV};
 use ww3_kernels::real::Real;
 use ww3_kernels::srce::SrceOut;
 
@@ -29,7 +31,7 @@ impl Flags {
 }
 
 /// `W3FLDTOIJ`, for the fields written here.
-const IDS: [(&str, usize, usize); 58] = [
+const IDS: [(&str, usize, usize); 75] = [
     ("DPT", 1, 1), ("CUR", 1, 2), ("WND", 1, 3), ("AST", 1, 4), ("WLV", 1, 5),
     ("HS", 2, 1), ("LM", 2, 2), ("T02", 2, 3), ("T0M1", 2, 4), ("T01", 2, 5), ("FP", 2, 6),
     ("DIR", 2, 7), ("SPR", 2, 8), ("DP", 2, 9), ("HIG", 2, 10), ("MXE", 2, 11), ("MXES", 2, 12),
@@ -40,7 +42,15 @@ const IDS: [(&str, usize, usize); 58] = [
     ("FC", 9, 2), ("CFX", 9, 3), ("UST", 5, 1), ("WCC", 5, 7), ("WCF", 5, 8), ("WCH", 5, 9),
     ("WCM", 5, 10), ("ABR", 7, 1), ("UBR", 7, 2), ("MSS", 8, 1), ("MSC", 8, 2), ("MSD", 8, 3),
     ("MCD", 8, 4), ("QP", 8, 5), ("FBB", 7, 4), ("ICE", 1, 6), ("WBT", 2, 17), ("USF", 6, 8),
+    ("PHS", 4, 1), ("PTP", 4, 2), ("PLP", 4, 3), ("PDIR", 4, 4), ("PSPR", 4, 5), ("PWS", 4, 6), ("PDP", 4, 7),
+    ("PQP", 4, 8), ("PPE", 4, 9), ("PGW", 4, 10), ("PSW", 4, 11), ("PTM10", 4, 12), ("PT01", 4, 13),
+    ("PT02", 4, 14), ("PEP", 4, 15), ("TWS", 4, 16), ("PNR", 4, 17),
 ];
+
+/// Which array of `part` holds DTPRT's row `r + 1`: `PHS PTP PLP PDIR PSI PWS PTHP0 PSW PPE PQP PGW PTM1 PT1 PT2 PEP`
+/// are the rows 1 to 15 (`w3iogomd.F90:2548-2570`) and the fields 4/1 to 4/15 are `PHS PTP PLP PDIR PSI PWS PTHP0 PQP
+/// PPE PGW PSW PTM1 PT1 PT2 PEP` (`:3355-3383`).
+const FIELD_OF_ROW: [usize; 15] = [0, 1, 2, 3, 4, 5, 6, 10, 8, 7, 9, 11, 12, 13, 14];
 
 /// `W3READFLGRD`'s list, then `W3FLGRDUPDT`, which clears a spectral field that has no bounds.
 pub fn ids(list: &str, m: &ModDef) -> Flags {
@@ -93,6 +103,8 @@ pub struct Input<'a> {
     pub whitecap: &'a [Real],
     pub cx: &'a [Real],
     pub cy: &'a [Real],
+    /// `ICPRT` and `DTPRT` as `W3CPRT` left them, when a group 4 field is requested.
+    pub prt: Option<&'a Prt>,
 }
 
 /// The per-point results of `W3OUTG`.
@@ -636,6 +648,46 @@ impl Grd {
                 }
             }
         }
+        // W3OUTG, 6: PHS ... PEP(1:NSEA,0:NOSWLL), PWST and PNR, from ICPRT and DTPRT.
+        let nsw = m.noswll as usize;
+        let mut part = vec![UNDEF; if g.prt.is_some() { 15 * (nsw + 1) * nsea } else { 0 }];
+        let (mut pwst, mut pnr) = (vec![UNDEF; nsea], vec![UNDEF; nsea]);
+        if let Some(pr) = g.prt {
+            let dt = |i: usize, r: usize| pr.dt[(i - 1) * DIMP + r - 1];
+            let put = |part: &mut Vec<Real>, jsea: usize, j: usize, i: usize| {
+                for r in 1..=15 {
+                    let v = dt(i, r);
+                    // PDIR and PTHP0 come back from degrees nautical to Cartesian radians, unless UNDEF.
+                    let v = if (r == 4 || r == 7) && v != UNDEF { (270. - v) * DERA } else if r == 4 || r == 7 { UNDEF } else { v };
+                    // DTPRT row r goes to field FIELD_OF_ROW[r].
+                    part[(FIELD_OF_ROW[r - 1] * (nsw + 1) + j) * nsea + jsea - 1] = v;
+                }
+            };
+            for jsea in 1..=nsea {
+                let c = (m.mapsf[jsea - 1 + 2 * nsea] - 1) as usize;
+                if g.mapsta[c] > 0 {
+                    let i = pr.start[jsea];
+                    pnr[jsea - 1] = (0. as Real).max((pr.cnt[jsea] - 1) as Real);
+                    if pr.cnt[jsea] >= 1 {
+                        pwst[jsea - 1] = dt(i, 6);
+                    }
+                }
+                if g.mapsta[c] > 0 && pr.cnt[jsea] > 1 {
+                    let mut i = pr.start[jsea] + 1;
+                    if dt(i, 6) >= m.wscut {
+                        put(&mut part, jsea, 0, i);
+                        i += 1;
+                    }
+                    for j in 1..=nsw {
+                        if i as i64 > pr.start[jsea] as i64 + pr.cnt[jsea] as i64 - 1 {
+                            break;
+                        }
+                        put(&mut part, jsea, j, i);
+                        i += 1;
+                    }
+                }
+            }
+        }
         let gone = |i: usize, off: bool, v: Real| if dry[i] && off { UNDEF } else { v };
         let sea = |f: &dyn Fn(usize) -> Real| (0..nsea).map(f).collect::<Vec<_>>();
         // gfortran joins the two calls into one sincosf.
@@ -757,6 +809,13 @@ impl Grd {
                     (8, 3) => w(on(|p| p.mssd, true)),
                     (8, 4) => w(on(|p| p.mscd, true)),
                     (8, 5) => w(on(|p| p.qp, true)),
+                    (4, 1..=15) => {
+                        let f = ifj - 1;
+                        let b = f * (nsw + 1) * nsea;
+                        w(part[b..b + (nsw + 1) * nsea].to_vec());
+                    }
+                    (4, 16) => w(pwst.clone()),
+                    (4, 17) => w(pnr.clone()),
                     (9, 1) => w(sea(&|i| gone(i, true, g.dtdyn[i + 1]))),
                     (9, 2) => w(sea(&|i| gone(i, true, g.fcut[i + 1]))),
                     (9, 3) => w(sea(&|i| gone(i, true, g.cflxy[i + 1]))),
