@@ -44,6 +44,10 @@ UNLEDGERED = [
     ("rust/gpu-cuda/kernels/", "translated"),
     ("rust/tools/spirv_shel/", "spirv"),
     ("rust/tools/ww3_strt/", "host"),
+    ("rust/tools/ww3_prep/", "host"),
+    ("rust/tools/ww3_outf/", "host"),
+    ("rust/tools/ww3_outp/", "host"),
+    ("rust/tools/ww3_ounf/", "host"),
     ("rust/tools/", None),
 ]
 
@@ -150,10 +154,15 @@ def build():
         a["code"] += code_lines(text)
         stems[f.stem] = (area_of(f.stem), len(text.splitlines()))
     done = {"translated": 0, "routine": 0, "host": 0, "spirv": 0}
+    # A routine with Rust in two files has two rows and counts once.
+    seen = set()
     for line in (ROOT / "rust/ports.tsv").read_text().splitlines():
         c = line.split("\t")
         if line.startswith("#") or c[0] == "routine":
             continue
+        if c[0] in seen:
+            continue
+        seen.add(c[0])
         stem = Path(c[1].split(":")[0]).stem
         n, status = int(c[2]), c[3]
         done[status] += n
