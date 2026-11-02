@@ -2,7 +2,9 @@
 //! The parts of WW3 that run on the host. `std` math here calls the platform's libm, so these bits
 //! are the reference's only on its Linux image.
 
+pub mod bound;
 pub mod capture;
+pub mod cspc;
 pub mod disp;
 pub mod finp;
 pub mod fortfmt;

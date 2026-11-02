@@ -91,6 +91,10 @@
 | ncdump | NetCDF's text dump of a file's header and data, used here to read what a file holds |
 | `W3PART` | WW3's spectral partitioning of one spectrum into wind sea and swells (`w3partmd.F90`); `PTMETH` 1 to 5 picks the method |
 | `W3CPRT` | Runs `W3PART` on every sea point before an output that needs partitions (`w3iosfmd.F90`) |
+| `W3UBPT` | Interpolates the boundary spectra read by `W3IOBC` to a grid's boundary points (`w3updtmd.F90`) |
+| `W3CSPC` | Carries a spectrum to another spectral grid, keeping each bin's energy (`w3cspcmd.F90`) |
+| `W3ULEV` | Applies a new water level: depths, wavenumbers, dry cells, spectra remapped (`w3updtmd.F90`) |
+| `W3UICE` | Applies a new ice concentration to the maps and spectra (`w3updtmd.F90`) |
 | `W3IOBC` | Reads, writes and dumps the boundary data files `nest.ww3` and `nestNN.ww3` (`w3iobcmd.F90`) |
 | `ww3_bounc` | WW3's pre-processor that turns NetCDF spectra into `nest.ww3` |
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |

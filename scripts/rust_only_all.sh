@@ -26,4 +26,8 @@ ww3_tp2.4 ww3_tp2.4
 ww3_tp2.4 ww3_tp2.4_curv curv
 ww3_tp2.15 ww3_tp2.15
 CASES
+# Water levels and ice: every forcing file from Rust's ww3_prep, then the run. Needs `just forcing-all`.
+RUST_ONLY_OVERLAY=work/forcing/ov_both RUST_ONLY_PREP="ww3_prep_wind.inp ww3_prep_lev.inp ww3_prep_ice.inp" \
+  bash scripts/rust_only.sh ww3_tp2.15 ww3_tp2.15_both || bad=1
+RUST_ONLY_PREP=ww3_prep_ice.inp bash scripts/rust_only.sh ww3_tic2.2 ww3_tic2.2 || bad=1
 exit "$bad"

@@ -13,6 +13,7 @@ const D180: f64 = 180.;
 const D90: f64 = 90.;
 const EPS_DEFAULT: f64 = 1.0e-6;
 const NEAR_POLE: f64 = 10.0;
+const MAX_FNCL_LEVEL: i32 = 3;
 const NCB_DEFAULT: i32 = 10;
 const NNP_DEFAULT: i32 = 2;
 const ICLO_NONE: i32 = -1;
@@ -489,6 +490,122 @@ fn nns(nlvl: i32) -> (Offsets, Offsets) {
         }
     }
     (n12, d)
+}
+
+/// `W3GFPT ( GSU, X, Y, IX, IY, DCIN=dcin )` for `REAL(4)` arguments, so `dcin` widens from `REAL(4)`: the grid
+/// point closest to the target, or `None` outside the grid by more than `dcin` cell widths. `W3GFCL_R8` is inside,
+/// with `FNCL` true, `model/src/w3gsrumd.F90:1369-1669` and `:2078-2192`.
+pub fn w3gfpt(g: &Gsu, xtin: f32, ytin: f32, dcin: f32) -> Option<(i32, i32)> {
+    const BIG: f64 = 1e16;
+    let ldcin = dcin as f64;
+    let mut xt = xtin as f64;
+    let yt = ytin as f64;
+    if g.llg {
+        xt %= D360;
+        if g.lclo || g.l360 {
+            if xt < 0. {
+                xt += D360;
+            }
+        } else if xt > D180 {
+            xt -= D360;
+        }
+    }
+    let corners = |ci: i32, cj: i32| {
+        let (is, js) = g.corners_of(ci, cj);
+        let (mut xs, mut ys) = ([0.; 4], [0.; 4]);
+        for l in 0..4 {
+            xs[l] = g.xg[g.at(js[l], is[l])];
+            ys[l] = g.yg[g.at(js[l], is[l])];
+            if g.llg {
+                xs[l] %= D360;
+                if g.lclo || g.l360 {
+                    if xs[l] < 0. {
+                        xs[l] += D360;
+                    }
+                } else if xs[l] > D180 {
+                    xs[l] -= D360;
+                }
+            }
+        }
+        (is, js, xs, ys)
+    };
+    let mut ib = (((xt - g.xmin) / g.dxb) as i32 + 1).max(1);
+    if !g.lclo {
+        ib = ib.min(g.nbx);
+    }
+    let jb = (((yt - g.ymin) / g.dyb) as i32 + 1).max(1).min(g.nby);
+    let mut found = None;
+    for &(ci, cj) in &g.b[((jb - 1) + (ib - 1) * g.nby) as usize] {
+        let (is, js, xs, ys) = corners(ci, cj);
+        let (incell, xt2, xs2) = ckcl(g.llg, xt, yt, &xs, &ys);
+        if incell {
+            xt = xt2;
+            found = Some((is, js, xs2, ys));
+            break;
+        }
+    }
+    let ingrid = found.is_some();
+    // The closest cell: its centre, over rings of buckets until MAX_FNCL_LEVEL rings held cells.
+    if found.is_none() {
+        let nlvl = (0.5 * g.nbx.max(g.nby) as f32).round() as i32;
+        let (n12, d) = nns(nlvl);
+        let (mut nlevel, mut dd1) = (0, f64::MAX);
+        'levels: for lvl in 0..=nlvl as usize {
+            let mut any = false;
+            let (n1, n2) = n12[lvl];
+            for &(di, dj) in &d[n1 as usize..=n2 as usize] {
+                let (ibn, jbn) = (ib + di, jb + dj);
+                if ibn < 1 || ibn > g.nbx || jbn < 1 || jbn > g.nby {
+                    continue;
+                }
+                for &(ci, cj) in &g.b[((jbn - 1) + (ibn - 1) * g.nby) as usize] {
+                    let (is, js, xs, ys) = corners(ci, cj);
+                    let xsm = (xs[0] + xs[1] + xs[2] + xs[3]) / 4.;
+                    let ysm = (ys[0] + ys[1] + ys[2] + ys[3]) / 4.;
+                    let dd = w3dist(g.llg, xt, yt, xsm, ysm);
+                    if dd < dd1 {
+                        dd1 = dd;
+                        found = Some((is, js, xs, ys));
+                    }
+                    any = true;
+                }
+            }
+            if any {
+                nlevel += 1;
+            }
+            if nlevel >= MAX_FNCL_LEVEL {
+                break 'levels;
+            }
+        }
+    }
+    let (is, js, xs, ys) = found?;
+    if !ingrid {
+        let lon0 = (xs[0] + xs[1] + xs[2] + xs[3]) / 4.;
+        let lat0 = (ys[0] + ys[1] + ys[2] + ys[3]) / 4.;
+        let (ixr, jxr) = if D90 - lat0.abs() > NEAR_POLE {
+            getpqr(xt, yt, &xs, &ys)
+        } else {
+            let (xtc, ytc) = splx(lon0, lat0, 0., xt, yt);
+            let (mut xsc, mut ysc) = ([0.; 4], [0.; 4]);
+            for i in 0..4 {
+                (xsc[i], ysc[i]) = splx(lon0, lat0, 0., xs[i], ys[i]);
+            }
+            getpqr(xtc, ytc, &xsc, &ysc)
+        };
+        let dd = 0.5 + ldcin;
+        if !((ixr - 0.5).abs() <= dd && (jxr - 0.5).abs() <= dd) {
+            return None;
+        }
+    }
+    let mut dmin = BIG;
+    let (mut ix, mut iy) = (0, 0);
+    for l in 0..4 {
+        let dd = w3dist(g.llg, xt, yt, xs[l], ys[l]);
+        if dd < dmin {
+            (dmin, ix, iy) = (dd, is[l], js[l]);
+        }
+    }
+    Some((ix, iy))
 }
 
 /// `W3GRMP ( GSU, X, Y, IS, JS, RW )` for a `REAL(4)` target. `mask` (true = land, `LMSK`) is stored as the

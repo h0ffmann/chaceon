@@ -8,6 +8,7 @@
 use crate::moddef::ModDef;
 use ww3_kernels::constants::{DERA, RADIUS};
 use ww3_kernels::real::Real;
+use ww3_libm::expf;
 
 /// `MAPSTA` and `MAPST2`, unpacked from `mod_def.ww3`'s `MAPTMP`.
 pub fn unpack(maptmp: &[i32]) -> (Vec<i32>, Vec<i32>) {
@@ -311,9 +312,9 @@ pub fn w3map3(m: &ModDef, mapsta: &[i32], mp: &mut Maps) {
     }
 }
 
-/// `W3UTRN`, with no ice or icebergs: where they are zero `TRIX` and `TRIY` are 1, and the ice part of
-/// `W3UTRN` leaves every value as it is. `ATRNX(NY*NX,-1:1)` is `atrnx[ixy-1 + (j+1)*NY*NX]`.
-pub fn w3utrn(m: &ModDef, mapsta: &[i32], atrnx: &mut [Real], atrny: &mut [Real]) {
+/// `W3UTRN`, for `IC0`. `ATRNX(NY*NX,-1:1)` is `atrnx[ixy-1 + (j+1)*NY*NX]`. `ice` and `berg` are by `ISEA`,
+/// from 0.
+pub fn w3utrn(m: &ModDef, g: &Metrics, mapsta: &[i32], ice: &[Real], berg: &[Real], atrnx: &mut [Real], atrny: &mut [Real]) {
     atrnx.fill(1.);
     atrny.fill(1.);
     if m.trflag == 0 {
@@ -356,6 +357,48 @@ pub fn w3utrn(m: &ModDef, mapsta: &[i32], atrnx: &mut [Real], atrny: &mut [Real]
                 atrny[c + 2 * n] = 1.;
             }
         }
+    }
+    if m.trflag < 3 || m.ficen - m.fice0 < 1.0e-6 {
+        return;
+    }
+    let (mut trix, mut triy) = (vec![1.; n], vec![1.; n]);
+    for i in 0..nsea {
+        let c = at(m.mapsf[i + 2 * nsea]);
+        let (mut dx, mut dy) = (g.hpfac[c], g.hqfac[c]);
+        if m.flagll {
+            dx = dx * RADIUS * DERA;
+            dy = dy * RADIUS * DERA;
+        }
+        let (ic, bg) = (ice[i + 1], berg[i + 1]);
+        if ic > 0. {
+            if m.ficel > 0. {
+                trix[c] = expf(-ic * dx / m.ficel);
+                triy[c] = expf(-ic * dy / m.ficel);
+            } else {
+                let (lice0, licen) = (m.fice0 * dx, m.ficen * dx);
+                trix[c] = (licen - ic * dx) / (licen - lice0);
+                let (lice0, licen) = (m.fice0 * dy, m.ficen * dy);
+                triy[c] = (licen - ic * dy) / (licen - lice0);
+            }
+            trix[c] = (0f32).max((1f32).min(trix[c]));
+            triy[c] = (0f32).max((1f32).min(triy[c]));
+        }
+        if bg > 0. {
+            trix[c] = trix[c] * expf(-bg * m.ffacberg * dx * 0.0001);
+            triy[c] = triy[c] * expf(-bg * m.ffacberg * dy * 0.0001);
+        }
+    }
+    for i in 0..nsea {
+        let (ix, iy, ixy) = (m.mapsf[i], m.mapsf[i + nsea], m.mapsf[i + 2 * nsea]);
+        let c = at(ixy);
+        let ixn = if ix == 1 { iy + (nx - 1) * ny } else { iy + (ix - 2) * ny };
+        let ixp = if ix == nx { iy } else { iy + ix * ny };
+        let iyn = if iy == 1 { ixy } else { ixy - 1 };
+        let iyp = if iy == ny { ixy } else { ixy + 1 };
+        atrnx[c] = atrnx[c] * (1. + trix[c]) * trix[at(ixn)] / (1. + trix[at(ixn)]);
+        atrnx[c + 2 * n] = atrnx[c + 2 * n] * (1. + trix[c]) * trix[at(ixp)] / (1. + trix[at(ixp)]);
+        atrny[c] = atrny[c] * (1. + triy[c]) * triy[at(iyn)] / (1. + triy[at(iyn)]);
+        atrny[c + 2 * n] = atrny[c + 2 * n] * (1. + triy[c]) * triy[at(iyp)] / (1. + triy[at(iyp)]);
     }
 }
 
