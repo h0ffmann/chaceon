@@ -3,7 +3,7 @@
 //! only the namelist keys the implemented cases use, and refuses a forcing it would have to ignore.
 
 use crate::moddef::ModDef;
-use crate::shel::{Forcing, Run};
+use crate::shel::{Forcing, Run, Scalar};
 use crate::wtime::Time;
 use std::collections::VecDeque;
 
@@ -38,7 +38,7 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
     let date = |k: &str, dflt: &str| time(&quoted(&get(k).unwrap_or(format!("'{dflt}'")))[0]);
     for (k, v) in &p {
         let on = !v.contains("'F'");
-        let known = k == "INPUT%FORCING%WINDS" || k == "INPUT%FORCING%CURRENTS";
+        let known = ["WINDS", "CURRENTS", "WATER_LEVELS", "ICE_CONC"].map(|n| format!("INPUT%FORCING%{n}")).contains(k);
         assert!(!k.starts_with("INPUT%") || known || !on, "{k} is not implemented");
     }
     let mode = |k: &str| get(k).map_or("F".to_string(), |s| s.trim_matches('\'').to_string());
@@ -51,8 +51,10 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
     };
 
     let n: usize = get("HOMOG_COUNT%N_CUR").map_or(0, |s| s.parse().unwrap())
-        + get("HOMOG_COUNT%N_WND").map_or(0, |s| s.parse().unwrap());
-    let (mut winds, mut currents) = (VecDeque::new(), VecDeque::new());
+        + get("HOMOG_COUNT%N_WND").map_or(0, |s| s.parse().unwrap())
+        + get("HOMOG_COUNT%N_LEV").map_or(0, |s| s.parse().unwrap())
+        + get("HOMOG_COUNT%N_ICE").map_or(0, |s| s.parse().unwrap());
+    let (mut winds, mut currents, mut levels, mut ices) = (VecDeque::new(), VecDeque::new(), VecDeque::new(), VecDeque::new());
     for i in 1..=n {
         let k = |f: &str| format!("HOMOG_INPUT({i})%{f}");
         let name = get(&k("NAME")).unwrap_or_default();
@@ -62,6 +64,10 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
             winds.push_back(e);
         } else if name.contains("CUR") {
             currents.push_back(e);
+        } else if name.contains("LEV") {
+            levels.push_back((e.0, e.1));
+        } else if name.contains("ICE") {
+            ices.push_back((e.0, e.1));
         } else {
             panic!("homogeneous input {name} is not implemented");
         }
@@ -70,6 +76,12 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
     let forcing = |key: &str, file: &str, q: VecDeque<_>| match mode(key).as_str() {
         "H" => Some(Forcing::homogeneous(q, cells)),
         "T" => Some(Forcing::file(&format!("{dir}/{file}"), cells)),
+        "F" => None,
+        other => panic!("{key} = {other} is not implemented"),
+    };
+    let scalar = |key: &str, file: &str, q: VecDeque<_>, ends: bool| match mode(key).as_str() {
+        "H" => Some(Scalar::homogeneous(q, cells, ends)),
+        "T" => Some(Scalar::file(&format!("{dir}/{file}"), cells)),
         "F" => None,
         other => panic!("{key} = {other} is not implemented"),
     };
@@ -98,6 +110,8 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
         boundary: span("DATE%BOUNDARY"),
         wind: forcing("INPUT%FORCING%WINDS", "wind.ww3", winds),
         current: forcing("INPUT%FORCING%CURRENTS", "current.ww3", currents),
+        level: scalar("INPUT%FORCING%WATER_LEVELS", "level.ww3", levels, true),
+        ice: scalar("INPUT%FORCING%ICE_CONC", "ice.ww3", ices, false),
         points,
         flogrd: (fields.contains("WCC"), fields.contains("WCF")),
         fields: fields.trim_matches(|c| c == '\'' || c == ' ').to_string(),

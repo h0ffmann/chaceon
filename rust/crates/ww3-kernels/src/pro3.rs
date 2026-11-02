@@ -296,6 +296,58 @@ pub struct Xyp3Work<'a> {
     pub fla: &'a mut [Real],
 }
 
+/// What `W3XYP3` does at the end of each sub-step, its section 3.c. A trait rather than an argument of
+/// `Xyp3Tables`, so the device entry points, which take no boundary input, keep their bindings.
+pub trait Xyp3Boundary: Copy {
+    fn update(self, p: &Xyp3Params, t: &Xyp3Tables, ik: i32, isp: i32, ntloc: i32, itloc: i32, dtg: Real, oq: usize, vq: &mut [Real]);
+}
+
+/// `FLBPI` false.
+#[derive(Clone, Copy)]
+pub struct NoBoundary;
+
+impl Xyp3Boundary for NoBoundary {
+    #[inline(always)]
+    fn update(self, _: &Xyp3Params, _: &Xyp3Tables, _: i32, _: i32, _: i32, _: i32, _: Real, _: usize, _: &mut [Real]) {}
+}
+
+/// `FLBPI` true, `w3pro3md.F90:1342-1358`. `t0` is `DSEC21 ( TBPI0, TIME )` and `t0n` is `DSEC21 ( TBPI0, TBPIN )`,
+/// both `REAL`. `bbpi0` and `bbpin` are `BBPI0(NSPEC,0:NBI)`, and `isbpi` is `ISBPI(1:NBI)`.
+#[derive(Clone, Copy)]
+pub struct Xyp3Bnd<'a> {
+    pub t0: Real,
+    pub t0n: Real,
+    pub nspec: usize,
+    pub isbpi: &'a [i32],
+    pub bbpi0: &'a [Real],
+    pub bbpin: &'a [Real],
+}
+
+impl Xyp3Boundary for Xyp3Bnd<'_> {
+    fn update(self, p: &Xyp3Params, t: &Xyp3Tables, ik: i32, isp: i32, ntloc: i32, itloc: i32, dtg: Real, oq: usize, vq: &mut [Real]) {
+        let mut rd1 = self.t0 - dtg * (ntloc - itloc) as Real / ntloc as Real;
+        let mut rd2 = self.t0n;
+        if rd2 > 0.001 {
+            rd2 = 1f32.min(0f32.max(rd1 / rd2));
+            rd1 = 1. - rd2;
+        } else {
+            rd1 = 0.;
+            rd2 = 1.;
+        }
+        let ns = p.nsea as usize;
+        let nk2 = t.sig.len();
+        let mut i = 0;
+        while i < self.isbpi.len() {
+            let isea = self.isbpi[i];
+            let ixy = t.mapsf[up(isea) + 2 * ns];
+            let b = up(isp) + self.nspec * (i + 1);
+            vq[oq + lo(ixy, p.ny)] = (rd1 * self.bbpi0[b] + rd2 * self.bbpin[b]) / t.cg[ik as usize + nk2 * isea as usize]
+                * t.clats[up(isea)];
+            i += 1;
+        }
+    }
+}
+
 /// The low bound of `MAPSTX` is `1-2*NY`.
 #[inline]
 fn stx(s: &[i32], i: i32, ny: i32) -> i32 {
@@ -327,7 +379,7 @@ fn spread(vq: &mut [Real], oq: usize, ixy: i32, d: i32, open: bool, f: Real, ny:
 ///
 /// `block` picks the component's block in `vq` and the work arrays.
 #[allow(clippy::too_many_arguments)]
-pub fn w3xyp3(
+pub fn w3xyp3<B: Xyp3Boundary>(
     p: &Xyp3Params,
     t: &Xyp3Tables,
     isp: i32,
@@ -336,6 +388,7 @@ pub fn w3xyp3(
     block: usize,
     vq: &mut [Real],
     w: &mut Xyp3Work,
+    bnd: B,
 ) {
     let (nx, ny, nsea) = (p.nx, p.ny, p.nsea);
     let nxy = nx * ny;
@@ -471,7 +524,7 @@ pub fn w3xyp3(
     };
     let gy = Qck { close: false, inc: 1, nb0: p.nmy0, nb1: p.nmy1, nb2: p.nmy2, ..gx };
 
-    each!(_itloc, 1, ntloc, {
+    each!(itloc, 1, ntloc, {
         let mut i = 0;
         while i < lq {
             w.aq[oq + i] = vq[oq + i];
@@ -595,6 +648,8 @@ pub fn w3xyp3(
             vq[oq + lo(ixy, ny)] = vq[oq + lo(ixy, ny)] / t.gsqrt[up(ixy)];
         });
 
+        bnd.update(p, t, ik, isp, ntloc, itloc, dtg, oq, vq);
+
         yfirst = !yfirst;
     });
 
@@ -611,7 +666,7 @@ pub fn w3xyp3(
 /// `W3GATH`, `W3XYP3` and `W3SCAT` for component `ISP` of `va`, whose `ISEA = 1` starts at `vo`. With the
 /// three together, a device never hands the spectrum to the host to propagate it.
 #[allow(clippy::too_many_arguments)]
-pub fn w3xyp3_va(
+pub fn w3xyp3_va<B: Xyp3Boundary>(
     p: &Xyp3Params,
     t: &Xyp3Tables,
     isp: i32,
@@ -623,6 +678,7 @@ pub fn w3xyp3_va(
     va: &mut [Real],
     vq: &mut [Real],
     w: &mut Xyp3Work,
+    bnd: B,
 ) {
     let (ny, ns) = (p.ny, p.nsea as usize);
     let lq = (p.ny * (p.nx + 3)) as usize;
@@ -633,7 +689,7 @@ pub fn w3xyp3_va(
         let ixy = t.mapsf[up(isea) + 2 * ns];
         vq[oq + lo(ixy, ny)] = va[vo + sp + nspec * up(isea)];
     });
-    w3xyp3(p, t, isp, dtg, yfirst, block, vq, w);
+    w3xyp3(p, t, isp, dtg, yfirst, block, vq, w, bnd);
     each!(isea, 1, p.nsea, {
         let ixy = t.mapsf[up(isea) + 2 * ns];
         if t.mapsta[up(ixy)] != 0 {

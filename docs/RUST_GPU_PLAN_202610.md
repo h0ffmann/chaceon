@@ -119,6 +119,10 @@ target's physics, `PR3 UQ FLX0 LN1 ST4 NL1 BT1 DB1`, so it is the first full mod
 This is the first run with the whole spectrum resident: a Rust `ww3_shel` that writes `out_grd.ww3`
 and `restart.ww3` for `cmp`.
 
+**2026-11-02:** water levels, `IC0` ice, file winds and boundary input from `nest.ww3` run on the host byte-identical, with
+`ww3_bound` as the step that writes the file ([log](log/2026-11-02-level-ice-boundary.md), `rust/port_report/W3ULEV.md`,
+`W3IOBC.md`, `WW3_BOUND.md`). `ww3_shel` refuses levels, ice and a `nest.ww3` on a device ⚠. Open in this batch: track output.
+
 ### Runtime parallelism
 
 The owner, 2026-10-31: "chaceon must also allow MPI/OpenMP runtime option." WW3 picks this at compile time, with
@@ -183,8 +187,8 @@ Status on 2026-11-01: `ww3_prep` takes `LL`, `F1`, `F2`, `DAT`, binary input and
 takes start type 2 ([log](log/2026-11-01-prep-interp-parity.md)). `ww3_prnc` takes `AI` and `LL`, from `ww3_prnc.nml`
 or `ww3_prnc.inp`; `AT`, `F1`, `F2` and `DAT` are refused, and its inputs are synthetic NetCDF built from CDL under
 `regtests/prnc_inputs/` because the regtests' files are not in the repository ⚠
-([log](log/2026-11-01-prnc-parity.md)). `ww3_bounc` and `ww3_bound` are not ported: the reference's `ww3_bounc` stops
-with a segmentation fault on the only input available here, `ww3_tp1.11` (`rust/port_report/WW3_BOUNC.md`).
+([log](log/2026-11-01-prnc-parity.md)). `ww3_bounc` is not ported: the reference's `ww3_bounc` stops with a segmentation
+fault on the only input available here, `ww3_tp1.11` (`rust/port_report/WW3_BOUNC.md`). `ww3_bound` is ported, 2026-11-02.
 
 ### Batch 6: speed
 

@@ -418,6 +418,13 @@ name = "ww3-libm"
 version = "0.0.0"
 
 [[package]]
+name = "ww3_bound"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+]
+
+[[package]]
 name = "ww3_grid"
 version = "0.0.0"
 dependencies = [

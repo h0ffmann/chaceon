@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 //! The time loop of `ww3_shel` and `W3WAVE` (`model/src/ww3_shel.F90`, `w3wavemd.F90`), with `W3UWND`,
 //! `W3FLDH`, `WAVNU1`, `DISTAB` and the point output `W3IOPE`, `W3IOPO`, as far as the first whole case
-//! needs them: rectilinear or curvilinear grids, `PR3 UQ`, winds and currents, no ice, water levels or
-//! boundary input.
+//! needs them: rectilinear or curvilinear grids, `PR3 UQ`, winds, currents, water levels and ice
+//! concentration (`IC0`), and boundary input from `nest.ww3`.
 //! Anything else stops with a message: this is not a general `ww3_shel`.
 //!
 //! The kernels run on the CPU here, or propagation runs through a `Device`.
 
 use crate::grid::{Maps, Metrics, unpack, w3dzxy, w3map3, w3mapt, w3utrn};
 use crate::disp::Dispersion;
+use crate::iobc::NestIn;
 use crate::iogo::{self, Grd, Input};
 use crate::partition::{CprtInput, Neigh, Part, w3cprt};
 use crate::iors::{self, State};
@@ -21,7 +22,7 @@ use std::io::{BufWriter, Write};
 use ww3_kernels::constants::{DAIR, DERA, GRAV, PI, RADIUS, TPI, TPIINV};
 use ww3_kernels::nint;
 use ww3_kernels::pro3::{
-    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3, w3xyp3_va,
+    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3, w3xyp3_va,
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sin4::{Sin4Out, Spr4Out};
@@ -46,6 +47,10 @@ pub struct Run {
     pub boundary: (Time, i32, Time),
     pub wind: Option<Forcing>,
     pub current: Option<Forcing>,
+    /// `INPUT%FORCING%WATER_LEVELS`.
+    pub level: Option<Scalar>,
+    /// `INPUT%FORCING%ICE_CONC`.
+    pub ice: Option<Scalar>,
     /// `XPT`, `YPT`, `PNAMES`.
     pub points: Vec<(Real, Real, String)>,
     /// `FLOGRD(5,7)` and `FLOGRD(5,8)`.
@@ -184,8 +189,8 @@ struct SrceTask<'a> {
 enum Source {
     /// `(DATE, VALUE1, VALUE2, VALUE3)`, for `W3FLDH`.
     Homogeneous(VecDeque<(Time, Real, Real, Real)>),
-    /// `current.ww3` or `wind.ww3`, for `W3FLDG`.
-    File(Records),
+    /// `current.ww3` or `wind.ww3`, for `W3FLDG`; true for the third record of `WNS`.
+    File(Records, bool),
 }
 
 /// `TC0, CX0, CY0, TCN, CXN, CYN` or `TW0, WX0, WY0, DT0, TWN, WXN, WYN, DTN`, with the grids `(NX,NY)`.
@@ -209,8 +214,8 @@ impl Forcing {
     /// `W3FLDO ('READ', ...)`.
     pub fn file(path: &str, n: usize) -> Self {
         let mut r = Records::open(path);
-        r.next();
-        Self::new(Source::File(r), n)
+        let id = field_id(&mut r);
+        Self::new(Source::File(r, id == "WNS"), n)
     }
 
     fn new(src: Source, n: usize) -> Self {
@@ -235,18 +240,23 @@ impl Forcing {
             let got = match &mut self.src {
                 Source::Homogeneous(q) => q.pop_front().map(|(t, ha, hd, hs)| {
                     let (s, c) = sincosf((270. - hd) * dera);
-                    (t, vec![ha * c], vec![ha * s], hs)
+                    (t, vec![ha * c], vec![ha * s], vec![hs])
                 }),
-                Source::File(r) => {
+                Source::File(r, wns) => {
                     let t = r.try_next().map(|mut c| [c.i(), c.i()]);
                     let n = self.xn.len();
-                    t.map(|t| (t, r.next().fs(n), r.next().fs(n), 0.))
+                    let sn = &self.sn;
+                    t.map(|t| {
+                        let (x, y) = (r.next().fs(n), r.next().fs(n));
+                        // Without the third record W3FLDG leaves FAN as it was.
+                        (t, x, y, if *wns { r.next().fs(n) } else { sn.clone() })
+                    })
                 }
             };
             let Some((t, x, y, hs)) = got else {
                 self.tfn = tn;
                 tick21(&mut self.tfn, 1.);
-                if matches!(self.src, Source::File(_)) {
+                if matches!(self.src, Source::File(..)) {
                     break;
                 }
                 if dsec21(t0, self.tfn) > 0. {
@@ -262,17 +272,301 @@ impl Forcing {
                 self.xn.copy_from_slice(&x);
                 self.yn.copy_from_slice(&y);
             }
-            self.sn.fill(hs);
+            if hs.len() == 1 {
+                self.sn.fill(hs[0]);
+            } else {
+                self.sn.copy_from_slice(&hs);
+            }
             if dsec21(t0, self.tfn) > 0. {
                 break;
             }
         }
-        if matches!(self.src, Source::File(_)) && self.tf0[0] == -1 {
+        if matches!(self.src, Source::File(..)) && self.tf0[0] == -1 {
             self.tf0 = t0;
             self.x0.copy_from_slice(&self.xn);
             self.y0.copy_from_slice(&self.yn);
             self.s0.copy_from_slice(&self.sn);
         }
+    }
+}
+
+/// The header `W3FLDO ('READ', ...)` checks, for `TSFLD`: `WNS` and `ISI` are read in place of `WND` and `ICE`.
+fn field_id(r: &mut Records) -> String {
+    let mut c = r.next();
+    c.skip(13);
+    c.text(3)
+}
+
+/// Where a field without interpolation comes from.
+enum ScalarSource {
+    /// `(DATE, VALUE1)`, for `W3FLDH`.
+    Homogeneous(VecDeque<(Time, Real)>),
+    /// `level.ww3` or `ice.ww3`, for `W3FLDG`; true for the concentration and iceberg records of `ISI`.
+    File(Records, bool),
+}
+
+/// `TLN, WLEV` or `TIN, ICEI, BERGI`, with the grids `(NX,NY)`. These fields are used as they arrive, with
+/// no `T0` to interpolate from.
+pub struct Scalar {
+    src: ScalarSource,
+    tfn: Time,
+    fan: Vec<Real>,
+    fbn: Vec<Real>,
+    /// `FLLSTL` or `FLLSTI`: the input has ended, and `TFN` no longer sets the end of the next `W3WAVE` call.
+    last: bool,
+    /// `.NOT. INFLAGS1`: `ww3_shel.F90:2582` turns the field off only after that call, so `W3ULEV` can still run in it
+    /// with `TFN` at `TN` plus a second.
+    off: bool,
+    /// The end of homogeneous input sets `FLLSTL`; `FLLSTI` is set only in `W3FLDG`'s branch.
+    homog_ends: bool,
+}
+
+impl Scalar {
+    pub fn homogeneous(q: VecDeque<(Time, Real)>, n: usize, ends: bool) -> Self {
+        let mut f = Self::new(ScalarSource::Homogeneous(q), n);
+        f.homog_ends = ends;
+        f
+    }
+
+    /// `W3FLDO ('READ', ...)`.
+    pub fn file(path: &str, n: usize) -> Self {
+        let mut r = Records::open(path);
+        let id = field_id(&mut r);
+        Self::new(ScalarSource::File(r, id == "ISI"), n)
+    }
+
+    fn new(src: ScalarSource, n: usize) -> Self {
+        Self { src, tfn: [-1, 0], fan: vec![0.; n], fbn: vec![0.; n], last: false, off: false, homog_ends: false }
+    }
+
+    /// `W3FLDH` for `J` of 1 or 4, or `W3FLDG` with `FLINTERP` false. At the first call, a field at `T0`
+    /// itself ends the search, unlike the interpolated fields.
+    fn next(&mut self, t0: Time, tn: Time) {
+        let flfrst = self.tfn[0] == -1;
+        loop {
+            match &mut self.src {
+                ScalarSource::Homogeneous(q) => match q.pop_front() {
+                    Some((t, ha)) => {
+                        self.tfn = t;
+                        self.fan.fill(ha);
+                    }
+                    None => {
+                        self.tfn = tn;
+                        tick21(&mut self.tfn, 1.);
+                        self.last = self.homog_ends;
+                    }
+                },
+                ScalarSource::File(r, isi) => {
+                    let Some(t) = r.try_next().map(|mut c| [c.i(), c.i()]) else {
+                        // W3FLDG's label 800: without FLINTERP, TFN and the field stay as they were.
+                        self.last = true;
+                        return;
+                    };
+                    let n = self.fan.len();
+                    self.tfn = t;
+                    self.fan = r.next().fs(n);
+                    if *isi {
+                        self.fbn = r.next().fs(n);
+                    }
+                }
+            }
+            let d = dsec21(t0, self.tfn);
+            if d > 0. || (flfrst && d == 0.) {
+                break;
+            }
+        }
+    }
+}
+
+/// A forcing field is `FAN(IX,IY)`, unlike `MAPSTA(IY,IX)`, which `MAPSF(:,3)` indexes.
+fn field_cell(m: &ModDef, isea: usize) -> usize {
+    let nsea = m.nsea as usize;
+    (m.mapsf[isea - 1] - 1 + (m.mapsf[isea - 1 + nsea] - 1) * m.nx) as usize
+}
+
+/// `W3UICE` for `IC0`. `VA` is by `JSEA`, which is `ISEA` here.
+#[allow(clippy::too_many_arguments)]
+fn w3uice(
+    m: &ModDef,
+    f: &Scalar,
+    s: &mut State,
+    berg: &mut [Real],
+    mapsta: &mut [i32],
+    mapst2: &mut [i32],
+    src: &mut [SrceOut],
+    nspec: usize,
+) {
+    let nsea = m.nsea as usize;
+    s.tice = f.tfn;
+    let mut mapice: Vec<i32> = mapst2.iter().map(|v| v % 2).collect();
+    for (st2, mi) in mapst2.iter_mut().zip(&mapice) {
+        *st2 -= mi;
+    }
+    for isea in 1..=nsea {
+        let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+        let fc = field_cell(m, isea);
+        let icei = f.fan[fc];
+        s.ice[isea] = icei;
+        berg[isea] = f.fbn[fc];
+        if icei >= m.ficen && mapice[c] == 0 {
+            mapsta[c] = -mapsta[c].abs();
+            mapice[c] = 1;
+            s.va[nspec * isea..nspec * (isea + 1)].fill(0.);
+            src[isea].charn = m.aalpha;
+        }
+        if icei < m.ficen && mapice[c] == 1 {
+            mapice[c] = 0;
+            s.ust[isea] = 0.05;
+            if mapst2[c] == 0 {
+                mapsta[c] = mapsta[c].abs();
+                s.va[nspec * isea..nspec * (isea + 1)].fill(0.);
+                src[isea].charn = m.aalpha;
+            }
+        }
+    }
+    for (st2, mi) in mapst2.iter_mut().zip(&mapice) {
+        *st2 += mi;
+    }
+}
+
+/// `W3ULEV ( VA, VA )`: the two arguments are one array, `A(ITH,IK,JSEA)` is `VA(ITH+(IK-1)*NTH,JSEA)`.
+/// `RD2` is a stack variable the Fortran reads unset when no old wavenumber reaches the new first one:
+/// here it keeps the value of the point before, which is not proved to be what that slot holds ⚠.
+#[allow(clippy::too_many_arguments)]
+fn w3ulev(
+    m: &ModDef,
+    disp: &Dispersion,
+    f: &Scalar,
+    s: &mut State,
+    dw: &mut [Real],
+    wn: &mut [Real],
+    cg: &mut [Real],
+    mapsta: &mut [i32],
+    mapst2: &mut [i32],
+) {
+    const KDMAX: Real = 4.;
+    const RDKMIN: Real = 0.05;
+    let (nth, nk, nsea) = (m.nth as usize, m.nk as usize, m.nsea as usize);
+    let (nspec, nk2) = (nth * nk, nk + 2);
+    assert!(nk >= 2, "W3ULEV requires NK > 1");
+    s.tlev = f.tfn;
+    let mut mapdry: Vec<i32> = mapst2.iter().map(|v| v / 2 % 2).collect();
+    for (st2, d) in mapst2.iter_mut().zip(&mapdry) {
+        *st2 -= 2 * d;
+    }
+    let dwo = dw.to_vec();
+    for isea in 1..=nsea {
+        s.wlv[isea] = f.fan[field_cell(m, isea)];
+        dw[isea] = (0f32).max(s.wlv[isea] - m.zb[isea - 1]);
+    }
+    let (mut wno, mut cgo, mut own, mut dwn) = (vec![0.; nk2], vec![0.; nk2], vec![0.; nk + 1], vec![0.; nk + 1]);
+    let mut ta = vec![0.; nspec];
+    let mut rd2: Real = 0.;
+    for isea in 1..=nsea {
+        let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
+        let w = nk2 * isea;
+        let kdchck = wn[1 + w] * dwo[isea].min(dw[isea]);
+        if kdchck >= KDMAX {
+            continue;
+        }
+        let depth = m.dmin.max(dw[isea]);
+        for ik in 0..nk2 {
+            wno[ik] = wn[ik + w];
+            cgo[ik] = cg[ik + w];
+            (wn[ik + w], cg[ik + w]) = disp.wavnu1(m.sig[ik], depth);
+        }
+        for ik in 1..=nk {
+            own[ik] = m.dsip[ik] / cgo[ik];
+            dwn[ik] = m.dsip[ik] / cg[ik + w];
+        }
+        let sp = nspec * isea;
+        if s.wlv[isea] - m.zb[isea - 1] <= 0. {
+            if mapdry[c] == 0 {
+                s.va[sp..sp + nspec].fill(0.);
+                mapdry[c] = 1;
+                mapsta[c] = -mapsta[c].abs();
+            }
+            continue;
+        }
+        if mapdry[c] == 1 {
+            mapdry[c] = 0;
+            s.va[sp..sp + nspec].fill(0.);
+            s.ust[isea] = 0.05;
+            if mapst2[c] == 0 {
+                mapsta[c] = mapsta[c].abs();
+            }
+            continue;
+        }
+        let rdk = (wno[1] - wn[1 + w]).abs() / dwn[1];
+        if rdk < RDKMIN || mapsta[c] < 0 {
+            continue;
+        }
+        for ik in 1..=nk {
+            for ith in 1..=nth {
+                let is = (ith - 1) + (ik - 1) * nth;
+                ta[is] = s.va[is + sp] * own[ik];
+            }
+        }
+        s.va[sp..sp + nspec].fill(0.);
+        let (mut ik0, mut i1, mut i2) = (1, 1, 2);
+        let mut reached = true;
+        if wno[1] < wn[1 + w] {
+            (ik0, i1, i2) = (1, 0, 1);
+            loop {
+                ik0 += 1;
+                if ik0 > nk + 1 {
+                    reached = false;
+                    break;
+                }
+                if wno[ik0] >= wn[1 + w] {
+                    ik0 -= 1;
+                    break;
+                }
+            }
+        }
+        if reached {
+            'ik: for ik in ik0..=nk {
+                while wno[ik] > wn[i2 + w] {
+                    i1 += 1;
+                    if i1 > nk {
+                        continue 'ik;
+                    }
+                    i2 = i1 + 1;
+                }
+                let rd1 = if i1 == 0 {
+                    (wn[1 + w] - wno[ik]) / dwn[1]
+                } else {
+                    (wn[i2 + w] - wno[ik]) / (wn[i2 + w] - wn[i1 + w])
+                };
+                rd2 = 1. - rd1;
+                if i1 >= 1 {
+                    for ith in 1..=nth {
+                        let (to, from) = ((ith - 1) + (i1 - 1) * nth, (ith - 1) + (ik - 1) * nth);
+                        s.va[to + sp] = s.va[to + sp] + rd1 * ta[from];
+                    }
+                }
+                if i2 <= nk {
+                    for ith in 1..=nth {
+                        let (to, from) = ((ith - 1) + (i2 - 1) * nth, (ith - 1) + (ik - 1) * nth);
+                        s.va[to + sp] = s.va[to + sp] + rd2 * ta[from];
+                    }
+                }
+            }
+        }
+        for is in 0..nspec {
+            s.va[is + sp] = s.va[is + sp] / dwn[m.mapwn[is] as usize];
+        }
+        if i2 <= nk && rd2 <= 0.95 {
+            for ik in i2.max(2)..=nk {
+                for ith in 1..=nth {
+                    let (to, from) = ((ith - 1) + (ik - 1) * nth, (ith - 1) + (ik - 2) * nth);
+                    s.va[to + sp] = m.fachfa * s.va[from + sp];
+                }
+            }
+        }
+    }
+    for (st2, d) in mapst2.iter_mut().zip(&mapdry) {
+        *st2 += 2 * d;
     }
 }
 
@@ -675,15 +969,20 @@ fn gather_out(
 
 fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Device>, comm: &Par) {
     assert!(!m.fldry, "FLDRY is not implemented");
-    // W3IOBC clears FLBPI when there is no nest file, and W3XYP3 then has no boundary input.
-    assert!(!m.flbpi || !std::path::Path::new(&format!("{dir}/nest.ww3")).exists(), "input boundaries are not implemented");
+    let mut nbc = NestIn::new(dir, m.flbpi);
+    // W3IOBC clears FLBPI when there is no nest file, so such a run is a device's too.
+    assert!(device.is_none() || !m.flbpi || !std::path::Path::new(&format!("{dir}/nest.ww3")).exists(), "input boundaries are not implemented on a device");
     let (nth, nk, nsea) = (m.nth as usize, m.nk as usize, m.nsea as usize);
     let (nx, ny) = (m.nx as usize, m.ny as usize);
     let (nspec, nk2) = (nth * nk, nk + 2);
     let nxy = nx * ny;
     let t = m.snl1();
-    let p = m.srce(t.params, r.flogrd);
+    let mut p = m.srce(t.params, r.flogrd);
+    // INFLAGS2(4): ice concentration is in this run, so W3SRCE scales the source terms by it.
+    p.inflags2_4 = r.ice.is_some() as u32;
     let tables = m.tables(&t);
+    // W3ULEV changes WN, CG and VA, and W3UICE changes VA, between the kernels: a device would need them written back.
+    assert!(device.is_none() || (r.level.is_none() && r.ice.is_none()), "water levels and ice are not implemented on a device");
 
     // W3INIT.
     let (mut mapsta, mut mapst2) = unpack(&m.maptmp);
@@ -728,8 +1027,28 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
     let (mut llws, mut w_snl, mut w_sds, mut iw_sds) =
         (vec![0u32; nspec], vec![0.; l_snl], vec![0.; l_sds], vec![0i32; l_ids]);
     let mut w_small = vec![0.; work_small(&p)];
-    let mut whitecap = vec![0.; 4 * (nsea + 1)];
-    let mut src = vec![SrceOut::default(); nsea + 1];
+    // W3DIMA starts these at UNDEF, and a point W3SRCE has not reached is written so: a field that arrives at the
+    // start time gives an FLZERO pass, with output and no W3SRCE.
+    let mut whitecap = vec![UNDEF; 4 * (nsea + 1)];
+    let mut src = vec![
+        SrceOut {
+            tauox: UNDEF,
+            tauoy: UNDEF,
+            tauwix: UNDEF,
+            tauwiy: UNDEF,
+            tauwnx: UNDEF,
+            tauwny: UNDEF,
+            phiaw: UNDEF,
+            charn: UNDEF,
+            tws: UNDEF,
+            phioc: UNDEF,
+            tauocx: UNDEF,
+            tauocy: UNDEF,
+            wnmean: UNDEF,
+            ..Default::default()
+        };
+        nsea + 1
+    ];
     // W3WAVE, FLCOLD.
     let cold = s.rstype != 2;
     let mut fliwnd = s.rstype == 1;
@@ -739,11 +1058,12 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
     let (mut ua, mut ud, mut asv, mut u10, mut u10d) = (z(), z(), z(), z(), z());
     asv[1..].fill(UNDEF);
     let (mut cx, mut cy) = (z(), z());
+    let mut berg = z();
     let (mut dcxdx, mut dcxdy, mut dcydx, mut dcydy) = (vec![0.; nxy], vec![0.; nxy], vec![0.; nxy], vec![0.; nxy]);
     let mut pwind: Option<Polar> = None;
     let mut pcur: Option<Polar> = None;
     let mut fcut = vec![if cold { m.sig[nk] * TPIINV } else { 0. }; nsea + 1];
-    let mut cflxy = vec![0.; nsea + 1];
+    let mut cflxy = vec![UNDEF; nsea + 1];
     let (mut sin_out, mut spr_out) = ([Sin4Out::default()], [Spr4Out::default()]);
     let mut out = [SrceOut::default()];
 
@@ -897,6 +1217,15 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                 ttime = f.tfn;
             }
         }
+        for f in [r.level.as_mut(), r.ice.as_mut()].into_iter().flatten().filter(|f| !f.off) {
+            let dttst = if f.tfn[0] == -1 { 0. } else { dsec21(time0, f.tfn) };
+            if dttst <= 0. {
+                f.next(time0, timen);
+            }
+            if dsec21(f.tfn, ttime) > 0. && !f.last {
+                ttime = f.tfn;
+            }
+        }
         let mut tdn = ttime;
         tick21(&mut tdn, 1.);
         time0 = ttime;
@@ -908,6 +1237,17 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
         let mut flmap = itime == 0;
         let mut flddir = itime == 0 && (flcth || flck);
         let mut ugdtupdate = false;
+        // W3WAVE, 1.b and 1.e: what is left to apply of the level and ice fields.
+        let mut dtl0: Real = 0.;
+        if let Some(f) = r.level.as_ref().filter(|f| !f.off) {
+            dtl0 = if s.tlev[0] >= 0 { dsec21(s.tlev, f.tfn) } else { 1. };
+            assert!(dtl0 >= 0., "water level input time before the last one applied");
+        }
+        let mut dti0: Real = 0.;
+        if let Some(f) = r.ice.as_ref().filter(|f| !f.off) {
+            dti0 = if s.tice[0] >= 0 { dsec21(s.tice, f.tfn) } else { 1. };
+            assert!(dti0 >= 0., "ice input time before the last one applied");
+        }
         loop {
             let tcalc = if tofrst[0] > 0 && dsec21(tend, tofrst) < 0. { tofrst } else { tend };
             let dttst = dsec21(time, tcalc);
@@ -980,10 +1320,37 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                         d.va_write(&s.va[nspec..]);
                     }
                 }
+                // W3WAVE 3.2, before W3UICE and W3ULEV: W3UBPT reads CG as it was before this step's level.
+                while nbc.flbpi {
+                    let readbc = nbc.tbpin[0] == -1 || dsec21(time, nbc.tbpin) < 0.;
+                    if !readbc {
+                        break;
+                    }
+                    if nbc.read(m, &mapsta) != 1 {
+                        nbc.w3ubpt(m, &cg);
+                    }
+                }
+                if let Some(f) = r.ice.as_ref().filter(|_| dti0 != 0.) {
+                    if s.tice[0] < 0 || dsec21(time, f.tfn) <= 0.5 * dti0 {
+                        w3uice(m, f, &mut s, &mut berg, &mut mapsta, &mut mapst2, &mut src, nspec);
+                        dti0 = 0.;
+                        flmap = true;
+                    }
+                }
+                if let Some(f) = r.level.as_ref().filter(|_| dtl0 != 0.) {
+                    if s.tlev[0] < 0 || dsec21(time, f.tfn) <= 0.5 * dtl0 {
+                        w3ulev(m, &disp, f, &mut s, &mut dw, &mut wn, &mut cg, &mut mapsta, &mut mapst2);
+                        ugdtupdate = true;
+                        cflxy.fill(0.);
+                        dtl0 = 0.;
+                        flmap = true;
+                        flddir = flddir || flcth || flck;
+                    }
+                }
                 if flmap {
                     mapstx_fill(m, &mapsta, &mut mapstx);
                     w3map3(m, &mapsta, &mut mp);
-                    w3utrn(m, &mapsta, &mut atrnx, &mut atrny);
+                    w3utrn(m, &metrics, &mapsta, &s.ice, &berg, &mut atrnx, &mut atrny);
                     w3mapt(m, &atrnx, &atrny, &mut maptrn);
                     flmap = false;
                 }
@@ -1177,6 +1544,8 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                             atrnx: &atrnx,
                             atrny: &atrny,
                         };
+                        // FLBPI as it stands after this step's read: the end of the file clears it.
+                        let bnd = nbc.flbpi.then(|| nbc.at(nspec, time));
                         if let Some(d) = device.as_deref_mut() {
                             d.xyp3(&px, &tb, dtg, yfirst, nspec);
                         } else if let Some(l) = lay.as_ref() {
@@ -1226,7 +1595,10 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                     aq: &mut sc.aq,
                                     fla: &mut sc.fla,
                                 };
-                                w3xyp3(&px, &tb, specs_me[lspec] as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w);
+                                match bnd {
+                                    Some(b) => w3xyp3(&px, &tb, specs_me[lspec] as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w, b),
+                                    None => w3xyp3(&px, &tb, specs_me[lspec] as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w, NoBoundary),
+                                }
                                 for isea in 1..=nsea {
                                     let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
                                     col[isea - 1] = sc.field[c + ny_i];
@@ -1286,7 +1658,10 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                     aq: &mut sc.aq,
                                     fla: &mut sc.fla,
                                 };
-                                w3xyp3(&px, &tb, ispec as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w);
+                                match bnd {
+                                    Some(b) => w3xyp3(&px, &tb, ispec as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w, b),
+                                    None => w3xyp3(&px, &tb, ispec as i32 + 1, dtg, yfirst, 0, &mut sc.field, &mut w, NoBoundary),
+                                }
                                 for isea in 1..=nsea {
                                     let c = (m.mapsf[isea - 1 + 2 * nsea] - 1) as usize;
                                     col[isea - 1] = sc.field[c + ny_i];
@@ -1321,7 +1696,10 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                     fla: &mut fla,
                                 };
                                 let isp = ispec as i32 + 1;
-                                w3xyp3_va(&px, &tb, isp, dtg, yfirst, 0, nspec, nspec, &mut s.va, &mut field, &mut w);
+                                match bnd {
+                                    Some(b) => w3xyp3_va(&px, &tb, isp, dtg, yfirst, 0, nspec, nspec, &mut s.va, &mut field, &mut w, b),
+                                    None => w3xyp3_va(&px, &tb, isp, dtg, yfirst, 0, nspec, nspec, &mut s.va, &mut field, &mut w, NoBoundary),
+                                }
                             }
                         }
                     }
@@ -1340,7 +1718,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                         u10dir: u10d[isea],
                         ustar: s.ust[isea],
                         ustdir: s.ustdir[isea],
-                        ice: 0.,
+                        ice: s.ice[isea],
                         dtg,
                         dair: DAIR,
                         coef: 1.,
@@ -1401,7 +1779,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                 u10dir: u10d[isea],
                                 ustar: *t.ust,
                                 ustdir: *t.ustdir,
-                                ice: 0.,
+                                ice: s.ice[isea],
                                 dtg,
                                 dair: DAIR,
                                 coef: 1.,
@@ -1528,10 +1906,19 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                 };
                                 f.write(m, &mut g);
                             }
+                            // W3IOGO's blank is in place, and CFLXYMAX is computed only at the start of a W3WAVE
+                            // call: a point that ice left in between is still UNDEF at the next output.
+                            if flags.on(9, 3) {
+                                for isea in 1..=nsea {
+                                    if mapsta[(m.mapsf[isea - 1 + 2 * nsea] - 1) as usize] < 0 {
+                                        cflxy[isea] = UNDEF;
+                                    }
+                                }
+                            }
                         } else if JS[j] == 2 {
                             if let Some(f) = pnt.as_mut() {
                                 let w = Winds { ua: &ua, ud: &ud, asv: &asv, cx: &cx, cy: &cy };
-                                write_points(f, time, &pts, m, &mapsta, &s.va, &dw, &cg, &w);
+                                write_points(f, time, &pts, m, &mapsta, &s.va, &dw, &cg, &s.ice, &w);
                             }
                         } else if JS[j] == 5 {
                             if root {
@@ -1568,6 +1955,9 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                 break;
             }
         }
+        for f in [r.level.as_mut(), r.ice.as_mut()].into_iter().flatten() {
+            f.off = f.last;
+        }
         if dsec21(time0, timen) <= 0. {
             break;
         }
@@ -1597,6 +1987,7 @@ fn write_points(
     va: &[Real],
     dw: &[Real],
     cg: &[Real],
+    ice: &[Real],
     w: &Winds,
 ) {
     let (nth, nk, ny) = (m.nth as usize, m.nk as usize, m.ny);
@@ -1640,7 +2031,8 @@ fn write_points(
         let cdo = if cao > 1.0e-7 { atan2f(cury, curx) } else { 0. };
 
         let mut b = vec![0u8; 12]; // W3IOPO zeroes IW, II, IL before it writes them.
-        for v in [dpo, wao, wdo, aso, cao, cdo, sum(0.), sum(0.5), sum(1000.)] {
+        let iceo = rd[0] * ice[is[0]] + rd[1] * ice[is[1]] + rd[2] * ice[is[2]] + rd[3] * ice[is[3]];
+        for v in [dpo, wao, wdo, aso, cao, cdo, iceo, sum(0.5), sum(1000.)] {
             be_f(&mut b, v);
         }
         text(&mut b, "ww3", 13);

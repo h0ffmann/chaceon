@@ -46,6 +46,18 @@ tp-pair case suffix="":
 tp-all:
     bash scripts/tp_all.sh
 
+# Winds, water levels and ice from files and namelists, against the reference, by cmp
+forcing-all:
+    bash scripts/forcing_all.sh
+
+# ww3_bound and boundary input in a run, against the reference, by cmp
+bound-all:
+    bash scripts/bound_all.sh
+
+# One fault at a time through the boundary code: each must differ from the reference
+bound-faults:
+    bash scripts/bound_faults.sh
+
 # A prepared case with propagation in compiled SPIR-V on lavapipe, by cmp
 spirv-pair tag:
     bash scripts/spirv_pair.sh {{tag}}

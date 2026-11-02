@@ -39,7 +39,7 @@ w3pro3md:w3ktp3	model/src/w3pro3md.F90:1422-1864	443	spirv	just tp-all, then scr
 w3uqckmd:w3qck1	model/src/w3uqckmd.F90:117-477	361	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
 w3uqckmd:w3qck2	model/src/w3uqckmd.F90:514-885	372	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
 w3uqckmd:w3qck3	model/src/w3uqckmd.F90:919-1327	409	spirv	just tp-all, then scripts/spirv_pair.sh on 16 cases, byte-identical on lavapipe; rust/port_report/W3PRO3.md	rust/crates/ww3-kernels/src/pro3.rs
-w3updtmd:w3utrn	model/src/w3updtmd.F90:2735-3121	387	host	TRFLAG 0 and 4, ice and icebergs zero; TRFLAG 1 and 2 unreached; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
+w3updtmd:w3utrn	model/src/w3updtmd.F90:2735-3121	387	host	TRFLAG 0 and 4, with ice: just forcing-all, linear and exponential; icebergs and TRFLAG 1 and 2 unreached; rust/port_report/W3ULEV.md	rust/crates/ww3-host/src/grid.rs
 w3updtmd:w3dzxy	model/src/w3updtmd.F90:3138-3457	320	host	no tripole, just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/grid.rs
 w3wavemd:w3gath	model/src/w3wavemd.F90:2926-3228	303	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
 w3wavemd:w3scat	model/src/w3wavemd.F90:3244-3545	302	host	just tp-all; rust/port_report/W3PRO3.md	rust/crates/ww3-host/src/shel.rs
@@ -141,4 +141,11 @@ w3partmd:ptnghb	model/src/w3partmd.F90:631-822	192	host	just bnd-all, every edge
 w3partmd:pt_fld	model/src/w3partmd.F90:840-1157	318	translated	just bnd-all: PTMETH 1 to 3; the watershed-line fill ran (a fault that skips it is caught); a tie in its nearest-neighbour test is not reached ⚠; rust/port_report/W3PART.md	rust/crates/ww3-host/src/partition.rs
 w3partmd:ptmean	model/src/w3partmd.F90:1176-1541	366	translated	just bnd-all: out_grd.ww3 byte-identical on ww3_tpt1.1 PTM 1 to 5 (3 partitions at 9 points for 1 to 3, 2 for 4 and 5) and ww3_tp2.15; FLCOMB true, the NaN-depth stop, IFPMAX 0 and a full XP are not reached ⚠; rust/port_report/W3PART.md	rust/crates/ww3-host/src/partition.rs
 w3iosfmd:w3cprt	model/src/w3iosfmd.F90:108-344	237	translated	just bnd-all: single process, so JSEA is ISEA; W3IOSF (the type 6 output) is not translated; rust/port_report/W3PART.md	rust/crates/ww3-host/src/partition.rs
-w3iobcmd:w3iobc	model/src/w3iobcmd.F90:98-842	745	translated	WRITE only: just bnd-all, nest01.ww3 and nest02.ww3 byte-identical on ww3_tp2.3; READ and DUMP are not translated and a nest.ww3 input stops ww3_shel; rust/port_report/W3IOBC.md	rust/crates/ww3-host/src/iobc.rs
+w3iobcmd:w3iobc	model/src/w3iobcmd.F90:98-842	745	host	WRITE: just bnd-all; READ: just bound-all, every stop with its status, just bound-faults; DUMP is ww3_multi's and not translated; rust/port_report/W3IOBC.md	rust/crates/ww3-host/src/iobc.rs
+w3updtmd:w3ubpt	model/src/w3updtmd.F90:1313-1502	190	host	just bound-all, just bound-faults; rust/port_report/W3IOBC.md	rust/crates/ww3-host/src/iobc.rs
+w3cspcmd:w3cspc	model/src/w3cspcmd.F90:143-604	462	host	just bound-all: finer, coarser and rotated nest grids; rust/port_report/W3IOBC.md	rust/crates/ww3-host/src/cspc.rs
+w3gsrumd:w3gfpt_r8	model/src/w3gsrumd.F90:2078-2192	115	host	just bound-all with W3GFCL FNCL inside it: near within DCIN, fault_far outside it; no pole or branch cut; rust/port_report/W3IOBC.md	rust/crates/ww3-host/src/gridsru.rs
+ww3_bound:w3bound	model/src/ww3_bound.F90:22-751	730	host	just bound-all: nest.ww3, log and status on 34 inputs; rust/port_report/WW3_BOUND.md	rust/crates/ww3-host/src/bound.rs
+w3nmlboundmd:w3nmlbound	model/src/w3nmlboundmd.F90:44-332	289	host	just bound-all: ww3_bound.nml.log identical; rust/port_report/WW3_BOUND.md	rust/crates/ww3-host/src/bound.rs
+w3updtmd:w3uice	model/src/w3updtmd.F90:1755-1998	244	host	IC0: just forcing-all; rust/port_report/W3ULEV.md	rust/crates/ww3-host/src/shel.rs
+w3updtmd:w3ulev	model/src/w3updtmd.F90:2012-2539	528	host	just forcing-all, just bound-all; RD2 unset is not proved ⚠; rust/port_report/W3ULEV.md	rust/crates/ww3-host/src/shel.rs

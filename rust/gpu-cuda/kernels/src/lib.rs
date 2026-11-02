@@ -4,7 +4,7 @@
 
 use cuda_std::prelude::*;
 use ww3_kernels::pro3::{
-    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
+    Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
@@ -370,7 +370,7 @@ pub unsafe fn xyp3(
     let va = unsafe { core::slice::from_raw_parts_mut(va, va_len) };
     let t = Xyp3Tables { sig, ecos, esin, mapsf, mapsta, mapstx, mapaxy, mapcxy, mapx2, mapy2, maptrn, clats, dpdx, dpdy, dqdx, dqdy, gsqrt, cg, cx, cy, atrnx, atrny };
     let mut w = Xyp3Work { iixy1, iixy2, iixy3, iixy4, rdi1, rdi2, rdi3, rdi4, vlcflx, vlcfly, cxtot, cytot, aq, fla };
-    w3xyp3_va(p, &t, comp as i32 + 1, dtg, yfirst != 0, comp, comps as usize, 0, va, vq, &mut w);
+    w3xyp3_va(p, &t, comp as i32 + 1, dtg, yfirst != 0, comp, comps as usize, 0, va, vq, &mut w, NoBoundary);
 }
 
 /// One thread per active sea point.
