@@ -1,0 +1,17 @@
+[package]
+name = "ww3_trnc"
+description = "WW3's track-output NetCDF postprocessor in Rust: reads track_o.ww3 and ww3_trnc.nml, writes the NetCDF files"
+license = "MPL-2.0"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ww3-host = { path = "../../crates/ww3-host" }
+ww3-kernels = { path = "../../crates/ww3-kernels" }
+ww3-libm = { path = "../../crates/ww3-libm" }
+
+# The binding to the system NetCDF C library (VERSIONS.md). Off by default, so `cargo check --workspace`
+# and a build on a host without libnetcdf keep working; `scripts/rust_netcdf.sh` builds it with the feature.
+[features]
+netcdf = []

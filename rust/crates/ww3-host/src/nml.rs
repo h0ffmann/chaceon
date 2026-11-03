@@ -108,6 +108,8 @@ pub fn read_case(dir: &str) -> (ModDef, Run) {
         point: span("DATE%POINT"),
         restart: span("DATE%RESTART"),
         boundary: span("DATE%BOUNDARY"),
+        track: span("DATE%TRACK"),
+        track_formatted: get("TYPE%TRACK%FORMAT").is_none_or(|v| crate::gridio::logical(v.trim_matches('\'')) ),
         wind: forcing("INPUT%FORCING%WINDS", "wind.ww3", winds),
         current: forcing("INPUT%FORCING%CURRENTS", "current.ww3", currents),
         level: scalar("INPUT%FORCING%WATER_LEVELS", "level.ww3", levels, true),

@@ -149,3 +149,8 @@ ww3_bound:w3bound	model/src/ww3_bound.F90:22-751	730	host	just bound-all: nest.w
 w3nmlboundmd:w3nmlbound	model/src/w3nmlboundmd.F90:44-332	289	host	just bound-all: ww3_bound.nml.log identical; rust/port_report/WW3_BOUND.md	rust/crates/ww3-host/src/bound.rs
 w3updtmd:w3uice	model/src/w3updtmd.F90:1755-1998	244	host	IC0: just forcing-all; rust/port_report/W3ULEV.md	rust/crates/ww3-host/src/shel.rs
 w3updtmd:w3ulev	model/src/w3updtmd.F90:2012-2539	528	host	just forcing-all, just bound-all; RD2 unset is not proved ⚠; rust/port_report/W3ULEV.md	rust/crates/ww3-host/src/shel.rs
+w3iotrmd:w3iotr	model/src/w3iotrmd.F90:104-910	807	host	just track-all: 8 runs, text and binary input, compression on and off; just track-faults; rust/port_report/W3IOTR.md	rust/crates/ww3-host/src/iotr.rs
+w3gsrumd:w3gfcl_r4	model/src/w3gsrumd.F90:1328-1365	38	host	just track-all; no pole or branch cut; rust/port_report/W3IOTR.md	rust/crates/ww3-host/src/gridsru.rs
+ww3_trck:w3trck	model/src/ww3_trck.F90:1-478	478	host	just track-all: track.ww3, log and status; just track-faults; rust/port_report/W3IOTR.md	rust/crates/ww3-host/src/trck.rs
+ww3_trnc:w3trnc	model/src/ww3_trnc.F90:1-1130	1130	host	just track-all: 17 inputs, NetCDF 3 and 4 byte-identical; a track across 29 February is not reproduced; just track-faults; rust/port_report/W3IOTR.md	rust/tools/ww3_trnc/src/main.rs
+w3nmltrncmd:w3nmltrnc	model/src/w3nmltrncmd.F90:49-564	516	host	just track-all: ww3_trnc.nml.log identical; rust/port_report/W3IOTR.md	rust/tools/ww3_trnc/src/main.rs
