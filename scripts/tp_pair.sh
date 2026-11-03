@@ -25,6 +25,7 @@ docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
     grid=../input/ww3_grid${SUFFIX:+_$SUFFIX}.nml
     cp "$grid" ww3_grid.nml
     cp ../input/ww3_strt.inp ../input/ww3_shel.nml .
+    if [ -f ../input/track_i.ww3 ]; then cp ../input/track_i.ww3 .; fi
     if [ -n "$RUN_EXTRA" ]; then
       sed -i "/^&RUN_NML/a $RUN_EXTRA" ww3_grid.nml
     fi
@@ -54,14 +55,15 @@ docker run --rm --platform linux/arm64 -v "$PWD/work:/work" \
     cat mod_def.ww3 > $d/mod_def.ww3
     cat restart.ww3 > $d/restart.ww3
     sed "s#\.\./input/##" ww3_shel.nml > $d/ww3_shel.nml
-    for f in current.ww3 wind.ww3 level.ww3 ice.ww3; do if [ -f $f ]; then cat $f > $d/$f; fi; done
+    for f in current.ww3 wind.ww3 level.ww3 ice.ww3 track_i.ww3; do if [ -f $f ]; then cat $f > $d/$f; fi; done
     if [ -f ../input/points.list ]; then cp ../input/points.list $d/; fi
     if [ -f out_pnt.ww3 ]; then mv out_pnt.ww3 $d/out_pnt.reference; fi
     if [ -f out_grd.ww3 ]; then cat out_grd.ww3 > $d/out_grd.reference; fi
+    if [ -f track_o.ww3 ]; then cat track_o.ww3 > $d/track_o.reference; fi
     mv restart001.ww3 $d/restart001.reference'
 bash scripts/rust_in_ref.sh ww3_shel "/work/pair/$tag" 2>&1 | tail -2 | grep -E 'panicked|rror' || true
 bad=0
-for f in out_grd out_pnt restart001; do
+for f in out_grd out_pnt restart001 track_o; do
   ref="work/pair/$tag/$f.reference"
   ours="work/pair/$tag/$f.ww3"
   [ -f "$ref" ] || continue

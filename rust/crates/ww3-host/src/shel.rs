@@ -10,6 +10,7 @@
 use crate::grid::{Maps, Metrics, unpack, w3dzxy, w3map3, w3mapt, w3utrn};
 use crate::disp::Dispersion;
 use crate::iobc::NestIn;
+use crate::iotr::{Fields as TrackFields, Track};
 use crate::iogo::{self, Grd, Input};
 use crate::partition::{CprtInput, Neigh, Part, w3cprt};
 use crate::iors::{self, State};
@@ -45,6 +46,10 @@ pub struct Run {
     pub restart: (Time, i32, Time),
     /// `DATE%BOUNDARY`: the nest files of `W3IOBC ( 'WRITE' )`.
     pub boundary: (Time, i32, Time),
+    /// `DATE%TRACK`.
+    pub track: (Time, i32, Time),
+    /// `TYPE%TRACK%FORMAT`: `track_i.ww3` is text, not binary.
+    pub track_formatted: bool,
     pub wind: Option<Forcing>,
     pub current: Option<Forcing>,
     /// `INPUT%FORCING%WATER_LEVELS`.
@@ -1119,14 +1124,14 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
         cg1.extend_from_slice(&cg[nk2 * isea + 1..nk2 * isea + nk + 1]);
     }
     let mut time = r.time0;
-    const JS: [usize; 4] = [1, 2, 4, 5];
-    let mut tonext = [r.field.0, r.point.0, r.restart.0, r.boundary.0];
+    const JS: [usize; 5] = [1, 2, 3, 4, 5];
+    let mut tonext = [r.field.0, r.point.0, r.track.0, r.restart.0, r.boundary.0];
     // W3INIT: FLOUT(5) = FLBPO, and DTOUT(5) = 0 without it.
-    let dtout = [r.field.1 as Real, r.point.1 as Real, r.restart.1 as Real, if m.flbpo { r.boundary.1 as Real } else { 0. }];
-    let tolast = [r.field.2, r.point.2, r.restart.2, r.boundary.2];
-    let mut flout = [false; 4];
+    let dtout = [r.field.1 as Real, r.point.1 as Real, r.track.1 as Real, r.restart.1 as Real, if m.flbpo { r.boundary.1 as Real } else { 0. }];
+    let mut tolast = [r.field.2, r.point.2, r.track.2, r.restart.2, r.boundary.2];
+    let mut flout = [false; 5];
     let mut tofrst: Time = [-1, 0];
-    for j in 0..4 {
+    for j in 0..5 {
         if dtout[j] <= 0.5 {
             continue;
         }
@@ -1148,6 +1153,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
     // W3WAVE: FLPFLD = FLOGRD(4,J) for any J.
     let flags_part = (1..=25).any(|j| flags.on(4, j));
     let mut nest = crate::iobc::NestOut::new(dir);
+    let mut track = Track::new(dir, r.track_formatted, root);
     let mut grd = (flout[0] && root).then(|| Grd::new(&format!("{dir}/out_grd.ww3"), m, flags.clone()));
     let mut pnt = (flout[1] && !pts.is_empty() && root).then(|| {
         let mut f = Out::new(&format!("{dir}/out_pnt.ww3"));
@@ -1849,13 +1855,13 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
             let dt2 = if tdn[0] == -1 { 1. } else { dsec21(time, tdn) };
             if dt1 <= 0. && dt2 != 0. {
                 if let Some(l) = lay.as_ref() {
-                    if (0..4).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
+                    if (0..5).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
                         gather_out(comm, l, nspec, &mut s, &mut dtdyn, &mut fcut, &mut src, &mut whitecap);
                     }
                 }
                 // The only reads of the resident spectrum: what an output due now needs.
                 if let Some(d) = device.as_deref_mut() {
-                    if (0..4).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
+                    if (0..5).any(|j| flout[j] && dsec21(time, tonext[j]) == 0.) {
                         d.va_read(&mut s.va[nspec..]);
                         if flout[0] && (5..=10).any(|j| flags.on(5, j)) {
                             d.whitecap_read(&mut whitecap[4..]);
@@ -1863,7 +1869,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                     }
                 }
                 tofrst = [-1, 0];
-                for j in 0..4 {
+                for j in 0..5 {
                     if !flout[j] {
                         continue;
                     }
@@ -1920,6 +1926,28 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                 let w = Winds { ua: &ua, ud: &ud, asv: &asv, cx: &cx, cy: &cy };
                                 write_points(f, time, &pts, m, &mapsta, &s.va, &dw, &cg, &s.ice, &w);
                             }
+                        } else if JS[j] == 3 {
+                            let q = TrackFields {
+                                time,
+                                mapsta: &mapsta,
+                                mapst2: &mapst2,
+                                va: &s.va,
+                                cg: &cg,
+                                dw: &dw,
+                                cx: &cx,
+                                cy: &cy,
+                                ua: &ua,
+                                ud: &ud,
+                                ust: &s.ust,
+                                asv: &asv,
+                                dpdx: &metrics.dpdx,
+                                dpdy: &metrics.dpdy,
+                                dqdx: &metrics.dqdx,
+                                dqdy: &metrics.dqdy,
+                            };
+                            if !track.write(m, &q, tolast[j], dtout[j]) {
+                                tolast[j] = time;
+                            }
                         } else if JS[j] == 5 {
                             if root {
                                 nest.write(m, time, &s.va, &cg);
@@ -1965,6 +1993,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
     if let Some(f) = pnt.as_mut() {
         f.f.flush().unwrap();
     }
+    track.flush();
 }
 
 /// `UA`, `UD`, `AS`, `CX`, `CY`, from `ISEA = 0`.

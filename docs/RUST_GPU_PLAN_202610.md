@@ -123,6 +123,9 @@ and `restart.ww3` for `cmp`.
 `ww3_bound` as the step that writes the file ([log](log/2026-11-02-level-ice-boundary.md), `rust/port_report/W3ULEV.md`,
 `W3IOBC.md`, `WW3_BOUND.md`). `ww3_shel` refuses levels, ice and a `nest.ww3` on a device ⚠. Open in this batch: track output.
 
+**2026-11-03:** track output runs on the host byte-identical, with `ww3_trck` and `ww3_trnc`
+(`rust/port_report/W3IOTR.md`). Batch 3's open items are now only a real device.
+
 ### Runtime parallelism
 
 The owner, 2026-10-31: "chaceon must also allow MPI/OpenMP runtime option." WW3 picks this at compile time, with

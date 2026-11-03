@@ -58,6 +58,14 @@ bound-all:
 bound-faults:
     bash scripts/bound_faults.sh
 
+# Track output, ww3_trck and ww3_trnc against the reference, by cmp
+track-all:
+    bash scripts/track_all.sh
+
+# One fault at a time through the track code: each must differ from the reference
+track-faults:
+    bash scripts/track_faults.sh
+
 # A prepared case with propagation in compiled SPIR-V on lavapipe, by cmp
 spirv-pair tag:
     bash scripts/spirv_pair.sh {{tag}}

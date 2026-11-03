@@ -17,6 +17,7 @@ cp "$d/input/ww3_grid${suffix:+_$suffix}.nml" "$d/work/ww3_grid.nml"
 cp "$d/input/ww3_strt.inp" "$d/work/"
 cp "$ref/ww3_shel.nml" "$d/work/"
 if [ -f "$ref/points.list" ]; then cp "$ref/points.list" "$d/work/"; fi
+if [ -f "$ref/track_i.ww3" ]; then cp "$ref/track_i.ww3" "$d/work/"; fi
 # A case whose reference run has a forcing file has one ww3_prep input in its directory, or RUST_ONLY_PREP names
 # them in order, one per forcing file. RUST_ONLY_OVERLAY is a directory laid over the input, as TP_OVERLAY is.
 if [ -n "${RUST_ONLY_OVERLAY:-}" ]; then cp "$RUST_ONLY_OVERLAY"/* "$d/input/"; cp "$d/input/ww3_grid${suffix:+_$suffix}.nml" "$d/work/ww3_grid.nml"; fi
@@ -41,7 +42,7 @@ else
   bash scripts/rust_in_ref.sh ww3_shel "/work/rustonly/$tag/work" > "$d/shel.log" 2>&1
 fi
 bad=0
-for f in mod_def current wind level ice out_grd out_pnt restart001 restart; do
+for f in mod_def current wind level ice out_grd out_pnt restart001 track_o restart; do
   case "$f" in
     mod_def|restart|current|wind|level|ice) r="$ref/$f.ww3" ;;
     *) r="$ref/$f.reference" ;;

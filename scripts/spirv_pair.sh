@@ -7,11 +7,11 @@ tag="$1"
 docker build --platform linux/arm64 -q -f docker/Dockerfile.lavapipe -t chaceon-lavapipe docker >/dev/null
 docker run --rm --platform linux/arm64 -v "$PWD/rust:/rust" -v chaceon-cargo:/usr/local/cargo/registry \
   -e CARGO_TARGET_DIR=/rust/target/linux -w /rust rust:1.90-bookworm cargo build --release -q --bin spirv_shel
-rm -f work/pair/"$tag"/out_grd.ww3 work/pair/"$tag"/out_pnt.ww3 work/pair/"$tag"/restart001.ww3
+rm -f work/pair/"$tag"/out_grd.ww3 work/pair/"$tag"/out_pnt.ww3 work/pair/"$tag"/restart001.ww3 work/pair/"$tag"/track_o.ww3
 docker run --rm --platform linux/arm64 -v "$PWD/rust:/rust:ro" -v "$PWD/work:/work" \
   --entrypoint /rust/target/linux/release/spirv_shel chaceon-lavapipe /rust/gpu-spirv/out/chaceon.spv "/work/pair/$tag" 2>&1 | tail -4
 bad=0
-for f in out_grd out_pnt restart001; do
+for f in out_grd out_pnt restart001 track_o; do
   ref="work/pair/$tag/$f.reference"
   ours="work/pair/$tag/$f.ww3"
   [ -f "$ref" ] || continue

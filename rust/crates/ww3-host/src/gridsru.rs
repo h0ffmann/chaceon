@@ -492,6 +492,56 @@ fn nns(nlvl: i32) -> (Offsets, Offsets) {
     (n12, d)
 }
 
+/// `W3GFCL ( GSU, XT, YT, IS, JS, XS, YS )` for `REAL(4)` arguments, with no `FNCL`: the enclosing cell, or `None`.
+/// `XT` comes back as the search left it.
+pub fn w3gfcl_r4(g: &Gsu, xtin: &mut f32, ytin: f32) -> Option<([i32; 4], [i32; 4], [f32; 4], [f32; 4])> {
+    let mut xt = *xtin as f64;
+    let yt = ytin as f64;
+    if g.llg {
+        xt %= D360;
+        if g.lclo || g.l360 {
+            if xt < 0. {
+                xt += D360;
+            }
+        } else if xt > D180 {
+            xt -= D360;
+        }
+    }
+    *xtin = xt as f32;
+    if xt < g.xmin - EPS_DEFAULT || xt > g.xmax + EPS_DEFAULT || yt < g.ymin - EPS_DEFAULT || yt > g.ymax + EPS_DEFAULT {
+        return None;
+    }
+    let mut ib = (((xt - g.xmin) / g.dxb) as i32 + 1).max(1);
+    if !g.lclo {
+        ib = ib.min(g.nbx);
+    }
+    let jb = (((yt - g.ymin) / g.dyb) as i32 + 1).max(1).min(g.nby);
+    for &(ci, cj) in &g.b[((jb - 1) + (ib - 1) * g.nby) as usize] {
+        let (is, js) = g.corners_of(ci, cj);
+        let (mut xs, mut ys) = ([0.; 4], [0.; 4]);
+        for l in 0..4 {
+            xs[l] = g.xg[g.at(js[l], is[l])];
+            ys[l] = g.yg[g.at(js[l], is[l])];
+            if g.llg {
+                xs[l] %= D360;
+                if g.lclo || g.l360 {
+                    if xs[l] < 0. {
+                        xs[l] += D360;
+                    }
+                } else if xs[l] > D180 {
+                    xs[l] -= D360;
+                }
+            }
+        }
+        let (incell, xt2, xs2) = ckcl(g.llg, xt, yt, &xs, &ys);
+        if incell {
+            *xtin = xt2 as f32;
+            return Some((is, js, xs2.map(|v| v as f32), ys.map(|v| v as f32)));
+        }
+    }
+    None
+}
+
 /// `W3GFPT ( GSU, X, Y, IX, IY, DCIN=dcin )` for `REAL(4)` arguments, so `dcin` widens from `REAL(4)`: the grid
 /// point closest to the target, or `None` outside the grid by more than `dcin` cell widths. `W3GFCL_R8` is inside,
 /// with `FNCL` true, `model/src/w3gsrumd.F90:1369-1669` and `:2078-2192`.
