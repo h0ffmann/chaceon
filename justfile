@@ -34,6 +34,10 @@ sds4-cmp variant="default" depth="2500":
 st4-cmp routine="sin4" variant="default" depth="2500":
     bash scripts/rust_in_ref.sh st4_cmp {{routine}} /work/capture/{{routine}}_{{variant}}_{{depth}}m.bin
 
+# Replays W3SBT4 calls (switch_chaceon_bt4 reference) and rebuilds ERFTABLE, every bit
+sbt4-cmp *captures:
+    bash scripts/rust_in_ref.sh sbt4_cmp {{captures}}
+
 # Host verdict: the reference and Rust run ww3_ts1, and cmp judges out_pnt.ww3
 ts1-pair variant="default" depth="2500":
     bash scripts/ts1_pair.sh {{variant}} {{depth}}

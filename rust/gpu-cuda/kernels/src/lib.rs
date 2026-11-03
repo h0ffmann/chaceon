@@ -7,6 +7,7 @@ use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::real::Real;
+use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
@@ -102,6 +103,51 @@ pub unsafe fn sds4(
         &points[point], srhs, ddiag, brlambda, whitecap, w, iw,
         point * nspec, point * p.nk as usize, point * 4, point * lw, point * li,
     );
+}
+
+/// `W3SBT4`. `bedform` holds three values per point, in and out; `w` holds `NK` per point.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sbt4(
+    p: &Sbt4Params,
+    sig: &[Real],
+    dden: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    fwtable: &[Real],
+    erftable: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    points: &[Sbt4Point],
+    bedform: *mut Real,
+    s: *mut Real,
+    d: *mut Real,
+    w: *mut Real,
+    out: *mut Sbt4Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (bedform, s, d, w) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(bedform, n * 3),
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(w, n * nk),
+        )
+    };
+    let t = Sbt4Tables { sig, dden, ecos, esin, fwtable, erftable };
+    let o = w3sbt4(p, &t, a, cg, wn, &points[point], bedform, s, d, w, point * nspec, point * nk, point * nk, point * 3);
+    unsafe { *out.add(point) = o };
 }
 
 /// # Safety

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce|sbt4> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
 use std::ffi::CStr;
 use ww3_host::capture::{
-    Sds4Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
+    Sbt4Call, Sbt4Capture, Sds4Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
 };
 use ww3_kernels::srce::{SrceOut, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
@@ -444,9 +444,52 @@ fn srce_run(code: &[u8], path: &str) -> bool {
     slots.push(Slot::Out(points * 16));
     slots.push(Slot::Out(points * 16));
     slots.push(Slot::Out(points * 48));
+    // Binding 53, `active`: the time loop marks the points due a call; every captured call is one.
+    let active = vec![1u32; points];
+    slots.push(Slot::In(bytes(&active)));
     let out = dispatch(code, c"srce", &slots, points);
     let ours = floats(&out[27]);
     compare("SPEC", &out[26], &rs) & compare("scalars", bytes(&ours), &ro) & compare("WHITECAP", &out[WHITECAP], &rw)
+}
+
+/// `W3SBT4` on every captured call, with the `ERFTABLE` that `TABU_ERF` builds on the host.
+fn sbt4_run(code: &[u8], path: &str) -> bool {
+    use ww3_kernels::sbt4::{SIZEERFTABLE, Sbt4Out, delxerf, tabu_erf};
+    let c = Sbt4Capture::read(path);
+    let mut p = c.params;
+    p.delxerf = delxerf();
+    let mut erf = vec![0.0f32; SIZEERFTABLE as usize + 1];
+    tabu_erf(&mut erf);
+    let (nk, nspec) = (p.nk as usize, (p.nk * p.nth) as usize);
+    let points = c.calls.len();
+    let cat = |f: fn(&Sbt4Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, wn, bin) = (cat(|k| &k.a), cat(|k| &k.cg), cat(|k| &k.wn), cat(|k| &k.bedform_in));
+    let (rs, rd, rb) = (cat(|k| &k.s), cat(|k| &k.d), cat(|k| &k.bedform));
+    let rt: Vec<f32> = c.calls.iter().flat_map(|k| k.taubbl).collect();
+    let pts: Vec<_> = c.calls.iter().map(|k| k.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.fwtable)),
+        Slot::In(bytes(&erf)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::In(bytes(&pts)),
+        Slot::In(bytes(&bin)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nk * 4),
+        Slot::Out(points * size_of::<Sbt4Out>()),
+    ];
+    let out = dispatch(code, c"sbt4", &slots, points);
+    // TAUBBL out of the Sbt4Out records: two floats, then the branch.
+    let o = &out[15];
+    let tau: Vec<u8> = o.chunks_exact(size_of::<Sbt4Out>()).flat_map(|r| r[..8].iter().copied()).collect();
+    compare("S", &out[12], &rs) & compare("D", &out[13], &rd) & compare("BEDFORM", &out[11], &rb) & compare("TAUBBL", &tau, &rt)
 }
 
 /// Every `ww3-libm` function in SPIR-V against the same source on this host, on random finite inputs.
@@ -473,7 +516,7 @@ fn libm_run(code: &[u8], n: &str) -> bool {
     let y: Vec<f32> = (0..n).map(|i| draw(i % 2 == 0)).collect();
     let abs: Vec<f32> = x.iter().map(|v| v.abs()).collect();
     type F = fn(f32, f32) -> (f32, f32);
-    let funcs: [(&str, F); 10] = [
+    let funcs: [(&str, F); 12] = [
         ("expf", |a, _| (ww3_libm::expf(a), 0.)),
         ("logf", |a, _| (ww3_libm::logf(a), 0.)),
         ("powf", |a, b| (ww3_libm::powf(a, b), 0.)),
@@ -484,6 +527,8 @@ fn libm_run(code: &[u8], n: &str) -> bool {
         ("sqrtf", |a, _| (ww3_libm::sqrtf(a), 0.)),
         ("atanf", |a, _| (ww3_libm::atanf(a), 0.)),
         ("expm1f", |a, _| (ww3_libm::expm1f(a), 0.)),
+        ("sinhf", |a, _| (ww3_libm::sinhf(a), 0.)),
+        ("erff", |a, _| (ww3_libm::erff(a), 0.)),
     ];
     let mut ok = true;
     for (i, (name, f)) in funcs.iter().enumerate() {
@@ -531,6 +576,7 @@ fn main() {
         "sin4" => sin4_run(&code, &path),
         "spr4" => spr4_run(&code, &path),
         "srce" => srce_run(&code, &path),
+        "sbt4" => sbt4_run(&code, &path),
         "libm" => libm_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };

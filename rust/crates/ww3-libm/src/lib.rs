@@ -512,6 +512,121 @@ pub fn tanhf(x: f32) -> f32 {
     if jx >= 0 { z } else { -z }
 }
 
+/// glibc 2.36 `sinhf` (`e_sinhf.c`, fdlibm's). The one fused site, `2t - t*t/(t+1)` as `fnmsub`,
+/// is read from the reference's `libm.so.6`; `2t` is exact, so it rounds as the unfused form would.
+#[inline]
+pub fn sinhf(x: f32) -> f32 {
+    const SHUGE: f32 = 1.0e37;
+    let jx = x.to_bits() as i32;
+    let ix = jx & 0x7fffffff;
+    if ix >= 0x7f800000 {
+        return x + x;
+    }
+    let h: f32 = if jx < 0 { -0.5 } else { 0.5 };
+    let ax = f32::from_bits(ix as u32);
+    if ix < 0x41b00000 {
+        if ix < 0x31800000 {
+            // `shuge + x > one` always holds here: sinh(tiny) is tiny.
+            return x;
+        }
+        let t = expm1f(ax);
+        if ix < 0x3f800000 {
+            return h * fma32(t, 2.0, -(t * t / (t + 1.0)));
+        }
+        return h * (t + t / (t + 1.0));
+    }
+    if ix < 0x42b17180 {
+        return h * expf(ax);
+    }
+    if ix <= 0x42b2d4fc {
+        let w = expf(0.5 * ax);
+        let t = h * w;
+        return t * w;
+    }
+    x * SHUGE
+}
+
+/// glibc 2.36 `erff` (`s_erff.c`, fdlibm's). Every Horner step is an `fmadd` in the reference's
+/// `libm.so.6`, and so are `x + x*y`, `x + efx*x`, `-z*z - 0.5625` and `(z-x)*(z+x) + R/S`.
+#[inline]
+pub fn erff(x: f32) -> f32 {
+    const TINY: f32 = 1e-30;
+    const ERX: f32 = f32::from_bits(0x3f58560b);
+    const EFX: f32 = f32::from_bits(0x3e0375d4);
+    const EFX16: f32 = f32::from_bits(0x400375d4);
+    const PP: [u32; 5] = [0x3e0375d4, 0xbea66beb, 0xbce9528f, 0xbbbd1489, 0xb7c756b1];
+    const QQ: [u32; 5] = [0x3ecbbbce, 0x3d852a63, 0x3ba68116, 0x390aee49, 0xb684e21a];
+    const PA: [u32; 7] = [
+        0xbb1acdc6, 0x3ed46805, 0xbebe9208, 0x3ea2fe54, 0xbde31cc2, 0x3d1151b3, 0xbb0df9c0,
+    ];
+    const QA: [u32; 6] = [0x3dd9f331, 0x3f0a5785, 0x3d931ae7, 0x3e013307, 0x3c5f6e13, 0x3c445aa3];
+    const RA: [u32; 8] = [
+        0xbc21a093, 0xbf31a0b7, 0xc128f022, 0xc2798057, 0xc322658c, 0xc3389ae7, 0xc2a2932b,
+        0xc11d077e,
+    ];
+    const SA: [u32; 8] = [
+        0x419d35ce, 0x4309a863, 0x43d9486f, 0x442158c9, 0x43d6810b, 0x42d9451f, 0x40d23f7c,
+        0xbd777f97,
+    ];
+    const RB: [u32; 7] = [
+        0xbc21a092, 0xbf4c9dd4, 0xc18e104b, 0xc320a2ea, 0xc41f6441, 0xc480230b, 0xc3f1c275,
+    ];
+    const SB: [u32; 7] = [
+        0x41f2b459, 0x43a2e571, 0x44c01759, 0x4547fdbb, 0x451f90ce, 0x43ed43a7, 0xc1b38712,
+    ];
+    // c[0] + z*(c[1] + z*(... + z*c[n-1])), each step fused. A macro, not a slice: SPIR-V.
+    macro_rules! horner {
+        ($z:expr, $c:expr) => {{
+            let c = $c;
+            let mut i = c.len() - 1;
+            let mut p = f32::from_bits(c[i]);
+            while i > 0 {
+                i -= 1;
+                p = fma32($z, p, f32::from_bits(c[i]));
+            }
+            p
+        }};
+    }
+    let hx = x.to_bits() as i32;
+    let ix = hx & 0x7fffffff;
+    if ix >= 0x7f800000 {
+        let i = ((hx as u32) >> 31) << 1;
+        return (1 - i as i32) as f32 + 1.0 / x;
+    }
+    if ix < 0x3f580000 {
+        if ix < 0x31800000 {
+            if ix < 0x04000000 {
+                return 0.0625 * fma32(x, 16.0, x * EFX16);
+            }
+            return fma32(x, EFX, x);
+        }
+        let z = x * x;
+        let r = horner!(z, PP);
+        let s = fma32(z, horner!(z, QQ), 1.0);
+        let y = r / s;
+        return fma32(x, y, x);
+    }
+    if ix < 0x3fa00000 {
+        let s = f32::from_bits(ix as u32) - 1.0;
+        let p = horner!(s, PA);
+        let q = fma32(s, horner!(s, QA), 1.0);
+        return if hx >= 0 { ERX + p / q } else { -ERX - p / q };
+    }
+    if ix >= 0x40c00000 {
+        return if hx >= 0 { 1.0 - TINY } else { TINY - 1.0 };
+    }
+    let ax = f32::from_bits(ix as u32);
+    let s = 1.0 / (x * x);
+    let (r, ss) = if ix < 0x4036db6e {
+        (horner!(s, RA), fma32(s, horner!(s, SA), 1.0))
+    } else {
+        (horner!(s, RB), fma32(s, horner!(s, SB), 1.0))
+    };
+    let z = f32::from_bits((ix as u32) & 0xfffff000);
+    let r = expf(fma32(-z, z, -0.5625)) * expf(fma32(z - ax, z + ax, r / ss));
+    if hx >= 0 { 1.0 - r / ax } else { r / ax - 1.0 }
+}
+
 /// glibc 2.36 `atanf`.
 #[inline]
 pub fn atanf(x0: f32) -> f32 {
