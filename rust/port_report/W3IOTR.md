@@ -21,7 +21,7 @@
 | `short` | The input ends before the run, `STOP` |
 | `wrongid`, `empty` | Labels 803 and 802: no `track_o.ww3`, and the run goes on |
 | `cart` | Cartesian, `ww3_tp2.3`, with the `E3` format in `track.ww3` |
-| `curv` | Curvilinear, `ww3_tp2.15`, with water levels and ice: `LND`, `XCL`, `DRY` and `SEA` cells reached (v); `ICE` and `DIS` not yet ⚠ |
+| `curv` | Curvilinear, `ww3_tp2.15`, with water levels and ice, and a track through the northern rows: `SEA`, `LND`, `XCL`, `DRY`, `ICE` and `DIS` all reached, a 2.2 MB `track_o.ww3` (v) |
 
 `ww3_trnc`: 17 inputs, every file, log and status identical, NetCDF 3 and 4 (the HDF5 files are the same bytes), `TIMESPLIT`
 0 to 11, `TIMECOUNT`, `ww3_trnc.nml` and `.inp`, status 1 and 10.

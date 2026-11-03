@@ -2,6 +2,7 @@
 
 One dated entry per thing tried, negative results included. Append; never rewrite.
 
+- [2026-11-03: track output, ww3_trck and ww3_trnc byte-identical](2026-11-03-track-output.md)
 - [2026-11-02: water levels, ice and boundary input in a run; ww3_bound byte-identical](2026-11-02-level-ice-boundary.md)
 - [2026-11-01: ww3_prnc, ww3_ounp, partitions and interpolation on one tree; two harness faults](2026-11-01-forcing-points-integration.md)
 - [2026-11-01: ww3_prep types LL, F1, F2 and DAT, binary input, format reversal; ww3_strt type 2](2026-11-01-prep-interp-parity.md)
