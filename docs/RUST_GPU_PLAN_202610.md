@@ -203,7 +203,11 @@ access is still open (ww3-gpu #143), so this batch waits on it. The RTX 4090 ser
 ### Batches 7 and 8: the rest
 
 Batch 7: `ST1`, `ST2`, `ST3`, `ST6`, `NL2` to `NL5`, ice, the fluxes, tides, the switch MetOcean
-ships (`BT4`, `WCOR`, `RWND`, `SEED`, `MPI`). Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
+ships (`BT4`, `WCOR`, `RWND`, `SEED`, `MPI`).
+
+**2026-11-03:** `W3SBT4` (`BT4`) is a kernel at status `routine`: 33 824 captured calls bit-identical on the host and
+in SPIR-V on lavapipe, against a reference built with `switches/switch_chaceon_bt4` ([log](log/2026-11-03-sbt4-parity.md),
+`rust/port_report/W3SBT4.md`). Next for `BT4`: its call in `W3SRCE`, its state per sea point, and its `mod_def.ww3` fields. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
 grid, `ww3_multi`, domain decomposition over several GPUs. MPI needs an ADR of its own: a binding
 to C MPI, or GPU-aware transport.
 

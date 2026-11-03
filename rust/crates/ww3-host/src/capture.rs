@@ -474,3 +474,71 @@ impl SrceCapture {
         p
     }
 }
+
+/// One `W3SBT4` call of `regtests/capture/sbt4.py`: its inputs and the reference's outputs.
+pub struct Sbt4Call {
+    pub point: ww3_kernels::sbt4::Sbt4Point,
+    pub bedform_in: [f32; 3],
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+    pub taubbl: [f32; 2],
+    pub bedform: [f32; 3],
+    /// `DELXERF` and `ERFTABLE(0:SIZEERFTABLE)` as this call left them.
+    pub delxerf: f32,
+    pub erftable: Vec<f32>,
+}
+
+/// A `W3SBT4` capture. `params.delxerf` is the reference's; `erftable` is the first call's.
+pub struct Sbt4Capture {
+    pub params: ww3_kernels::sbt4::Sbt4Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub fwtable: Vec<f32>,
+    pub calls: Vec<Sbt4Call>,
+}
+
+impl Sbt4Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SBT4", "{path}");
+        let h = r.ints(3);
+        let (nk, nth, nspec) = (h[0], h[1], h[2]);
+        let delab = r.reals(1)[0];
+        let sbtcx = r.table_r().data;
+        let (sig, dden, ecos, esin) = (r.table_r().data, r.table_r().data, r.table_r().data, r.table_r().data);
+        let fwtable = r.reals(301);
+        let (nk_, ns) = (nk as usize, nspec as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(6);
+            let (a, cg, wn) = (r.reals(ns), r.reals(nk_), r.reals(nk_));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            let o = r.reals(5);
+            let delxerf = r.reals(1)[0];
+            let erftable = r.reals(301);
+            calls.push(Sbt4Call {
+                point: ww3_kernels::sbt4::Sbt4Point { depth: v[0], d50: v[1], psic: v[2] },
+                bedform_in: [v[3], v[4], v[5]],
+                a,
+                cg,
+                wn,
+                s,
+                d,
+                taubbl: [o[0], o[1]],
+                bedform: [o[2], o[3], o[4]],
+                delxerf,
+                erftable,
+            });
+        }
+        let mut sx = [0.0f32; 10];
+        sx.copy_from_slice(&sbtcx[..10]);
+        let delxerf = calls.first().map_or(0., |c| c.delxerf);
+        let params = ww3_kernels::sbt4::Sbt4Params { nk, nth, sbtcx: sx, delab, delxerf };
+        Sbt4Capture { params, sig, dden, ecos, esin, fwtable, calls }
+    }
+}

@@ -154,3 +154,6 @@ w3gsrumd:w3gfcl_r4	model/src/w3gsrumd.F90:1328-1365	38	host	just track-all; no p
 ww3_trck:w3trck	model/src/ww3_trck.F90:1-478	478	host	just track-all: track.ww3, log and status; just track-faults; rust/port_report/W3IOTR.md	rust/crates/ww3-host/src/trck.rs
 ww3_trnc:w3trnc	model/src/ww3_trnc.F90:1-1130	1130	host	just track-all: 17 inputs, NetCDF 3 and 4 byte-identical; a track across 29 February is not reproduced; just track-faults; rust/port_report/W3IOTR.md	rust/tools/ww3_trnc/src/main.rs
 w3nmltrncmd:w3nmltrnc	model/src/w3nmltrncmd.F90:49-564	516	host	just track-all: ww3_trnc.nml.log identical; rust/port_report/W3IOTR.md	rust/tools/ww3_trnc/src/main.rs
+w3sbt4md:w3sbt4	model/src/w3sbt4md.F90:279-576	298	routine	just sbt4-cmp on 9 captures of switch_chaceon_bt4 (relict, ripple and subgrid branches): 33824 calls, 0 of 58616992 values differ in call and batch layouts; just spirv-replay sbt4 on the same 9: 0 differ; faults in rust/port_report/W3SBT4.md; not called from W3SRCE yet	rust/crates/ww3-kernels/src/sbt4.rs
+w3sbt4md:tabu_erf	model/src/w3sbt4md.F90:205-275	71	routine	ERFTABLE and DELXERF equal to the reference's on every capture; rust/port_report/W3SBT4.md	rust/crates/ww3-kernels/src/sbt4.rs
+w3sbt4md:insbt4	model/src/w3sbt4md.F90:117-203	87	routine	only calls TABU_ERF; rust/port_report/W3SBT4.md	rust/crates/ww3-kernels/src/sbt4.rs

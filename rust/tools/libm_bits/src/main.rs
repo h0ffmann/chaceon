@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 //! `ww3_libm` against the platform libm: every `f32` for a function of one argument, a large sample
 //! for two. Run it on the reference's image: ADR-0005. Usage: libm_bits [samples for two arguments].
+//! `LIBM_ONLY=sinhf,erff` runs only the functions it names.
 
 use std::thread;
 
@@ -13,6 +14,8 @@ unsafe extern "C" {
     fn tanhf(x: f32) -> f32;
     fn expm1f(x: f32) -> f32;
     fn atanf(x: f32) -> f32;
+    fn sinhf(x: f32) -> f32;
+    fn erff(x: f32) -> f32;
     fn sincosf(x: f32, s: *mut f32, c: *mut f32);
     fn powf(x: f32, y: f32) -> f32;
     fn atan2f(y: f32, x: f32) -> f32;
@@ -48,11 +51,19 @@ fn sum(handles: Vec<thread::ScopedJoinHandle<(u64, Option<String>)>>) -> (u64, O
     (bad, first)
 }
 
+/// False when `LIBM_ONLY` is set and does not name `name`.
+fn wanted(name: &str) -> bool {
+    std::env::var("LIBM_ONLY").map_or(true, |l| l.split(',').any(|n| n == name))
+}
+
 fn threads() -> u64 {
     thread::available_parallelism().map_or(1, |n| n.get()) as u64
 }
 
 fn sweep(name: &str, ours: fn(f32) -> f32, theirs: fn(f32) -> f32) -> u64 {
+    if !wanted(name) {
+        return 0;
+    }
     let n = threads();
     let (bad, first) = thread::scope(|sc| {
         sum((0..n)
@@ -83,6 +94,9 @@ fn scaled(r: u64, lo: u32, hi: u32) -> f32 {
 }
 
 fn pairs(name: &str, samples: u64, ours: fn(f32, f32) -> f32, theirs: fn(f32, f32) -> f32) -> u64 {
+    if !wanted(name) {
+        return 0;
+    }
     let n = threads();
     let (bad, first) = thread::scope(|sc| {
         sum((0..n)
@@ -128,6 +142,9 @@ fn pairs(name: &str, samples: u64, ours: fn(f32, f32) -> f32, theirs: fn(f32, f3
 
 /// `f64` by sample: half over every bit pattern, half across the exponents `W3SDB1` meets.
 fn sample64(name: &str, samples: u64, ours: fn(f64) -> f64, theirs: fn(f64) -> f64) -> u64 {
+    if !wanted(name) {
+        return 0;
+    }
     let n = threads();
     let (bad, first) = thread::scope(|sc| {
         sum((0..n)
@@ -183,6 +200,8 @@ fn main() {
     bad += sweep("expm1f", ww3_libm::expm1f, |x| unsafe { expm1f(x) });
     bad += sweep("tanhf", ww3_libm::tanhf, |x| unsafe { tanhf(x) });
     bad += sweep("atanf", ww3_libm::atanf, |x| unsafe { atanf(x) });
+    bad += sweep("sinhf", ww3_libm::sinhf, |x| unsafe { sinhf(x) });
+    bad += sweep("erff", ww3_libm::erff, |x| unsafe { erff(x) });
     bad += sweep("sin", |x| ww3_libm::sincosf(x).0, sin_libm);
     bad += sweep("cos", |x| ww3_libm::sincosf(x).1, cos_libm);
     bad += pairs("powf", samples, ww3_libm::powf, |x, y| unsafe { powf(x, y) });

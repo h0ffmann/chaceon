@@ -3,6 +3,10 @@
 | Term | Meaning |
 |---|---|
 | DB1 | WW3 switch: Battjes and Janssen depth-induced breaking, `W3SDB1` |
+| BT4 | WW3 switch: SHOWEX bottom friction over a movable sand bed (Ardhuin et al. 2003), `W3SBT4` |
+| SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |
+| `ERFTABLE` | `W3SBT4MD`'s table of `(1+erf(x))/2` on `[-4, 4]`, built by `TABU_ERF` |
+| Shields parameter | Bed shear stress over the submerged weight of a grain layer; ripples form above a critical value (`PSIC`) |
 | DIA | Discrete Interaction Approximation of the nonlinear transfer; WW3's `NL1`, `W3SNL1` |
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
 | GIMPLE | GCC's intermediate form, read to see what `-O3` computes |
