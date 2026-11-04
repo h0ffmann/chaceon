@@ -971,3 +971,69 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3SDS2` call of `regtests/capture/sds2.py`: its inputs and the reference's outputs.
+pub struct Sds2Call {
+    pub point: ww3_kernels::sds2::Sds2Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub k: Vec<f32>,
+    pub alfa: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SDS2` capture: the scalars of `W3GDATMD`, `SIG(0:NK+1)` and `DDEN(NK)`, then the calls.
+pub struct Sds2Capture {
+    pub params: ww3_kernels::sds2::Sds2Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Sds2Call>,
+}
+
+impl Sds2Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS2", "{path}");
+        let h = r.ints(2);
+        let f = r.reals(16);
+        let (sig, dden) = (r.table_r().data, r.table_r().data);
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(2);
+            let (a, cg, k, alfa) = (r.reals(ns), r.reals(nk), r.reals(nk), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sds2Call {
+                point: ww3_kernels::sds2::Sds2Point { fpi: v[0], ustar: v[1] },
+                a,
+                cg,
+                k,
+                alfa,
+                s,
+                d,
+            });
+        }
+        let params = ww3_kernels::sds2::Sds2Params {
+            nk: h[0],
+            nth: h[1],
+            fte: f[0],
+            dth: f[1],
+            fpimin: f[2],
+            facti1: f[3],
+            facti2: f[4],
+            xfh: f[5],
+            xf1: f[6],
+            xf2: f[7],
+            sdsaln: f[8],
+            cdsa0: f[9],
+            cdsa1: f[10],
+            cdsa2: f[11],
+            cdsb0: f[12],
+            cdsb1: f[13],
+            cdsb2: f[14],
+            cdsb3: f[15],
+        };
+        Sds2Capture { params, sig, dden, calls }
+    }
+}

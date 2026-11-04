@@ -733,3 +733,34 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
+
+/// `W3SDS2`. `cg`, `k` and `alfa` hold `NK` per point; `sig` is `SIG(0:NK+1)`, `dden` is `DDEN(NK)`.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds2(
+    p: &ww3_kernels::sds2::Sds2Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    k: &[Real],
+    alfa: &[Real],
+    points: &[ww3_kernels::sds2::Sds2Point],
+    s: *mut Real,
+    d: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) =
+        unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
+    ww3_kernels::sds2::w3sds2(p, sig, dden, &points[point], a, cg, k, alfa, s, d, point * nspec, point * nk);
+}
