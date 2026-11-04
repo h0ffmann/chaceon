@@ -207,14 +207,16 @@ pub fn srce(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 51)] sin_out: &mut [Sin4Out],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 52)] spr_out: &mut [Spr4Out],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 53)] active: &[u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 54)] erftable: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 55)] bedform: &mut [Real],
 ) {
     let point = id.x as usize;
     if point >= points.len() || active[point] == 0 {
         return;
     }
     let pt = points[point];
-    let t = SrceTables { sig, sig2, dden, dden2, ec2, es2, esc, ecos, esin, af11, pm, ic, satindices, satweights, cumulw, iktab, dcki, qbi, fwtable, tauhft, tauhft2, taut };
-    let mut w = SrceWork { specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda, llws, w_snl, w_sds, iw_sds, w_small, whitecap, sin_out, spr_out };
+    let t = SrceTables { sig, sig2, dden, dden2, ec2, es2, esc, ecos, esin, af11, pm, ic, satindices, satweights, cumulw, iktab, dcki, qbi, fwtable, tauhft, tauhft2, taut, erftable };
+    let mut w = SrceWork { specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda, llws, w_snl, w_sds, iw_sds, w_small, whitecap, sin_out, spr_out, bedform };
     w3srce(p, &t, &pt, spec, wn1, cg1, &mut w, out, point);
 }
 

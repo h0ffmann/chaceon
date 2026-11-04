@@ -126,7 +126,7 @@ impl Gpu {
             let module = device.create_shader_module(&vk::ShaderModuleCreateInfo::default().code(&words), None).unwrap();
             let xyp3 = pipe(&device, module, c"xyp3", 41);
             let ktp3 = pipe(&device, module, c"ktp3", 26);
-            let srce = pipe(&device, module, c"srce", 54);
+            let srce = pipe(&device, module, c"srce", 56);
             let pool = device
                 .create_command_pool(
                     &vk::CommandPoolCreateInfo::default()
@@ -358,13 +358,14 @@ impl Device for Gpu {
         if !self.tables[2] {
             self.tables[2] = true;
             let (l_snl, l_sds, l_ids) = work_lens(p);
-            let tables: [(usize, &[u8]); 26] = [
+            let tables: [(usize, &[u8]); 27] = [
                 (0, bytes(std::slice::from_ref(p))), (1, bytes(t.sig)), (2, bytes(t.sig2)), (3, bytes(t.dden)),
                 (4, bytes(t.dden2)), (5, bytes(t.ec2)), (6, bytes(t.es2)), (7, bytes(t.esc)), (8, bytes(t.ecos)),
                 (9, bytes(t.esin)), (10, bytes(t.af11)), (11, bytes(t.pm)), (12, bytes(t.ic)),
                 (13, bytes(t.satindices)), (14, bytes(t.satweights)), (15, bytes(t.cumulw)), (16, bytes(t.iktab)),
                 (17, bytes(t.dcki)), (18, bytes(t.qbi)), (19, bytes(t.fwtable)), (20, bytes(t.tauhft)),
                 (21, bytes(t.tauhft2)), (22, bytes(t.taut)), (24, bytes(wn1)), (25, bytes(cg1)), (53, bytes(active)),
+                (54, bytes(t.erftable)),
             ];
             for (i, b) in tables {
                 self.put(w, i, b);
@@ -380,6 +381,8 @@ impl Device for Gpu {
             self.scratch(w, 50, n * 16);
             self.scratch(w, 51, n * size_of::<Sin4Out>());
             self.scratch(w, 52, n * size_of::<Spr4Out>());
+            // BEDFORM: the run reads mod_def.ww3 for BT1 only, which never touches it.
+            self.scratch(w, 55, 4);
         }
         self.run(w, n);
         self.get(w, 27, out);

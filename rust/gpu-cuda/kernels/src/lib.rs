@@ -287,6 +287,8 @@ pub unsafe fn srce(
     sin_out: *mut Sin4Out,
     spr_out: *mut Spr4Out,
     active: &[u32],
+    erftable: &[Real],
+    bedform: *mut Real,
 ) {
     let point = thread::index_1d() as usize;
     if point >= points.len() || active[point] == 0 {
@@ -295,7 +297,9 @@ pub unsafe fn srce(
     let n = points.len();
     let nspec = p.nspec as usize;
     let (l_snl, l_sds, l_ids) = work_lens(p);
-    let t = SrceTables { sig, sig2, dden, dden2, ec2, es2, esc, ecos, esin, af11, pm, ic, satindices, satweights, cumulw, iktab, dcki, qbi, fwtable, tauhft, tauhft2, taut };
+    let t = SrceTables { sig, sig2, dden, dden2, ec2, es2, esc, ecos, esin, af11, pm, ic, satindices, satweights, cumulw, iktab, dcki, qbi, fwtable, tauhft, tauhft2, taut, erftable };
+    // BEDFORM is three per point with BT4; a BT1 run may pass an empty buffer, never read.
+    let nb = if p.btopt == ww3_kernels::srce::SRCE_BT4 { n * 3 } else { 0 };
     let mut w = SrceWork {
         specinit: unsafe { core::slice::from_raw_parts_mut(specinit, n * nspec) },
         dam: unsafe { core::slice::from_raw_parts_mut(dam, n * nspec) },
@@ -322,6 +326,7 @@ pub unsafe fn srce(
         whitecap: unsafe { core::slice::from_raw_parts_mut(whitecap, n * 4) },
         sin_out: unsafe { core::slice::from_raw_parts_mut(sin_out, n) },
         spr_out: unsafe { core::slice::from_raw_parts_mut(spr_out, n) },
+        bedform: unsafe { core::slice::from_raw_parts_mut(bedform, nb) },
     };
     let spec = unsafe { core::slice::from_raw_parts_mut(spec, n * nspec) };
     let out = unsafe { core::slice::from_raw_parts_mut(out, n) };

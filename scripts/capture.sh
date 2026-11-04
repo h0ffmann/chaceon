@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs WW3's ww3_ts1 in the reference under gdb and records one routine.
 # Usage: capture.sh <routine> <variant> [depth] [stride]. Writes work/capture/<routine>_<variant>_<depth>m.bin.
-# CAPTURE_SWITCH picks the reference build (default switch_chaceon_shrd; sbt4 needs switch_chaceon_bt4).
+# CAPTURE_SWITCH picks the reference build: switch_chaceon_shrd by default, switch_chaceon_bt4 for sbt4
+# and for every variant named bt4*, so that all captures of one tag come from one build.
 # A variant only changes the case's namelists, never WW3: ww3_ts1 at 2500 m reaches one branch of
 # W3SDS4, and the rest need other settings. calm, light and storm change the wind: at 12 m/s USTAR
 # never reaches MetOcean's floors, and shallow water never reaches depth-limited breaking. poke writes rare inputs at the real routine's entry (sin4.py).
@@ -12,7 +13,7 @@ variant="$2"
 depth="${3:-2500}"
 stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
-if [ "$routine" = sbt4 ]; then switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}"; fi
+case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
 # shellcheck source=scripts/ts1_variants.sh
 source scripts/ts1_variants.sh
 out="${routine}_${variant}_${depth}m.bin"

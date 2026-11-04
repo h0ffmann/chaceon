@@ -4,12 +4,16 @@
 //! as `switches/switch_chaceon_shrd` builds them (`gfortran -E` gives that text), with MetOcean's
 //! `USTAR` floors. The bits are the reference's (`rust/port_report/W3SRCE.md`).
 //!
+//! `SrceParams::btopt` picks the bottom friction the build's switch picks: `BT1` calls `W3SBT1`,
+//! `BT4` calls `W3SBT4` (`w3srcemd.F90:1336-1342`), which also sets `TAUBBL` and `BEDFORM`.
+//!
 //! `W3SDB1` holds `f64` on the device: `docs/FLOAT_REPRESENTATION_202610.md`. One call of `W3SRCE`
 //! keeps no state, so a device runs one invocation per sea point.
 #![allow(clippy::assign_op_pattern, unused_assignments)] // `x = x + y` keeps the Fortran line; its macros set every output.
 
 use crate::constants::{DWAT, GRAV, TPI, TPIINV};
 use crate::real::{Dbl, Real};
+use crate::sbt4::{Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use crate::sds4::{self, Sds4Params, Sds4Point, w3sds4};
 use crate::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use crate::snl1::{self, Snl1Params, w3snl1};
@@ -18,6 +22,9 @@ use ww3_libm::{expf, logf, sincosf, sqrtf, tanhf};
 
 pub const SRCE_DIRECT: i32 = 0;
 pub const SRCE_IMP_POST: i32 = 1;
+/// `SrceParams::btopt`: the switch `BT1` or `BT4`.
+pub const SRCE_BT1: i32 = 1;
+pub const SRCE_BT4: i32 = 4;
 
 /// Scalars of `W3GDATMD` that `W3SRCE` and its three small routines read. Shared with the device.
 #[repr(C)]
@@ -54,6 +61,10 @@ pub struct SrceParams {
     pub sds: Sds4Params,
     pub sin: Sin4Params,
     pub spr: Spr4Params,
+    /// `SRCE_BT1` or `SRCE_BT4`.
+    pub btopt: i32,
+    /// Read with `BT4` only.
+    pub sbt4: Sbt4Params,
 }
 
 /// The tables, read-only, one set for the grid.
@@ -81,6 +92,8 @@ pub struct SrceTables<'a> {
     pub tauhft: &'a [Real],
     pub tauhft2: &'a [Real],
     pub taut: &'a [Real],
+    /// `ERFTABLE(0:300)` of `W3SBT4MD`, read with `BT4` only.
+    pub erftable: &'a [Real],
 }
 
 /// The inputs of one call.
@@ -98,6 +111,9 @@ pub struct SrcePoint {
     pub dtg: Real,
     pub dair: Real,
     pub coef: Real,
+    /// `D50` and `PSIC`, read with `BT4` only.
+    pub d50: Real,
+    pub psic: Real,
 }
 
 /// What one call returns besides `SPEC` and `WHITECAP`.
@@ -159,6 +175,8 @@ pub struct SrceWork<'a> {
     pub whitecap: &'a mut [Real],
     pub sin_out: &'a mut [Sin4Out],
     pub spr_out: &'a mut [Spr4Out],
+    /// `BEDFORM(3)` per point: state, intent `INOUT`, which `BT4` overwrites and `BT1` leaves alone.
+    pub bedform: &'a mut [Real],
 }
 
 /// Length per point of `SrceWork::w_small`.
@@ -455,7 +473,7 @@ pub fn w3srce(
     let mut phibbl: Real = 0.;
     let (mut tauwix, mut tauwiy, mut tauwnx, mut tauwny): (Real, Real, Real, Real) = (0., 0., 0., 0.);
     let (mut tauwax, mut tauway): (Real, Real) = (0., 0.);
-    let (taubbl1, taubbl2): (Real, Real) = (0., 0.);
+    let (mut taubbl1, mut taubbl2): (Real, Real) = (0., 0.);
     let (mut tauice1, mut tauice2, mut phice): (Real, Real, Real) = (0., 0., 0.);
     let (mut tauwx, mut tauwy): (Real, Real) = (0., 0.);
     let (mut ustar, mut ustdir) = (pt.ustar, pt.ustdir);
@@ -542,9 +560,21 @@ pub fn w3srce(
             &mut *w.whitecap, &mut *w.w_sds, &mut *w.iw_sds, so, ko, wo, o_sds, o_ids,
         );
         w3sdb1(p, &*spec, depth, emean, fmean, wnmean, &mut *w.vsdb, &mut *w.vddb, so);
-        w3sbt1(
-            p, t.sig, &*spec, cg1, wn1, depth, &mut *w.vsbt, &mut *w.vdbt, &mut *w.w_small, so, ko, o_bt,
-        );
+        if p.btopt == SRCE_BT4 {
+            // TAUBBL is overwritten on every pass; the last one is what W3SRCE divides by DTG.
+            let bt = Sbt4Tables { sig: t.sig, dden: t.dden, ecos: t.ecos, esin: t.esin, fwtable: t.fwtable, erftable: t.erftable };
+            let bq = Sbt4Point { depth, d50: pt.d50, psic: pt.psic };
+            let r = w3sbt4(
+                &p.sbt4, &bt, &*spec, cg1, wn1, &bq, &mut *w.bedform, &mut *w.vsbt, &mut *w.vdbt, &mut *w.w_small,
+                so, ko, o_bt, point * 3,
+            );
+            taubbl1 = r.taubbl[0];
+            taubbl2 = r.taubbl[1];
+        } else {
+            w3sbt1(
+                p, t.sig, &*spec, cg1, wn1, depth, &mut *w.vsbt, &mut *w.vdbt, &mut *w.w_small, so, ko, o_bt,
+            );
+        }
 
         let nkh = nk.min((p.facti2 + p.facti1 * logf(fhigh.max(1.0e-7))) as i32);
         let nkh1 = nk.min(nkh + 1);
