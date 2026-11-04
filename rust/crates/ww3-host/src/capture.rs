@@ -971,3 +971,395 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3SIN6` call of `regtests/capture/sin6.py`: its inputs and the reference's outputs.
+pub struct Sin6Call {
+    pub point: ww3_kernels::sin6::Sin6Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn2: Vec<f32>,
+    pub out: ww3_kernels::sin6::Sin6Out,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SIN6` capture: what the module reads from `W3GDATMD`, then the calls.
+pub struct Sin6Capture {
+    pub params: ww3_kernels::sin6::Sin6Params,
+    pub sig2: Vec<f32>,
+    pub dden2: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub calls: Vec<Sin6Call>,
+}
+
+impl Sin6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIN6", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(4);
+        let (sig2, dden2) = (r.table_r().data, r.table_r().data);
+        let (ecos, esin) = (r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (h[0] as usize, h[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(5);
+            let point = ww3_kernels::sin6::Sin6Point { uabs: v[0], ustar: v[1], usdir: v[2], cd: v[3], dair: v[4] };
+            let (a, cg, wn2) = (r.reals(nspec), r.reals(nk), r.reals(nspec));
+            let o = r.reals(4);
+            let out = ww3_kernels::sin6::Sin6Out { tauwx: o[0], tauwy: o[1], tauwnx: o[2], tauwny: o[3], iters: 0, reach: 0 };
+            let (s, d) = (r.reals(nspec), r.reals(nspec));
+            calls.push(Sin6Call { point, a, cg, wn2, out, s, d });
+        }
+        let params = ww3_kernels::sin6::Sin6Params {
+            nk: h[0],
+            nth: h[1],
+            nspec: h[2],
+            dth: f[0],
+            xfr: f[1],
+            sin6a0: f[2],
+            sin6ws: f[3],
+        };
+        Sin6Capture { params, sig2, dden2, ecos, esin, calls }
+    }
+}
+
+/// One `W3SDS6` call of `regtests/capture/sds6.py`: its inputs and the reference's outputs.
+pub struct Sds6Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SDS6` capture: the scalars, `SIG2(NSPEC)` and `DSII(NK)` once, then the calls.
+pub struct Sds6Capture {
+    pub params: ww3_kernels::sds6::Sds6Params,
+    pub sig2: Vec<f32>,
+    pub dsii: Vec<f32>,
+    pub calls: Vec<Sds6Call>,
+}
+
+impl Sds6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS6", "{path}");
+        let h = r.ints(5);
+        let f = r.reals(4);
+        let sig2_n = r.ints(2)[1] as usize;
+        let sig2 = r.reals(sig2_n);
+        let dsii_n = r.ints(2)[1] as usize;
+        let dsii = r.reals(dsii_n);
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        assert!(sig2.len() >= ns && dsii.len() >= nk, "{path}: tables");
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(ns), r.reals(nk), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sds6Call { a, cg, wn, s, d });
+        }
+        let params = ww3_kernels::sds6::Sds6Params {
+            nk: h[0],
+            nth: h[1],
+            sds6et: h[2],
+            sds6p1: h[3],
+            sds6p2: h[4],
+            sds6a1: f[0],
+            sds6a2: f[1],
+            dth: f[2],
+            xfr: f[3],
+        };
+        Sds6Capture { params, sig2, dsii, calls }
+    }
+}
+
+/// One `W3FLX2` call of `regtests/capture/flx2.py`: its inputs and the reference's results.
+pub struct Flx2Call {
+    pub input: ww3_kernels::flx2::Flx2In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX2` capture: the grid's `NITTIN` and `CINXSI`, `W3DISPMD`'s `DSIE`, `N1MAX` and `EWN1`, then calls.
+pub struct Flx2Capture {
+    pub params: ww3_kernels::flx2::Flx2Params,
+    pub ewn1: Vec<f32>,
+    pub calls: Vec<Flx2Call>,
+}
+
+impl Flx2Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX2", "{path}");
+        let nittin = r.ints(1)[0];
+        let real = r.reals(2);
+        let n1max = r.ints(1)[0];
+        let ewn1 = r.reals(ww3_kernels::flx2::EWN1_LEN);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(10);
+            calls.push(Flx2Call {
+                input: ww3_kernels::flx2::Flx2In { zwind: v[0], depth: v[1], fp: v[2], u: v[3], udir: v[4], ust: v[5] },
+                out: [v[6], v[7], v[8], v[9]],
+            });
+        }
+        let params = ww3_kernels::flx2::Flx2Params { nittin, n1max, cinxsi: real[0], dsie: real[1] };
+        Flx2Capture { params, ewn1, calls }
+    }
+}
+
+/// One `W3FLX4` call of `regtests/capture/flx4.py`: its inputs and the reference's results.
+pub struct Flx4Call {
+    pub input: ww3_kernels::flx4::Flx4In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX4` capture.
+pub struct Flx4Capture {
+    pub calls: Vec<Flx4Call>,
+}
+
+impl Flx4Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX4", "{path}");
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(8);
+            calls.push(Flx4Call {
+                input: ww3_kernels::flx4::Flx4In { zwnd: v[0], u10: v[1], u10d: v[2], flx4a0: v[3] },
+                out: [v[4], v[5], v[6], v[7]],
+            });
+        }
+        Flx4Capture { calls }
+    }
+}
+
+/// One `W3SPR2` call of `regtests/capture/spr2.py`: its inputs and the reference's outputs.
+pub struct Spr2Call {
+    pub point: ww3_kernels::spr2::Spr2Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub out: ww3_kernels::spr2::Spr2Out,
+    pub alfa: Vec<f32>,
+}
+
+/// A `W3SPR2` capture from a build with ST2.
+pub struct Spr2Capture {
+    pub params: ww3_kernels::spr2::Spr2Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Spr2Call>,
+}
+
+impl Spr2Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR2", "{path}");
+        let i = r.ints(3);
+        let f = r.reals(4);
+        let (sig, dden) = (r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let s = r.reals(4);
+            let point = ww3_kernels::spr2::Spr2Point { depth: s[0], fpi: s[1], u: s[2], ustar: s[3] };
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let o = r.reals(5);
+            let out = ww3_kernels::spr2::Spr2Out { emean: o[0], fmean: o[1], wnmean: o[2], amax: o[3], fp: o[4] };
+            let alfa = r.reals(nk);
+            calls.push(Spr2Call { point, a, cg, wn, out, alfa });
+        }
+        let params = ww3_kernels::spr2::Spr2Params { nk: i[0], nth: i[1], dth: f[0], fte: f[1], ftf: f[2], ftwn: f[3] };
+        Spr2Capture { params, sig, dden, calls }
+    }
+}
+
+/// One `W3SWL6` call of `regtests/capture/swl6.py`: its inputs and the reference's outputs.
+pub struct Swl6Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SWL6` capture. `sig` is `SIG(1:NK)` and `dden` is `DDEN(1:NK)`.
+pub struct Swl6Capture {
+    pub params: ww3_kernels::swl6::Swl6Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Swl6Call>,
+}
+
+impl Swl6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SWL6", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(2);
+        let sig_full = r.table_r().data;
+        let dden = r.table_r().data;
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        // `SIG(0:NK+1)`: the first entry is `SIG(0)`.
+        let sig = sig_full[1..=nk].to_vec();
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(ns), r.reals(nk), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Swl6Call { a, cg, wn, s, d });
+        }
+        let params = ww3_kernels::swl6::Swl6Params { nk: h[0], nth: h[1], dth: f[0], swl6b1: f[1], swl6cstb1: h[2] };
+        Swl6Capture { params, sig, dden, calls }
+    }
+}
+
+/// One `W3SDS2` call of `regtests/capture/sds2.py`: its inputs and the reference's outputs.
+pub struct Sds2Call {
+    pub point: ww3_kernels::sds2::Sds2Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub k: Vec<f32>,
+    pub alfa: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SDS2` capture: the scalars of `W3GDATMD`, `SIG(0:NK+1)` and `DDEN(NK)`, then the calls.
+pub struct Sds2Capture {
+    pub params: ww3_kernels::sds2::Sds2Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Sds2Call>,
+}
+
+impl Sds2Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS2", "{path}");
+        let h = r.ints(2);
+        let f = r.reals(16);
+        let (sig, dden) = (r.table_r().data, r.table_r().data);
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(2);
+            let (a, cg, k, alfa) = (r.reals(ns), r.reals(nk), r.reals(nk), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sds2Call {
+                point: ww3_kernels::sds2::Sds2Point { fpi: v[0], ustar: v[1] },
+                a,
+                cg,
+                k,
+                alfa,
+                s,
+                d,
+            });
+        }
+        let params = ww3_kernels::sds2::Sds2Params {
+            nk: h[0],
+            nth: h[1],
+            fte: f[0],
+            dth: f[1],
+            fpimin: f[2],
+            facti1: f[3],
+            facti2: f[4],
+            xfh: f[5],
+            xf1: f[6],
+            xf2: f[7],
+            sdsaln: f[8],
+            cdsa0: f[9],
+            cdsa1: f[10],
+            cdsa2: f[11],
+            cdsb0: f[12],
+            cdsb1: f[13],
+            cdsb2: f[14],
+            cdsb3: f[15],
+        };
+        Sds2Capture { params, sig, dden, calls }
+    }
+}
+
+/// One `W3SPR6` call of `regtests/capture/spr6.py`: its inputs and the reference's outputs.
+pub struct Spr6Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub out: ww3_kernels::spr6::Spr6Out,
+}
+
+/// A `W3SPR6` capture from a build with ST6.
+pub struct Spr6Capture {
+    pub params: ww3_kernels::spr6::Spr6Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub dsii: Vec<f32>,
+    pub calls: Vec<Spr6Call>,
+}
+
+impl Spr6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR6", "{path}");
+        let i = r.ints(3);
+        let f = r.reals(4);
+        let (sig, dden, dsii) = (r.table_r().data, r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let o = r.reals(5);
+            let out = ww3_kernels::spr6::Spr6Out { emean: o[0], fmean: o[1], wnmean: o[2], amax: o[3], fp: o[4] };
+            calls.push(Spr6Call { a, cg, wn, out });
+        }
+        let params =
+            ww3_kernels::spr6::Spr6Params { nk: i[0], nth: i[1], dth: f[0], fte: f[1], ftf: f[2], ftwn: f[3] };
+        Spr6Capture { params, sig, dden, dsii, calls }
+    }
+}
+
+/// One `W3FLX3` call of `regtests/capture/flx3.py`: its inputs and the reference's results.
+pub struct Flx3Call {
+    pub input: ww3_kernels::flx3::Flx3In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX3` capture: what the routine reads from `W3GDATMD` and `W3DISPMD`, then the calls.
+pub struct Flx3Capture {
+    pub params: ww3_kernels::flx3::Flx3Params,
+    /// `EWN1(0:121)`.
+    pub ewn1: Vec<f32>,
+    pub calls: Vec<Flx3Call>,
+}
+
+impl Flx3Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX3", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(3);
+        let ewn1 = r.reals(122);
+        let params = ww3_kernels::flx3::Flx3Params {
+            nittin: h[0],
+            cap_id: h[1],
+            n1max: h[2],
+            cinxsi: f[0],
+            cd_max: f[1],
+            dsie: f[2],
+        };
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(10);
+            calls.push(Flx3Call {
+                input: ww3_kernels::flx3::Flx3In { zwind: v[0], depth: v[1], fp: v[2], u: v[3], udir: v[4], ust: v[5] },
+                out: [v[6], v[7], v[8], v[9]],
+            });
+        }
+        Flx3Capture { params, ewn1, calls }
+    }
+}

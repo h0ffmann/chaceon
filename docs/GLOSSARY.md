@@ -120,3 +120,24 @@
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
 | `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
 | `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| `LFACTOR` | `W3SRC6MD`'s iteration that finds the reduction of `W3SIN6`'s wind input so that the stress it carries does not exceed the total stress |
+| `TAU_WAVE_ATMOS` | `W3SRC6MD`'s stress from the waves to the atmosphere, from the negative part of `W3SIN6`'s input |
+| `TAUWINDS` | `W3SRC6MD`'s stress `GRAV*DWAT*SUM(S/C*DSII)` of a wind input spectrum |
+| `W3SDS6`, `SDS6` | ST6's whitecapping dissipation, an inherent term T1 plus a cumulative term T2 (Babanin et al. 2010; Rogers et al. 2012), `w3src6md.F90`; `SDSET`, `SDSA1`, `SDSA2`, `SDSP1`, `SDSP2` set it in `&SDS6` |
+| `__powisf2` | libgcc's `REAL**INTEGER` with a run-time exponent, a chain of squarings; gfortran calls it at `-O3` |
+| `W3SIN2`, `SIN2` | ST2's wind input (`w3src2md.F90`): the growth rate of each bin is read from an interpolation table of the wave age and the drag, with a filter that damps negative input (swell); `&SIN2` sets `ZWND` and `SWELLF` |
+| `INPTAB`, `W3BETA`, `BETATB` | ST2's table of the wind-wave interaction parameter against the nondimensional frequency `OMA` and the drag, and the function that fills it |
+| FLX2 | WW3 switch: stress of Tolman and Chalikov (1996) with the drag depending on the peak frequency, `W3FLX2`; iterates `UST` `NITTIN` times with `ALPHA = 0.57*(CP/UST)**-1.5` |
+| FLX4 | WW3 switch: drag coefficient as a quadratic in the 10 m speed (Hwang 2011), `W3FLX4`, scaled by the namelist `&FLX4 CDFAC` (module variable `FLX4A0`); capped for `U10 >= 50.33` m/s |
+| ST2 | WW3 switch: Tolman and Chalikov (1996) source terms, `W3SIN2`, `W3SDS2`, `W3SPR2`, with the stress from a flux routine such as `W3FLX2` |
+| `W3SPR2` | ST2's mean wave parameters: energy, mean frequency, mean wavenumber, maximum, Phillips' constant per band `ALFA` and the peak frequency `FP` estimated from `FPI` |
+| `W3SWL6`, `SWL6` | ST6's turbulent dissipation of narrow-banded swell (Babanin 2011, section 7.5), `w3swldmd.F90`; `&SWL6 SWLB1, CSTB1` set it, and it runs when `SWLB1 > 0` (`SWL6S6`) |
+| `IRANGE` | The helper of `w3swldmd.F90` (and a copy in `w3src6md.F90`) that builds the index vector `X0, X0+DX, ...` for array addressing |
+| `SWL6CSTB1` | Namelist `CSTB1`: true keeps `SWLB1` as the constant `B1` of `W3SWL6`, false scales it with the steepness at the spectral peak |
+| `W3SDS2`, `SDS2` | Whitecapping dissipation of switch `ST2`, the Tolman and Chalikov (1996) source terms (`w3src2md.F90:582`): a diagonal `D` from a turbulent-scale term and a Phillips-constant term, blended by a frequency filter; `&SDS2` sets `SDSA0`, `SDSA1`, `SDSA2`, `SDSB0`, `SDSB1`, `PHIMIN` |
+| `FPI` | In `ST2`, the "peak frequency" of the input (rad/s), from `W3SPR2` |
+| `HW` | In `W3SDS2`, 4 times the square root of the energy above `XFH*FPI` (a significant wave height of that part), which sets the turbulent length scale |
+| ST6 | WW3 switch: observation-based source terms (Donelan et al. 2006, Babanin 2011, Rogers et al. 2012): wind input `W3SIN6`, dissipation `W3SDS6`, mean parameters `W3SPR6` |
+| `W3SPR6` | ST6's mean wave parameters (energy, mean frequency, mean wavenumber, maximum) and the peak frequency from Young's weighted integral |
+| FLX3 | WW3 switch: Tolman and Chalikov (1996) stress with a cap on the drag coefficient, `W3FLX3`: `CD_MAX` and `CAP_ID` (0 a minimum, 1 a hyperbolic tangent) |
+| `EWN1` | `W3DISPMD`'s table of wavenumbers for `SI*SQRT(DEPTH)` on a grid of `DSIE`, built by `DISTAB`, which the inlined `WAVNU1` of `W3FLX3` reads |

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|flx4|sin1|sds1|sds6|sin2|spr2|swl6|sds2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -667,6 +667,53 @@ fn sds3_run(code: &[u8], path: &str) -> bool {
     compare("S", &out[4], &rs) & compare("D", &out[5], &rd)
 }
 
+/// `W3SDS6` on every captured call: one thread per call, with a scratch range of four `NK` each.
+fn sds6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Sds6Call, Sds6Capture};
+    let c = Sds6Capture::read(path);
+    let p = c.params;
+    let (nk, nspec) = (p.nk as usize, (p.nk * p.nth) as usize);
+    let points = c.calls.len();
+    let cat = |f: fn(&Sds6Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, wn, rs, rd) = (cat(|k| &k.a), cat(|k| &k.cg), cat(|k| &k.wn), cat(|k| &k.s), cat(|k| &k.d));
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dsii)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * 4 * nk * 4),
+    ];
+    let out = dispatch(code, c"sds6", &slots, points);
+    compare("S", &out[6], &rs) & compare("D", &out[7], &rd)
+}
+
+/// `W3SWL6` on every captured call.
+fn swl6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Swl6Call, Swl6Capture};
+    let c = Swl6Capture::read(path);
+    let p = c.params;
+    let nspec = (p.nk * p.nth) as usize;
+    let points = c.calls.len();
+    let cat = |f: fn(&Swl6Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, wn, rs, rd) = (cat(|k| &k.a), cat(|k| &k.cg), cat(|k| &k.wn), cat(|k| &k.s), cat(|k| &k.d));
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+    ];
+    let out = dispatch(code, c"swl6", &slots, points);
+    compare("S", &out[6], &rs) & compare("D", &out[7], &rd)
+}
+
 /// `W3FLX1` on every captured call: one point per call, `Flx1Out` records back.
 fn flx1_run(code: &[u8], path: &str) -> bool {
     use ww3_kernels::flx1::Flx1Out;
@@ -676,6 +723,27 @@ fn flx1_run(code: &[u8], path: &str) -> bool {
     let slots = [Slot::In(bytes(&ins)), Slot::Out(points * size_of::<Flx1Out>())];
     let out = dispatch(code, c"flx1", &slots, points);
     let recs: Vec<&[u8]> = out[1].chunks_exact(size_of::<Flx1Out>()).collect();
+    let mut ok = true;
+    for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
+        let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
+        let theirs: Vec<f32> = c.calls.iter().map(|k| k.out[j]).collect();
+        ok &= compare(name, &ours, &theirs);
+    }
+    let err: u32 = recs.iter().map(|r| u32::from_le_bytes(r[16..20].try_into().unwrap())).sum();
+    println!("ZWND != 10 {err:>7} calls");
+    ok & (err == 0)
+}
+
+/// `W3FLX4` on every captured call: one point per call, `Flx4Out` records back.
+fn flx4_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::Flx4Capture;
+    use ww3_kernels::flx4::Flx4Out;
+    let c = Flx4Capture::read(path);
+    let points = c.calls.len();
+    let ins: Vec<_> = c.calls.iter().map(|k| k.input).collect();
+    let slots = [Slot::In(bytes(&ins)), Slot::Out(points * size_of::<Flx4Out>())];
+    let out = dispatch(code, c"flx4", &slots, points);
+    let recs: Vec<&[u8]> = out[1].chunks_exact(size_of::<Flx4Out>()).collect();
     let mut ok = true;
     for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
         let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
@@ -805,6 +873,83 @@ fn libm_run(code: &[u8], n: &str) -> bool {
     ok
 }
 
+/// `W3FLX2` on every captured call: the grid's parameters, `EWN1`, one point per call, `Flx2Out` records back.
+fn flx2_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::Flx2Capture;
+    use ww3_kernels::flx2::Flx2Out;
+    let c = Flx2Capture::read(path);
+    let points = c.calls.len();
+    let ins: Vec<_> = c.calls.iter().map(|k| k.input).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.ewn1)),
+        Slot::In(bytes(&ins)),
+        Slot::Out(points * size_of::<Flx2Out>()),
+    ];
+    let out = dispatch(code, c"flx2", &slots, points);
+    let recs: Vec<&[u8]> = out[3].chunks_exact(size_of::<Flx2Out>()).collect();
+    let mut ok = true;
+    for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
+        let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
+        let theirs: Vec<f32> = c.calls.iter().map(|k| k.out[j]).collect();
+        ok &= compare(name, &ours, &theirs);
+    }
+    ok
+}
+
+/// `W3SPR2` on every captured call (ST2 build): the five scalars, then `ALFA(NK)`.
+fn spr2_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Spr2Call, Spr2Capture};
+    let c = Spr2Capture::read(path);
+    let points = c.calls.len();
+    let nk = c.params.nk as usize;
+    let cat = |f: fn(&Spr2Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, wn, ra) = (cat(|x| &x.a), cat(|x| &x.cg), cat(|x| &x.wn), cat(|x| &x.alfa));
+    let ro: Vec<f32> = c.calls.iter().flat_map(|x| [x.out.emean, x.out.fmean, x.out.wnmean, x.out.amax, x.out.fp]).collect();
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nk * 4),
+        Slot::Out(points * nk * 4),
+        Slot::Out(points * size_of::<ww3_kernels::spr2::Spr2Out>()),
+    ];
+    let out = dispatch(code, c"spr2", &slots, points);
+    let ok_s = compare("W3SPR2", &out[9], &ro);
+    let ok_a = compare("W3SPR2 ALFA", &out[8], &ra);
+    ok_s && ok_a
+}
+
+/// `W3FLX3` on every captured call, with the module tables as the reference left them.
+fn flx3_run(code: &[u8], path: &str) -> bool {
+    use ww3_kernels::flx3::Flx3Out;
+    let c = ww3_host::capture::Flx3Capture::read(path);
+    let points = c.calls.len();
+    let ins: Vec<_> = c.calls.iter().map(|k| k.input).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.ewn1)),
+        Slot::In(bytes(&ins)),
+        Slot::Out(points * size_of::<Flx3Out>()),
+    ];
+    let out = dispatch(code, c"flx3", &slots, points);
+    let recs: Vec<&[u8]> = out[3].chunks_exact(size_of::<Flx3Out>()).collect();
+    let mut ok = true;
+    for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
+        let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
+        let theirs: Vec<f32> = c.calls.iter().map(|k| k.out[j]).collect();
+        ok &= compare(name, &ours, &theirs);
+    }
+    ok
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let (spv, kernel, path) =
@@ -817,6 +962,7 @@ fn main() {
         "spr4" => spr4_run(&code, &path),
         "spr3" => spr3_run(&code, &path),
         "spr1" => spr1_run(&code, &path),
+        "spr6" => spr6_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
         "sin3" => sin3_run(&code, &path),
@@ -824,11 +970,145 @@ fn main() {
         "sis1" => sis1_run(&code, &path),
         "sds3" => sds3_run(&code, &path),
         "flx1" => flx1_run(&code, &path),
+        "flx4" => flx4_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
+        "sds6" => sds6_run(&code, &path),
+        "sin2" => sin2_run(&code, &path),
+        "flx2" => flx2_run(&code, &path),
+        "spr2" => spr2_run(&code, &path),
+        "swl6" => swl6_run(&code, &path),
+        "sds2" => sds2_run(&code, &path),
+        "flx3" => flx3_run(&code, &path),
         "libm" => libm_run(&code, &path),
+        "sin6" => sin6_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });
     std::process::exit(!ok as i32);
+}
+
+/// `W3SIN6` on every captured call, with the module tables as the reference left them.
+fn sin6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Sin6Call, Sin6Capture};
+    use ww3_kernels::sin6::{Sin6Out, nk10hz, work_len};
+    let c = Sin6Capture::read(path);
+    let p = c.params;
+    let (nk, nspec) = (p.nk as usize, p.nspec as usize);
+    let points = c.calls.len();
+    let wl = work_len(nk, nspec, nk10hz(p.nk, c.sig2[0], p.xfr) as usize);
+    let concat = |f: fn(&Sin6Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, wn2) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.wn2));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd) = (concat(|x| &x.s), concat(|x| &x.d));
+    let ro: Vec<f32> =
+        c.calls.iter().flat_map(|x| [x.out.tauwx, x.out.tauwy, x.out.tauwnx, x.out.tauwny]).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dden2)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn2)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * wl * 4),
+        Slot::Out(points * size_of::<Sin6Out>()),
+    ];
+    let out = dispatch(code, c"sin6", &slots, points);
+    // The four stresses out of the Sin6Out records; `iters` and `reach` follow them.
+    let tau: Vec<u8> = out[12].chunks_exact(size_of::<Sin6Out>()).flat_map(|r| r[..16].iter().copied()).collect();
+    compare("S", &out[9], &rs) & compare("D", &out[10], &rd) & compare("TAUW", &tau, &ro)
+}
+
+/// `W3SIN2` on every captured call, with `BETATB` as the reference left it.
+fn sin2_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture_sin2::{Sin2Call, Sin2Capture};
+    use ww3_kernels::sin2::Sin2Out;
+    let c = Sin2Capture::read(path);
+    let p = c.params;
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let concat = |f: fn(&Sin2Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, k) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.k));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd) = (concat(|x| &x.s), concat(|x| &x.d));
+    let rf: Vec<f32> = c.calls.iter().map(|x| x.fpi).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.betatb)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * size_of::<Sin2Out>()),
+    ];
+    let out = dispatch(code, c"sin2", &slots, points);
+    // `FPI` is the first value of each `Sin2Out` record; `reach` follows it.
+    let fpi: Vec<u8> = out[13].chunks_exact(size_of::<Sin2Out>()).flat_map(|r| r[..4].iter().copied()).collect();
+    compare("S", &out[11], &rs) & compare("D", &out[12], &rd) & compare("FPI", &fpi, &rf)
+}
+
+/// `W3SDS2` on every captured call.
+fn sds2_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Sds2Call, Sds2Capture};
+    let c = Sds2Capture::read(path);
+    let p = c.params;
+    let nspec = (p.nk * p.nth) as usize;
+    let points = c.calls.len();
+    let cat = |f: fn(&Sds2Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, k, al) = (cat(|x| &x.a), cat(|x| &x.cg), cat(|x| &x.k), cat(|x| &x.alfa));
+    let (rs, rd) = (cat(|x| &x.s), cat(|x| &x.d));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&al)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+    ];
+    let out = dispatch(code, c"sds2", &slots, points);
+    compare("S", &out[8], &rs) & compare("D", &out[9], &rd)
+}
+
+/// `W3SPR6` on every captured call (ST6 build).
+fn spr6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Spr6Call, Spr6Capture};
+    let c = Spr6Capture::read(path);
+    let points = c.calls.len();
+    let cat = |f: fn(&Spr6Call) -> &Vec<f32>| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, wn) = (cat(|x| &x.a), cat(|x| &x.cg), cat(|x| &x.wn));
+    let ro: Vec<f32> = c.calls.iter().flat_map(|x| [x.out.emean, x.out.fmean, x.out.wnmean, x.out.amax, x.out.fp]).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.dsii)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::Out(points * c.params.nk as usize * 4),
+        Slot::Out(points * 20),
+    ];
+    let out = dispatch(code, c"spr6", &slots, points);
+    compare("W3SPR6", &out[8], &ro)
 }

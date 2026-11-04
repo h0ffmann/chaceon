@@ -7,12 +7,15 @@ use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
+use ww3_kernels::flx2::{Flx2In, Flx2Out, Flx2Params, w3flx2};
+use ww3_kernels::flx4::{Flx4In, Flx4Out, w3flx4};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sds6::{Sds6Params, w3sds6};
 use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
@@ -732,4 +735,294 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
     let (s, d) =
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
+}
+
+/// `W3SIN6`, with `LFACTOR`, `TAU_WAVE_ATMOS`, `IRANGE` and `TAUWINDS`. `work` holds `work_len` values per point.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin6(
+    p: &ww3_kernels::sin6::Sin6Params,
+    sig2: &[Real],
+    dden2: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn2: &[Real],
+    points: &[ww3_kernels::sin6::Sin6Point],
+    s: *mut Real,
+    d: *mut Real,
+    work: *mut Real,
+    out: *mut ww3_kernels::sin6::Sin6Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let (nk, nspec) = (p.nk as usize, p.nspec as usize);
+    let wl = ww3_kernels::sin6::work_len(nk, nspec, ww3_kernels::sin6::nk10hz(p.nk, sig2[0], p.xfr) as usize);
+    let (s, d, work, out) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(work, n * wl),
+            core::slice::from_raw_parts_mut(out, n),
+        )
+    };
+    ww3_kernels::sin6::w3sin6(
+        p, sig2, dden2, ecos, esin, a, cg, wn2, &points[point], s, d, work, out, point * nspec, point * nk, point * wl,
+        point,
+    );
+}
+
+/// `W3SDS6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` `NSPEC`, `w` four `NK` of scratch.
+///
+/// # Safety
+/// The output buffers hold `cg.len() / NK` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds6(
+    p: &Sds6Params,
+    sig2: &[Real],
+    dsii: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    s: *mut Real,
+    d: *mut Real,
+    w: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    let nk = p.nk as usize;
+    let n = cg.len() / nk;
+    if point >= n {
+        return;
+    }
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d, w) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(w, n * 4 * nk),
+        )
+    };
+    w3sds6(p, sig2, dsii, a, cg, wn, s, d, w, point * nspec, point * nk, point * 4 * nk);
+}
+
+use ww3_kernels::sin2::{Sin2Out, Sin2Params, Sin2Point, w3sin2};
+
+/// `W3SIN2`. `BETATB` is `INPTAB`'s table, built on the host.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin2(
+    p: &Sin2Params,
+    sig: &[Real],
+    sig2: &[Real],
+    dden: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    betatb: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    k: &[Real],
+    points: &[Sin2Point],
+    s: *mut Real,
+    d: *mut Real,
+    out: *mut Sin2Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nspec = p.nspec as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d, out) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(out, n),
+        )
+    };
+    w3sin2(
+        p, sig, sig2, dden, ecos, esin, betatb, a, cg, k, &points[point], s, d, out, point * nspec,
+        point * p.nk as usize, point,
+    );
+}
+
+/// `W3FLX2`, one point per thread. `ewn1` is `W3DISPMD`'s `EWN1(0:NAR1D)`.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx2(p: &Flx2Params, ewn1: &[Real], points: &[Flx2In], out: *mut Flx2Out) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = w3flx2(p, ewn1, &points[point]) };
+}
+
+/// `W3FLX4`, one point per thread.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx4(points: &[Flx4In], out: *mut Flx4Out) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = w3flx4(&points[point]) };
+}
+
+/// `W3SPR2`. `eb` and `alfa` hold `NK` values per point; `a` holds `NSPEC`, `cg` and `wn` `NK`.
+///
+/// # Safety
+/// `eb`, `alfa` and `out` hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr2(
+    p: &ww3_kernels::spr2::Spr2Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    points: &[ww3_kernels::spr2::Spr2Point],
+    eb: *mut Real,
+    alfa: *mut Real,
+    out: *mut ww3_kernels::spr2::Spr2Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let nk = p.nk as usize;
+    let n = points.len();
+    let (eb, alfa) = unsafe {
+        (core::slice::from_raw_parts_mut(eb, n * nk), core::slice::from_raw_parts_mut(alfa, n * nk))
+    };
+    let o = ww3_kernels::spr2::w3spr2(
+        p, sig, dden, a, cg, wn, &points[point], eb, alfa, point * nk * p.nth as usize, point * nk, point * nk,
+    );
+    unsafe { *out.add(point) = o };
+}
+
+/// `W3SWL6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` hold `NSPEC`; `sig` and `dden` are
+/// `SIG(1:NK)` and `DDEN(1:NK)`.
+///
+/// # Safety
+/// The output buffers hold `n` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn swl6(
+    p: &ww3_kernels::swl6::Swl6Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    n: usize,
+    s: *mut Real,
+    d: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= n {
+        return;
+    }
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) =
+        unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
+    ww3_kernels::swl6::w3swl6(p, sig, dden, a, cg, wn, s, d, point * nspec, point * nk);
+}
+
+/// `W3SDS2`. `cg`, `k` and `alfa` hold `NK` per point; `sig` is `SIG(0:NK+1)`, `dden` is `DDEN(NK)`.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds2(
+    p: &ww3_kernels::sds2::Sds2Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    k: &[Real],
+    alfa: &[Real],
+    points: &[ww3_kernels::sds2::Sds2Point],
+    s: *mut Real,
+    d: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) =
+        unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
+    ww3_kernels::sds2::w3sds2(p, sig, dden, &points[point], a, cg, k, alfa, s, d, point * nspec, point * nk);
+}
+
+/// `W3SPR6`. `eb` holds `NK` values per point; `a` holds `NSPEC`, `cg` and `wn` `NK`.
+///
+/// # Safety
+/// `eb` and `out` hold `n` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr6(
+    p: &ww3_kernels::spr6::Spr6Params,
+    sig: &[Real],
+    dden: &[Real],
+    dsii: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    n: u32,
+    eb: *mut Real,
+    out: *mut ww3_kernels::spr6::Spr6Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= n as usize {
+        return;
+    }
+    let nk = p.nk as usize;
+    let eb = unsafe { core::slice::from_raw_parts_mut(eb, n as usize * nk) };
+    let o = ww3_kernels::spr6::w3spr6(p, sig, dden, dsii, a, cg, wn, eb, point * nk * p.nth as usize, point * nk, point * nk);
+    unsafe { *out.add(point) = o };
+}
+
+/// `W3FLX3`, one point per thread. `ewn1` is `EWN1(0:121)`.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx3(
+    p: &ww3_kernels::flx3::Flx3Params,
+    ewn1: &[Real],
+    points: &[ww3_kernels::flx3::Flx3In],
+    out: *mut ww3_kernels::flx3::Flx3Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = ww3_kernels::flx3::w3flx3(p, ewn1, &points[point]) };
 }

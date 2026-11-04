@@ -62,6 +62,10 @@ sds3-cmp *captures:
 flx1-cmp *captures:
     bash scripts/rust_in_ref.sh flx1_cmp {{captures}}
 
+# Replays W3FLX2 calls (switch_chaceon_st2 reference), every bit
+flx2-cmp *captures:
+    bash scripts/rust_in_ref.sh flx2_cmp {{captures}}
+
 # Replays W3SPR1 calls (switch_chaceon_st1 reference), every bit
 spr1-cmp *captures:
     bash scripts/rust_in_ref.sh spr1_cmp {{captures}}
@@ -282,3 +286,43 @@ bnd-all:
 # Rust's ww3_shel on every case in work/pair, run in copies so the shared directory is not written
 bnd-regress:
     bash scripts/bnd_regress.sh
+
+# Replays W3SIN6 calls (switch_chaceon_st6 reference), every bit
+sin6-cmp *captures:
+    bash scripts/rust_in_ref.sh sin6_cmp {{captures}}
+
+# Replays W3SDS6 calls (switch_chaceon_st6 reference), every bit
+sds6-cmp *captures:
+    bash scripts/rust_in_ref.sh sds6_cmp {{captures}}
+
+# Replays W3SIN2 calls (switch_chaceon_st2 reference), every bit
+sin2-cmp *captures:
+    bash scripts/rust_in_ref.sh sin2_cmp {{captures}}
+
+# Rebuilds ST2's BETATB (INPTAB, W3BETA) and compares it with the reference's, every bit
+inptab-cmp *captures:
+    bash scripts/rust_in_ref.sh inptab_cmp {{captures}}
+
+# Replays W3FLX4 calls (switch_chaceon_st6 reference), every bit
+flx4-cmp *captures:
+    bash scripts/rust_in_ref.sh flx4_cmp {{captures}}
+
+# Replays W3SPR2 calls (switch_chaceon_st2 captures), every bit
+spr2-cmp *captures:
+    bash scripts/rust_in_ref.sh spr2_cmp {{captures}}
+
+# Replays W3SWL6 calls (switch_chaceon_st6 reference), every bit
+swl6-cmp *captures:
+    bash scripts/rust_in_ref.sh swl6_cmp {{captures}}
+
+# Replays W3SDS2 calls (switch_chaceon_st2 reference), every bit
+sds2-cmp *captures:
+    bash scripts/rust_in_ref.sh sds2_cmp {{captures}}
+
+# Replays W3SPR6 calls (switch_chaceon_st6 reference), every bit
+spr6-cmp *captures:
+    bash scripts/rust_in_ref.sh spr6_cmp {{captures}}
+
+# Replays W3FLX3 calls (switch_chaceon_st2flx3 reference), every bit
+flx3-cmp *captures:
+    bash scripts/rust_in_ref.sh flx3_cmp {{captures}}

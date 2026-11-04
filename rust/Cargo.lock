@@ -126,10 +126,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "flx2_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "flx3_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "flx4_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "glob"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
+
+[[package]]
+name = "inptab_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
 
 [[package]]
 name = "insin3_cmp"
@@ -307,6 +339,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sds2_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+ "ww3-libm",
+]
+
+[[package]]
 name = "sds3_cmp"
 version = "0.0.0"
 dependencies = [
@@ -316,6 +357,14 @@ dependencies = [
 
 [[package]]
 name = "sds4_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "sds6_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
@@ -357,7 +406,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sin2_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "sin3_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "sin6_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
@@ -418,7 +483,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "spr2_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "spr3_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "spr6_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
@@ -435,6 +516,14 @@ dependencies = [
 
 [[package]]
 name = "st4_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "swl6_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
