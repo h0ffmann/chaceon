@@ -20,3 +20,8 @@ uses it yet.
 to capture Batch 7 routines from a running reference: `ST1` with `FLX1` for `ST4` and `FLX0` (`ST1` takes its stress
 from a flux routine, as `regtests/mww3_test_05/input/switch_ST1_PR1` does); `ST3` for `ST4`, keeping `FLX0`; `IC1` and
 `IS1` for `IC0` and `IS0`. Nothing but captures uses them.
+
+`switch_chaceon_st2`, `switch_chaceon_st2flx3` and `switch_chaceon_st6` are `switch_chaceon_shrd` with one source-term
+package swapped, to capture Batch 7 routines from a running reference: `ST2` with `FLX2`, and `ST2` with `FLX3`, for
+`ST4` and `FLX0` (`ST2` takes its stress from a flux routine, as `regtests/mww3_test_05/input/switch` does); `ST6` with
+`FLX4`, as `regtests/mww3_test_05/input/switch_ST6_PR1_MPI` does. Nothing but captures uses them.
