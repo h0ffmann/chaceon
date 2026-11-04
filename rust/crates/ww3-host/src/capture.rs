@@ -565,3 +565,26 @@ impl Sbt4Capture {
         Sbt4Capture { params, sig, dden, ecos, esin, fwtable, calls }
     }
 }
+
+/// What `regtests/capture/insin3.py` records when `INSIN3` returns: its inputs from `W3GDATMD`, then
+/// the module variables it set.
+pub struct Insin3Capture {
+    pub nk: i32,
+    /// `ZZWND AALPHA BBETA ZZALP ZZ0MAX SIG(NK)`, then `DELTAUW DELU DELUST DELALP`.
+    pub reals: Vec<f32>,
+    pub taut: Vec<f32>,
+    pub tauhft: Vec<f32>,
+}
+
+impl Insin3Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"IN3 ");
+        let nk = r.ints(1)[0];
+        let reals = r.reals(10);
+        let taut = r.reals(201 * 201);
+        let tauhft = r.reals(101 * 201);
+        assert_eq!(r.p, r.b.len());
+        Self { nk, reals, taut, tauhft }
+    }
+}

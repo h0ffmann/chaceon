@@ -6,6 +6,10 @@
 | BT4 | WW3 switch: SHOWEX bottom friction over a movable sand bed (Ardhuin et al. 2003), `W3SBT4` |
 | SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |
 | `ERFTABLE` | `W3SBT4MD`'s table of `(1+erf(x))/2` on `[-4, 4]`, built by `TABU_ERF` |
+| ST3 | WW3 switch: Janssen's quasi-linear wind input after WAM cycle 4, with its dissipation: `W3SIN3`, `W3SDS3` |
+| `INSIN3` | `W3SRC3MD`'s table setup: calls `TABU_STRESS` and `TABU_TAUHF` |
+| `TAUT` | `W3SRC3MD`'s table of friction velocity against wave-supported stress and 10 m wind, built by `TABU_STRESS` |
+| `TAUHFT` | `W3SRC3MD`'s table of the high-frequency wave-supported stress against friction velocity and Charnock coefficient, built by `TABU_TAUHF` |
 | Shields parameter | Bed shear stress over the submerged weight of a grain layer; ripples form above a critical value (`PSIC`) |
 | DIA | Discrete Interaction Approximation of the nonlinear transfer; WW3's `NL1`, `W3SNL1` |
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
