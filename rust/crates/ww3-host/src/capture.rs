@@ -565,3 +565,67 @@ impl Sbt4Capture {
         Sbt4Capture { params, sig, dden, ecos, esin, fwtable, calls }
     }
 }
+
+/// One `W3SIN3` call of `regtests/capture/sin3.py`: its inputs and the reference's outputs.
+pub struct Sin3Call {
+    pub point: ww3_kernels::sin3::Sin3Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub k: Vec<f32>,
+    pub out: ww3_kernels::sin3::Sin3Out,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+    pub llws: Vec<u32>,
+}
+
+/// A `W3SIN3` capture: the module tables as `INSIN3` left them, then the calls.
+pub struct Sin3Capture {
+    pub params: ww3_kernels::sin3::Sin3Params,
+    pub sig: Vec<f32>,
+    pub sig2: Vec<f32>,
+    pub dden2: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    /// `TAUHFT(0:100,0:200)`, 101 * 201 values.
+    pub tauhft: Vec<f32>,
+    pub calls: Vec<Sin3Call>,
+}
+
+impl Sin3Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIN3", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(7);
+        let sswellf = r.table_r().data;
+        let (sig, sig2, dden2) = (r.table_r().data, r.table_r().data, r.table_r().data);
+        let (ecos, esin) = (r.table_r().data, r.table_r().data);
+        let tauhft = r.reals(101 * 201);
+        let (nk, nspec) = (h[0] as usize, h[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(4);
+            let point = ww3_kernels::sin3::Sin3Point { ustar: v[0], drat: v[1], usdir: v[2], z0: v[3] };
+            let (a, cg, k) = (r.reals(nspec), r.reals(nk), r.reals(nspec));
+            let o = r.reals(4);
+            let out = ww3_kernels::sin3::Sin3Out { tauwx: o[0], tauwy: o[1], tauwnx: o[2], tauwny: o[3], reach: 0 };
+            let (s, d) = (r.reals(nspec), r.reals(nspec));
+            let llws = r.u32s(nspec);
+            calls.push(Sin3Call { point, a, cg, k, out, s, d, llws });
+        }
+        let params = ww3_kernels::sin3::Sin3Params {
+            nk: h[0],
+            nth: h[1],
+            nspec: h[2],
+            bbeta: f[0],
+            aalpha: f[1],
+            zzalp: f[2],
+            ssinthp: f[3],
+            dth: f[4],
+            delust: f[5],
+            delalp: f[6],
+            sswellf1: sswellf[0],
+        };
+        Sin3Capture { params, sig, sig2, dden2, ecos, esin, tauhft, calls }
+    }
+}

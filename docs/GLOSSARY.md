@@ -34,6 +34,9 @@
 | `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
 | `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
+| ST3 | WW3 switch: the WAM cycle 4 source terms of Janssen (1991) with Bidlot's extensions, `W3SIN3`, `W3SDS3` |
+| WAM | The Wave Model (WAMDI Group 1988): the spectral model whose cycle 4 input term ST3 converts to WW3's action spectrum |
+| `TAUHFT` | `W3SRC3MD`'s and `W3SRC4MD`'s table of the high-frequency wave-supported stress against friction velocity and Charnock parameter, built by `TABU_TAUHF` |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |

@@ -24,5 +24,12 @@ case "$variant" in
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;
+  st3) ;;
+  st3storm) wind=30 ;;
+  st3light) wind=6 ;;
+  st3calm) wind=0 ;;
+  st3swell) sds4='&SIN3 SWELLF=1. /' ;;
+  st3tune) sds4='&SIN3 BETAMAX=1.52, SINTHP=1., ZALP=0.008, ALPHA0=0.0085, SWELLF=0.8 /' ;;
+  st3poke) poke=1; limit=500 ;;
   *) echo "unknown variant $variant" >&2; exit 64 ;;
 esac
