@@ -435,6 +435,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "spr2_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "spr3_cmp"
 version = "0.0.0"
 dependencies = [

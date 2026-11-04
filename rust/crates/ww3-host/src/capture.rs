@@ -972,6 +972,47 @@ impl Sds1Capture {
     }
 }
 
+/// One `W3SPR2` call of `regtests/capture/spr2.py`: its inputs and the reference's outputs.
+pub struct Spr2Call {
+    pub point: ww3_kernels::spr2::Spr2Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub out: ww3_kernels::spr2::Spr2Out,
+    pub alfa: Vec<f32>,
+}
+
+/// A `W3SPR2` capture from a build with ST2.
+pub struct Spr2Capture {
+    pub params: ww3_kernels::spr2::Spr2Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Spr2Call>,
+}
+
+impl Spr2Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR2", "{path}");
+        let i = r.ints(3);
+        let f = r.reals(4);
+        let (sig, dden) = (r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let s = r.reals(4);
+            let point = ww3_kernels::spr2::Spr2Point { depth: s[0], fpi: s[1], u: s[2], ustar: s[3] };
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let o = r.reals(5);
+            let out = ww3_kernels::spr2::Spr2Out { emean: o[0], fmean: o[1], wnmean: o[2], amax: o[3], fp: o[4] };
+            let alfa = r.reals(nk);
+            calls.push(Spr2Call { point, a, cg, wn, out, alfa });
+        }
+        let params = ww3_kernels::spr2::Spr2Params { nk: i[0], nth: i[1], dth: f[0], fte: f[1], ftf: f[2], ftwn: f[3] };
+        Spr2Capture { params, sig, dden, calls }
+    }
+}
+
 /// One `W3SWL6` call of `regtests/capture/swl6.py`: its inputs and the reference's outputs.
 pub struct Swl6Call {
     pub a: Vec<f32>,
