@@ -38,6 +38,46 @@ st4-cmp routine="sin4" variant="default" depth="2500":
 sbt4-cmp *captures:
     bash scripts/rust_in_ref.sh sbt4_cmp {{captures}}
 
+# Replays W3SIN3 calls (switch_chaceon_st3 reference), every bit
+sin3-cmp *captures:
+    bash scripts/rust_in_ref.sh sin3_cmp {{captures}}
+
+# Replays W3SPR3 calls (switch_chaceon_st3 reference), every bit
+spr3-cmp *captures:
+    bash scripts/rust_in_ref.sh spr3_cmp {{captures}}
+
+# Replays W3SIC1 calls (switch_chaceon_ice1 reference), every bit
+sic1-cmp *captures:
+    bash scripts/rust_in_ref.sh sic1_cmp {{captures}}
+
+# Replays W3SIS1 calls (switch_chaceon_ice1 reference), every bit
+sis1-cmp *captures:
+    bash scripts/rust_in_ref.sh sis1_cmp {{captures}}
+
+# Replays W3SDS3 calls (switch_chaceon_st3 reference), every bit
+sds3-cmp *captures:
+    bash scripts/rust_in_ref.sh sds3_cmp {{captures}}
+
+# Replays W3FLX1 calls (switch_chaceon_st1 reference), every bit
+flx1-cmp *captures:
+    bash scripts/rust_in_ref.sh flx1_cmp {{captures}}
+
+# Replays W3SPR1 calls (switch_chaceon_st1 reference), every bit
+spr1-cmp *captures:
+    bash scripts/rust_in_ref.sh spr1_cmp {{captures}}
+
+# Replays W3SIN1 calls (switch_chaceon_st1 reference), every bit; `--fault <name> <captures>` runs a fault that must differ
+sin1-cmp *captures:
+    bash scripts/rust_in_ref.sh sin1_cmp {{captures}}
+
+# Rebuilds ST3's TAUT and TAUHFT (INSIN3) and compares them with the reference's, every bit
+insin3-cmp *captures:
+    bash scripts/rust_in_ref.sh insin3_cmp {{captures}}
+
+# Replays W3SDS1 calls (switch_chaceon_st1 reference), every bit
+sds1-cmp *captures:
+    bash scripts/rust_in_ref.sh sds1_cmp {{captures}}
+
 # Host verdict: the reference and Rust run ww3_ts1, and cmp judges out_pnt.ww3
 ts1-pair variant="default" depth="2500":
     bash scripts/ts1_pair.sh {{variant}} {{depth}}

@@ -8,11 +8,19 @@ use spirv_std::spirv;
 use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
+use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
+use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
+use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
+use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
+use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
+use ww3_kernels::sis1::{Sis1Params, Sis1Point, w3sis1};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
+use ww3_kernels::spr1::{Spr1Out, Spr1Params, w3spr1};
 use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce};
 use ww3_kernels::{sds4, snl1};
 
@@ -85,6 +93,61 @@ pub fn sds4(
     );
 }
 
+/// `W3SIN3`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sin3(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sin3Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] sig2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] dden2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] ecos: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] esin: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] tauhft: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] points: &[Sin3Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 11)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 12)] d: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 13)] llws: &mut [u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 14)] out: &mut [Sin3Out],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    w3sin3(
+        p, sig, sig2, dden2, ecos, esin, tauhft, a, cg, k, &pt, s, d, llws, out, point * p.nspec as usize,
+        point * p.nk as usize, point,
+    );
+}
+
+/// `W3SIN1`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sin1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sin1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] ecos: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] esin: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] points: &[Sin1Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] d: &mut [Real],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    w3sin1(p, sig2, ecos, esin, a, k, &pt, s, d, point * p.nspec as usize);
+}
+
 #[spirv(compute(threads(64)))]
 #[allow(clippy::too_many_arguments)]
 pub fn sin4(
@@ -147,6 +210,28 @@ pub fn spr4(
         p, sig, dden, ecos, esin, taut, a, cg, wn, llws, &pt, w, out,
         point * p.nspec as usize, point * nk, point * 2 * nk, point,
     );
+}
+
+/// `W3SPR1`. `eb` holds `NK` values per point; the point count is `out.len()`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn spr1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Spr1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dden: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] wn: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] eb: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] out: &mut [Spr1Out],
+) {
+    let point = id.x as usize;
+    if point >= out.len() {
+        return;
+    }
+    let nk = p.nk as usize;
+    out[point] = w3spr1(p, sig, dden, a, cg, wn, eb, point * nk * p.nth as usize, point * nk, point * nk);
 }
 
 #[spirv(compute(threads(64)))]
@@ -319,6 +404,28 @@ pub fn ktp3(
     w3ktp3(p, &t, &q, point, cg, wn, va, &mut w);
 }
 
+/// `W3SIC1`. `icecoef1` holds `ICEP1(IX,IY)` of each point.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sic1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sic1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] mapwn: &[i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] icecoef1: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] d: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] out: &mut [Sic1Out],
+) {
+    let point = id.x as usize;
+    if point >= icecoef1.len() {
+        return;
+    }
+    let nk = p.nk as usize;
+    out[point] = w3sic1(p, mapwn, a, cg, icecoef1[point], s, d, point * nk * p.nth as usize, point * nk);
+}
+
 /// `W3SBT4`. `bedform` holds three values per point, in and out; `w` holds `NK` per point.
 #[spirv(compute(threads(64)))]
 #[allow(clippy::too_many_arguments)]
@@ -354,6 +461,58 @@ pub fn sbt4(
     );
 }
 
+/// `W3SIS1`. `a` and `s` hold `NSPEC` per point.
+#[spirv(compute(threads(64)))]
+pub fn sis1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sis1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] points: &[Sis1Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] s: &mut [Real],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    w3sis1(p, a, &pt, s, point * (p.nk * p.nth) as usize);
+}
+
+/// `W3FLX1`, one point per invocation.
+#[spirv(compute(threads(64)))]
+pub fn flx1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[Flx1In],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] out: &mut [Flx1Out],
+) {
+    let point = id.x as usize;
+    if point >= input.len() {
+        return;
+    }
+    out[point] = w3flx1(&input[point]);
+}
+
+/// `W3SDS1`. `k` is `WN2`, `NSPEC` values per point.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sds1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sds1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] points: &[Sds1Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] d: &mut [Real],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    let nspec = (p.nk * p.nth) as usize;
+    w3sds1(p, &pt, a, k, s, d, point * nspec, point * nspec);
+}
+
 /// Each `ww3-libm` function alone, so `spirv_replay libm` can compare it with the host's build.
 #[spirv(compute(threads(64)))]
 pub fn libm_probe(
@@ -387,4 +546,54 @@ pub fn libm_probe(
         10 => ww3_libm::sinhf(a),
         _ => ww3_libm::erff(a),
     };
+}
+
+/// `W3SPR3`. `w` holds `2 * NK` per point.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn spr3(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &ww3_kernels::spr3::Spr3Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dden: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] taut: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] wn: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] llws: &[u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] points: &[ww3_kernels::spr3::Spr3Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] w: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] out: &mut [ww3_kernels::spr3::Spr3Out],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    let nk = p.nk as usize;
+    ww3_kernels::spr3::w3spr3(
+        p, sig, dden, taut, a, cg, wn, llws, &pt, w, out, point * p.nspec as usize, point * nk, point * 2 * nk,
+        point,
+    );
+}
+
+/// `W3SDS3`. `k` holds `NK` per point; `points` holds `EMEAN`, `FMEAN` and `WNMEAN`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sds3(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sds3Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] points: &[Sds3Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] d: &mut [Real],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    let nk = p.nk as usize;
+    w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
 }

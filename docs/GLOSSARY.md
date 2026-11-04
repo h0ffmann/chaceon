@@ -2,11 +2,21 @@
 
 | Term | Meaning |
 |---|---|
+| FLX1 | WW3 switch: wind stress from the 10 m speed by Wu (1980), `W3FLX1`: `CD = 0.001*(0.8+0.065*U10)` |
+| ST1 | WW3 switch: WAM cycle 3 source terms (Komen et al. 1984): wind input `W3SIN1`, dissipation `W3SDS1`, mean parameters `W3SPR1` |
+| `SINC1` | `W3SIN1`'s wind input constant, `28 * CINP * DAIR / DWAT` (`w3gridmd.F90:1744`) |
 | DB1 | WW3 switch: Battjes and Janssen depth-induced breaking, `W3SDB1` |
 | BT4 | WW3 switch: SHOWEX bottom friction over a movable sand bed (Ardhuin et al. 2003), `W3SBT4` |
+| IS1 | WW3 switch: scattering of wave action across directions by sea ice (Zieger), `W3SIS1`; `IS1C1` and `IS1C2` turn the ice concentration into its coefficient |
 | SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |
 | `ERFTABLE` | `W3SBT4MD`'s table of `(1+erf(x))/2` on `[-4, 4]`, built by `TABU_ERF` |
+| ST3 | WW3 switch: Janssen's quasi-linear wind input after WAM cycle 4, with its dissipation: `W3SIN3`, `W3SDS3` |
+| `INSIN3` | `W3SRC3MD`'s table setup: calls `TABU_STRESS` and `TABU_TAUHF` |
+| `TAUT` | `W3SRC3MD`'s table of friction velocity against wave-supported stress and 10 m wind, built by `TABU_STRESS` |
 | Shields parameter | Bed shear stress over the submerged weight of a grain layer; ripples form above a critical value (`PSIC`) |
+| IC1 | WW3 switch: ice damping with one uniform exponential decay rate, `W3SIC1` (Rogers and Orzech 2013) |
+| `ICEP1` | Ice parameter 1 of `W3IDATMD`: the decay rate `k_i` of wave amplitude under ice, read per grid point; `W3SIC1` returns `D = -2*Cg*k_i` |
+| `MAPWN` | `W3GDATMD`'s map from a spectral bin `IS = ITH + (IK-1)*NTH` to its wavenumber band `IK` |
 | DIA | Discrete Interaction Approximation of the nonlinear transfer; WW3's `NL1`, `W3SNL1` |
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
 | GIMPLE | GCC's intermediate form, read to see what `-O3` computes |
@@ -33,7 +43,13 @@
 | `spirv-opt` | The SPIR-V optimiser of SPIRV-Tools; it folds floats unless `NoContraction` is set |
 | `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
 | `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
+| `W3SDS1` | ST1 and WAM-3 whitecapping dissipation, the dissipation term of switch `ST1` (`w3src1md.F90:432`, method "WAM-3"): `S = SDSC1 * FMEAN * WNMEAN^3 * EMEAN^2 * K * A` |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
+| WAM | The Wave Model (WAMDI Group 1988): the spectral model whose cycle 4 input term ST3 converts to WW3's action spectrum |
+| `TAUHFT` | `W3SRC3MD`'s and `W3SRC4MD`'s table of the high-frequency wave-supported stress against friction velocity and Charnock parameter, built by `TABU_TAUHF` |
+| `W3SDS3`, `SDS3` | ST3's whitecapping dissipation (WAM cycle 4 with the mean wavenumber of Bidlot et al. 2005), `w3src3md.F90`; `SDSC1`, `SDSDELTA1`, `SDSDELTA2` set it in `&SDS3` |
+| WAM4 | The fourth cycle of the WAM wave model (WAMDI Group 1988; Komen et al. 1994), whose whitecapping `ST3` carries |
+| `FTE`, `FTF`, `FTWN` | `W3GDATMD` factors that add the spectral tail beyond `FREQ(NK)` to the mean energy, frequency and wavenumber sums |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |
@@ -102,3 +118,5 @@
 | `W3IOBC` | Reads, writes and dumps the boundary data files `nest.ww3` and `nestNN.ww3` (`w3iobcmd.F90`) |
 | `ww3_bounc` | WW3's pre-processor that turns NetCDF spectra into `nest.ww3` |
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
+| `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
+| `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |

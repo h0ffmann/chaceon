@@ -13,15 +13,27 @@ variant="$2"
 depth="${3:-2500}"
 stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
+case "$routine/$variant" in sis1/* | */ice*) switch="${CAPTURE_SWITCH:-switch_chaceon_ice1}" ;; esac
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine/$variant" in sin3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
+case "$routine/$variant" in spr3/*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
+case "$routine/$variant" in sic1/* | */ice1*) switch="${CAPTURE_SWITCH:-switch_chaceon_ice1}" ;; esac
+# switch_chaceon_st3 for sds3 and for every variant named st3*, as for bt4 above.
+case "$routine/$variant" in sds3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
+case "$routine" in flx1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac # FLX1 is in the ST1 build
+case "$routine" in spr1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
+case "$routine" in sin1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
+case "$routine/$variant" in insin3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
+if [ "$routine" = sds1 ]; then switch="${CAPTURE_SWITCH:-switch_chaceon_st1}"; fi
 # shellcheck source=scripts/ts1_variants.sh
 source scripts/ts1_variants.sh
+limit="${CAPTURE_LIMIT:-$limit}"
 out="${routine}_${variant}_${depth}m.bin"
 mkdir -p work/capture
 docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-add SYS_PTRACE \
   -v "$PWD/work:/work" -v "$PWD/regtests/capture:/capture:ro" \
   -v "$PWD/WW3/regtests/ww3_ts1/input:/ww3_input:ro" \
-  -e CAPTURE_OUT="/work/capture/$out" -e CAPTURE_STRIDE="$stride" -e DEPTH="$depth" -e SDS4="$sds4" -e WIND="$wind" -e CAPTURE_POKE="$poke" -e CAPTURE_LIMIT="$limit" \
+  -e CAPTURE_OUT="/work/capture/$out" -e CAPTURE_STRIDE="$stride" -e DEPTH="$depth" -e SDS4="$sds4" -e WIND="$wind" -e WDIR="$wdir" -e CAPTURE_POKE="$poke" -e CAPTURE_LIMIT="$limit" -e ICE1="$ice1" -e ICE="$ice" -e GRID="$grid" \
   --entrypoint sh "chaceon-ref-capture:$switch" -c "
     set -e
     mkdir -p /run/ts1/work && cp -R /ww3_input /run/ts1/input && cd /run/ts1/work
@@ -29,8 +41,19 @@ docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-a
     sed -i \"s/DEPTH%SF        =  -2500\\\\./DEPTH%SF        =  -\$DEPTH./\" ww3_grid.nml
     grep -q \"DEPTH%SF        =  -\$DEPTH\\\\.\" ww3_grid.nml
     sed -i \"s/VALUE1      = 12\\./VALUE1      = \$WIND./\" ww3_shel.nml
+    if [ -n \"\$ICE\" ]; then
+      sed -i \"s/INPUT%FORCING%WINDS         = 'H'/&\\n  INPUT%FORCING%ICE_PARAM1    = 'H'\\n  INPUT%FORCING%ICE_CONC      = 'H'/\" ww3_shel.nml
+      sed -i \"s/HOMOG_COUNT%N_WND                =  5/&\\n  HOMOG_COUNT%N_ICE                =  1\\n  HOMOG_COUNT%N_IC1                =  1/\" ww3_shel.nml
+      sed -i \"/HOMOG_INPUT(6)%VALUE3/a\\  HOMOG_INPUT(7)%NAME        = 'ICE'\\n  HOMOG_INPUT(7)%VALUE1      = \$ICE\\n  HOMOG_INPUT(8)%NAME        = 'IC1'\\n  HOMOG_INPUT(8)%VALUE1      = 0.5\" ww3_shel.nml
+      grep -q ICE_CONC ww3_shel.nml && grep -q \"HOMOG_INPUT(7)%VALUE1      = \$ICE\" ww3_shel.nml
+    fi
+    sed -i \"s/VALUE2      = 270\\./VALUE2      = \$WDIR./\" ww3_shel.nml
+    if [ -n \"\$GRID\" ]; then sed -i \"\$GRID\" ww3_grid.nml; fi
     if [ -n \"\$SDS4\" ]; then
       sed -i \"/END OF NAMELISTS/i \$SDS4\" ../input/namelists_HOMOGENEOUS.nml
+    fi
+    if [ -n \"\$ICE1\" ]; then
+      sh /capture/ice1_shel.sh ww3_shel.nml \"\$ICE1\"
     fi
     ww3_grid > grid.log 2>&1
     ww3_strt > strt.log 2>&1

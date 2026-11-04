@@ -2,9 +2,9 @@
 
 <!-- port-badges:begin -->
 ![Fortran target: 133 810 lines](https://img.shields.io/badge/Fortran%20target-133%20810%20lines-lightgrey)
-![Rust ported: 25 879 lines](https://img.shields.io/badge/Rust%20ported-25%20879%20lines-blue)
-![Rust CPU validated: 14 746 lines](https://img.shields.io/badge/Rust%20CPU%20validated-14%20746%20lines-brightgreen)
-![Rust SPIR-V on CPU Vulkan: 4 766 lines](https://img.shields.io/badge/Rust%20SPIR--V%20on%20CPU%20Vulkan-4%20766%20lines-yellowgreen)
+![Rust ported: 27 102 lines](https://img.shields.io/badge/Rust%20ported-27%20102%20lines-blue)
+![Rust CPU validated: 14 947 lines](https://img.shields.io/badge/Rust%20CPU%20validated-14%20947%20lines-brightgreen)
+![Rust SPIR-V on CPU Vulkan: 4 966 lines](https://img.shields.io/badge/Rust%20SPIR--V%20on%20CPU%20Vulkan-4%20966%20lines-yellowgreen)
 ![Rust GPU validated: 0 lines](https://img.shields.io/badge/Rust%20GPU%20validated-0%20lines-red)
 <!-- port-badges:end -->
 
@@ -13,23 +13,28 @@ and [rust-gpu](https://github.com/Rust-GPU/rust-gpu). It is compared with
 [metocean/WW3](https://github.com/metocean/WW3) 7.14 (`7.14.mos-92e2cf6`), and it follows the
 discipline of [ww3-gpu](https://github.com/h0ffmann/ww3-gpu) without Kokkos.
 
-**State, 2026-11-01:** a run with no Fortran program in it exists. Rust's `ww3_grid`, `ww3_strt`, `ww3_prep` (for the
+**State, 2026-11-04:** a run with no Fortran program in it exists. Rust's `ww3_grid`, `ww3_strt`, `ww3_prep` (for the
 case with a forcing file) and `ww3_shel`, in sequence from the namelists, give `mod_def.ww3`, `current.ww3`,
-`out_grd.ww3`, `out_pnt.ww3` and both restarts byte-identical to the reference on 17 cases, 81 files and
-805 162 628 bytes (v, `just rust-only`). `ww3_prep` now takes every input type, and `ww3_strt` every start type
+`out_grd.ww3`, `out_pnt.ww3`, `track_o.ww3` and both restarts byte-identical to the reference on 96 files (v,
+`just rust-only`). `ww3_prep` takes every input type, and `ww3_strt` every start type
 ([prep](rust/port_report/WW3_PREP.md), [strt](rust/port_report/WW3_STRT.md)). `ww3_prnc` reads NetCDF forcing for
 types `AI` and `LL`, byte-identical on 81 cases whose data are synthetic, because the regtests' NetCDF files are not
-in WW3's repository ([report](rust/port_report/WW3_PRNC.md)). After the run, `ww3_ounf` and `ww3_ounp` write NetCDF
-files byte-identical to the reference's through the system `libnetcdf` ([ounf](rust/port_report/WW3_OUNF.md),
-[ounp](rust/port_report/WW3_OUNP.md)), and `ww3_outf` and `ww3_outp` write the same text files on 40 regtest inputs
-([outf](rust/port_report/WW3_OUTF.md), [outp](rust/port_report/WW3_OUTP.md)). Spectral partitioning fields and the
-`nest.ww3` files `ww3_shel` writes are byte-identical too ([partitions](rust/port_report/W3PART.md),
-[boundaries](rust/port_report/W3IOBC.md)), but boundary input in a run is refused and `ww3_bounc` and `ww3_bound`
-are not ported. `ww3_shel` takes `--threads N` and, built with the feature `mpi`,
-`mpirun -n R`, with the same bytes on 120 MPI runs (v, `just mpi-pair`). With `W3SRCE`, `W3XYP3` and `W3KTP3` as
-compiled SPIR-V on CPU Vulkan and `VA` resident on the device, the same files are byte-identical too. **Nothing has
-run on a real GPU**, the PTX has never executed, and there are no timings: this is a verification result, not a
-speed one.
+in WW3's repository ([report](rust/port_report/WW3_PRNC.md)). `ww3_shel` takes water levels, `IC0` ice, file winds and
+boundary input from `nest.ww3`, which Rust's `ww3_bound` writes: 214 comparisons identical over 34 boundary cases (v,
+`just bound-all`), on the host only ([bound](rust/port_report/WW3_BOUND.md), [W3IOBC](rust/port_report/W3IOBC.md)).
+After the run, `ww3_ounf` and `ww3_ounp` write NetCDF files byte-identical to the reference's through the system
+`libnetcdf` ([ounf](rust/port_report/WW3_OUNF.md), [ounp](rust/port_report/WW3_OUNP.md)), `ww3_outf` and `ww3_outp`
+write the same text files on 40 regtest inputs ([outf](rust/port_report/WW3_OUTF.md),
+[outp](rust/port_report/WW3_OUTP.md)), and `ww3_trck` and `ww3_trnc` the same track files (v, `just track-all`, 74
+comparisons). Spectral partitioning fields are byte-identical too ([partitions](rust/port_report/W3PART.md)).
+`ww3_bounc` is not ported. `ww3_shel` takes `--threads N` and, built with the feature `mpi`, `mpirun -n R`, with the
+same bytes (v, `just mpi-pair`). With `W3SRCE`, `W3XYP3` and `W3KTP3` as compiled SPIR-V on CPU Vulkan and `VA`
+resident on the device, the same files are byte-identical too. Batch 7, the alternative physics, is under way at
+the routine level: `W3SBT4`, MetOcean's bottom friction, is called from `W3SRCE` in a `BT4` build
+([report](rust/port_report/W3SBT4.md)), and thirteen routines of `ST1`, `FLX1`, `ST3`, `IC1` and `IS1` have every
+captured call bit-identical on the host and, for the ten that run on the device, in SPIR-V ([plan](docs/RUST_GPU_PLAN_202610.md), "Batches 7 and 8"). No
+model run uses any of them yet. **Nothing has run on a real GPU**, the PTX has never executed, and
+there are no timings: this is a verification result, not a speed one.
 
 ## Port status
 
@@ -39,7 +44,7 @@ Generated by `just port-summary` from `WW3/model/src` at `92e2cf66` and `rust/po
 
 | WW3 area | Files | Fortran lines | Not comments | Routines with Rust, lines | Share | Partial |
 |---|---:|---:|---:|---:|---:|---:|
-| Source terms | 38 | 38 360 | 12 613 | 6 937 | 18% | 0 |
+| Source terms | 38 | 38 360 | 12 613 | 9 145 | 24% | 0 |
 | Propagation, structured grids | 7 | 12 190 | 4 783 | 3 059 | 25% | 0 |
 | Propagation, unstructured grids | 5 | 20 388 | 10 108 | 0 | 0% | 0 |
 | Time loop, updates, state | 20 | 45 309 | 20 815 | 7 657 | 17% | 4 003 |
@@ -49,41 +54,41 @@ Generated by `just port-summary` from `WW3/model/src` at `92e2cf66` and `rust/po
 | Preprocessors | 22 | 39 924 | 20 309 | 9 637 | 24% | 8 064 |
 | Postprocessors | 14 | 28 619 | 17 648 | 11 377 | 40% | 7 295 |
 | Coupling and other | 6 | 10 538 | 4 941 | 0 | 0% | 0 |
-| **All of `model/src/*.F90`** | **135** | **252 119** | **120 705** | **53 327** | **21%** | **22 942** |
+| **All of `model/src/*.F90`** | **135** | **252 119** | **120 705** | **55 535** | **22%** | **22 942** |
 | Other model source: `SCRIP/`, `PDLIB/`, `.f`, `.f90`, `.c` | 30 | 26 736 | 13 105 | 0 | 0% | 0 |
-| **All model source** | **165** | **278 855** | **133 810** | **53 327** | **19%** | **22 942** |
+| **All model source** | **165** | **278 855** | **133 810** | **55 535** | **20%** | **22 942** |
 
 *Routines with Rust* sums the whole Fortran routine for each row of `rust/ports.tsv` with a verdict on the code reached, comments included, so a share is an upper bound on what was exercised, and it counts only the switches of `switch_chaceon_shrd`. *Partial* is `translated`: Rust exists and is not fully reached.
 
 | Rust by evidence, code lines | Lines |
 |---|---:|
 | Real GPU: byte-identical whole runs | 0 |
-| SPIR-V on CPU Vulkan (lavapipe); its kernels also natively on the CPU | 4 766 |
-| Native on the CPU only | 9 980 |
-| Every captured call identical, no whole-run verdict | 696 |
-| Partly reached, or compiled and never run | 10 437 |
-| **Rust ported** | **25 879** |
-| Verification tools, not port code | 2 305 |
+| SPIR-V on CPU Vulkan (lavapipe); its kernels also natively on the CPU | 4 966 |
+| Native on the CPU only | 9 981 |
+| Every captured call identical, no whole-run verdict | 1 522 |
+| Partly reached, or compiled and never run | 10 633 |
+| **Rust ported** | **27 102** |
+| Verification tools, not port code | 3 966 |
 
 Badges compare code lines on both sides: 133 810 Fortran and C lines of all model source that are not comments or preprocessor lines, every switch included, out of 278 855 lines with comments; WW3's regtest programs are not port targets. They are compared against Rust lines that are not blank or `//` comments. The two languages' lines are not the same unit, so the ratio is not a percentage of the port. *CPU validated* is the first two rows. **SPIR-V on CPU Vulkan is compiled for a GPU API but runs on a CPU, so it does not count as GPU validated.** A Rust file counts at the weakest ledger row pointing at it, which never overclaims and understates `shel.rs` and `gridpre.rs`, partly reached only through `W3WAVE` and `W3NMLGRID`.
 
 | Rust, all lines | Lines |
 |---|---:|
-| `ww3-kernels`, runs on the device | 3 551 |
+| `ww3-kernels`, runs on the device | 4 507 |
 | `ww3-libm`, glibc's bits in plain Rust | 1 273 |
-| `ww3-host`, the host side | 19 439 |
-| GPU entry points and builders | 917 |
-| Tools | 6 024 |
-| **All** | **31 204** |
+| `ww3-host`, the host side | 19 986 |
+| GPU entry points and builders | 1 371 |
+| Tools | 7 537 |
+| **All** | **34 674** |
 
 | Verdict, lines of Fortran routines | Lines |
 |---|---:|
 | `spirv`: byte-identical whole runs on CPU Vulkan | 7 828 |
 | `host`: byte-identical whole runs on the CPU | 43 879 |
-| `routine`: every captured call identical | 1 620 |
+| `routine`: every captured call identical | 3 828 |
 | `translated`: exists, not fully reached | 22 942 |
 
-**What still depends on Fortran.** No Rust binary links Fortran. A run still reads files that Fortran programs wrote where Rust stops: `mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or unformatted data files (`IDFM` 2 and 3), the old `ww3_grid.inp` and tripole closure; the forcing file of `ww3_prnc` for input types `AT`, `F1`, `F2` and `DAT` and of either forcing program on an unstructured grid; and `nest.ww3`, which only Fortran's `ww3_bound` and `ww3_bounc` write. Rust's `ww3_shel` refuses boundary input in a run. `ww3_prep` and `ww3_prnc` are 4 470 lines, 2% of `model/src`. Every verdict also needs the Fortran reference, by design: it is what Rust is compared with.
+**What still depends on Fortran.** No Rust binary links Fortran. A run still reads files that Fortran programs wrote where Rust stops: `mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or unformatted data files (`IDFM` 2 and 3), the old `ww3_grid.inp` and tripole closure; the forcing file of `ww3_prnc` for input types `AT`, `F1`, `F2` and `DAT` and of either forcing program on an unstructured grid; and `nest.ww3` from NetCDF spectra, which only Fortran's `ww3_bounc` writes (Rust's `ww3_bound` writes it from text spectra). Rust's `ww3_shel` takes water levels, ice and boundary input on the host and refuses them on a device. `ww3_prep` and `ww3_prnc` are 4 470 lines, 2% of `model/src`. Every verdict also needs the Fortran reference, by design: it is what Rust is compared with.
 
 <!-- port-summary:end -->
 

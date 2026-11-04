@@ -209,7 +209,14 @@ ships (`BT4`, `WCOR`, `RWND`, `SEED`, `MPI`).
 in SPIR-V on lavapipe, against a reference built with `switches/switch_chaceon_bt4` ([log](log/2026-11-03-sbt4-parity.md),
 `rust/port_report/W3SBT4.md`). It is called from the `W3SRCE` kernel when the build is `BT4`: 15 127 captured `W3SRCE`
 calls bit-identical on the host and in SPIR-V ([log](log/2026-11-03-srce-bt4.md)). Next for `BT4`: its state per sea
-point and its `mod_def.ww3` fields, so that a model run uses it. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
+point and its `mod_def.ww3` fields, so that a model run uses it.
+
+**2026-11-04:** thirteen more Batch 7 routines are at status `routine`, each captured from a reference built with one
+package swapped (`switches/switch_chaceon_st1`, `_st3`, `_ice1`) and bit-identical on the host and, for the kernels, in
+SPIR-V on lavapipe: `ST1`'s `W3SPR1`, `W3SIN1`, `W3SDS1` with `FLX1`'s `W3FLX1`; `ST3`'s `W3SPR3`, its `CALC_USTAR`,
+`W3SIN3`, `W3SDS3`, and the tables of `INSIN3`, `TABU_STRESS` and `TABU_TAUHF` (host only); and the ice terms `W3SIC1`
+and `W3SIS1`. Reports are in `rust/port_report/`, one log entry per routine dated 2026-11-04. None is called from
+`W3SRCE` yet, and the host reads none of their `mod_def.ww3` fields: that is the next step for each package. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
 grid, `ww3_multi`, domain decomposition over several GPUs. MPI needs an ADR of its own: a binding
 to C MPI, or GPU-aware transport.
 

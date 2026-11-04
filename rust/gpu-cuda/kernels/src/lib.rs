@@ -6,11 +6,19 @@ use cuda_std::prelude::*;
 use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
+use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
+use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
+use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
+use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
+use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
+use ww3_kernels::sis1::{Sis1Params, Sis1Point, w3sis1};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
+use ww3_kernels::spr1::{Spr1Out, Spr1Params, w3spr1};
 use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
 
@@ -105,6 +113,73 @@ pub unsafe fn sds4(
     );
 }
 
+/// `W3SIC1`. `icecoef1` holds `ICEP1(IX,IY)` of each point.
+///
+/// # Safety
+/// The output buffers hold `icecoef1.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sic1(
+    p: &Sic1Params,
+    mapwn: &[i32],
+    a: &[Real],
+    cg: &[Real],
+    icecoef1: &[Real],
+    s: *mut Real,
+    d: *mut Real,
+    out: *mut Sic1Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= icecoef1.len() {
+        return;
+    }
+    let n = icecoef1.len();
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) = unsafe {
+        (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec))
+    };
+    let o = w3sic1(p, mapwn, a, cg, icecoef1[point], s, d, point * nspec, point * nk);
+    unsafe { *out.add(point) = o };
+}
+
+/// `W3FLX1`, one point per thread.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx1(points: &[Flx1In], out: *mut Flx1Out) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = w3flx1(&points[point]) };
+}
+
+/// `W3SDS1`. `k` is `WN2`, `NSPEC` values per point.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds1(p: &Sds1Params, a: &[Real], k: &[Real], points: &[Sds1Point], s: *mut Real, d: *mut Real) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let nspec = (p.nk * p.nth) as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, points.len() * nspec),
+            core::slice::from_raw_parts_mut(d, points.len() * nspec),
+        )
+    };
+    w3sds1(p, &points[point], a, k, s, d, point * nspec, point * nspec);
+}
+
 /// `W3SBT4`. `bedform` holds three values per point, in and out; `w` holds `NK` per point.
 ///
 /// # Safety
@@ -148,6 +223,78 @@ pub unsafe fn sbt4(
     let t = Sbt4Tables { sig, dden, ecos, esin, fwtable, erftable };
     let o = w3sbt4(p, &t, a, cg, wn, &points[point], bedform, s, d, w, point * nspec, point * nk, point * nk, point * 3);
     unsafe { *out.add(point) = o };
+}
+
+/// `W3SIN3`.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin3(
+    p: &Sin3Params,
+    sig: &[Real],
+    sig2: &[Real],
+    dden2: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    tauhft: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    k: &[Real],
+    points: &[Sin3Point],
+    s: *mut Real,
+    d: *mut Real,
+    llws: *mut u32,
+    out: *mut Sin3Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nspec = p.nspec as usize;
+    let (s, d, llws, out) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(llws, n * nspec),
+            core::slice::from_raw_parts_mut(out, n),
+        )
+    };
+    w3sin3(
+        p, sig, sig2, dden2, ecos, esin, tauhft, a, cg, k, &points[point], s, d, llws, out, point * nspec,
+        point * p.nk as usize, point,
+    );
+}
+
+/// `W3SIN1`.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin1(
+    p: &Sin1Params,
+    sig2: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    a: &[Real],
+    k: &[Real],
+    points: &[Sin1Point],
+    s: *mut Real,
+    d: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nspec = p.nspec as usize;
+    let (s, d) = unsafe {
+        (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec))
+    };
+    w3sin1(p, sig2, ecos, esin, a, k, &points[point], s, d, point * nspec);
 }
 
 /// # Safety
@@ -226,6 +373,33 @@ pub unsafe fn spr4(
         p, sig, dden, ecos, esin, taut, a, cg, wn, llws, &points[point], w, out, point * p.nspec as usize,
         point * nk, point * 2 * nk, point,
     );
+}
+
+/// `W3SPR1`. `eb` holds `NK` values per point; `a` holds `NSPEC`, `cg` and `wn` `NK`.
+///
+/// # Safety
+/// `eb` and `out` hold `n` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr1(
+    p: &Spr1Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    n: u32,
+    eb: *mut Real,
+    out: *mut Spr1Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= n as usize {
+        return;
+    }
+    let nk = p.nk as usize;
+    let eb = unsafe { core::slice::from_raw_parts_mut(eb, n as usize * nk) };
+    let o = w3spr1(p, sig, dden, a, cg, wn, eb, point * nk * p.nth as usize, point * nk, point * nk);
+    unsafe { *out.add(point) = o };
 }
 
 /// # Safety
@@ -487,4 +661,75 @@ pub unsafe fn ktp3(
     let t = Ktp3Tables { sig, dsip, ecos, esin, ec2, esc, es2, mapwn, mapth2, mapwn2 };
     let mut w = Ktp3Work { dsdd, frk, frg, fkc, vq, db, dm, vcflt, cflk, fla };
     w3ktp3(p, &t, &points[point], point, cg, wn, va, &mut w);
+}
+
+/// `W3SPR3`. `w` holds `2 * NK` per point.
+///
+/// # Safety
+/// `w` and `out` hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr3(
+    p: &ww3_kernels::spr3::Spr3Params,
+    sig: &[Real],
+    dden: &[Real],
+    taut: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    llws: &[u32],
+    points: &[ww3_kernels::spr3::Spr3Point],
+    w: *mut Real,
+    out: *mut ww3_kernels::spr3::Spr3Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nk = p.nk as usize;
+    let (w, out) = unsafe {
+        (core::slice::from_raw_parts_mut(w, n * 2 * nk), core::slice::from_raw_parts_mut(out, n))
+    };
+    ww3_kernels::spr3::w3spr3(
+        p, sig, dden, taut, a, cg, wn, llws, &points[point], w, out, point * p.nspec as usize, point * nk,
+        point * 2 * nk, point,
+    );
+}
+
+/// `W3SIS1`. `a` and `s` hold `NSPEC` per point.
+///
+/// # Safety
+/// The output buffer holds `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn sis1(p: &Sis1Params, a: &[Real], points: &[Sis1Point], s: *mut Real) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let nspec = (p.nk * p.nth) as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let s = unsafe { core::slice::from_raw_parts_mut(s, points.len() * nspec) };
+    w3sis1(p, a, &points[point], s, point * nspec);
+}
+
+/// `W3SDS3`. `k` holds `NK` per point.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point], s: *mut Real, d: *mut Real) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) =
+        unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
+    w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
