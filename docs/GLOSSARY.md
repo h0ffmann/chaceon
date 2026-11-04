@@ -120,3 +120,9 @@
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
 | `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
 | `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| ST6 | WW3 switch: the observation-based source terms of Donelan et al. (2006), Babanin et al. (2010) and Rogers et al. (2012), `W3SIN6`, `W3SDS6`, `W3SWL6` |
+| FLX4 | WW3 switch: the wind stress of Hwang (2011), `W3FLX4`, used with ST6 |
+| `LFACTOR` | `W3SRC6MD`'s iteration that finds the reduction of `W3SIN6`'s wind input so that the stress it carries does not exceed the total stress |
+| `TAU_WAVE_ATMOS` | `W3SRC6MD`'s stress from the waves to the atmosphere, from the negative part of `W3SIN6`'s input |
+| `TAUWINDS` | `W3SRC6MD`'s stress `GRAV*DWAT*SUM(S/C*DSII)` of a wind input spectrum |
+| `IRANGE` | `W3SRC6MD`'s generator of an arithmetic sequence of integers, used as an index vector; `W3SWL6` has its own |

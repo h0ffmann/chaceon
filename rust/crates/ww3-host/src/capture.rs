@@ -971,3 +971,56 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3SIN6` call of `regtests/capture/sin6.py`: its inputs and the reference's outputs.
+pub struct Sin6Call {
+    pub point: ww3_kernels::sin6::Sin6Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn2: Vec<f32>,
+    pub out: ww3_kernels::sin6::Sin6Out,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SIN6` capture: what the module reads from `W3GDATMD`, then the calls.
+pub struct Sin6Capture {
+    pub params: ww3_kernels::sin6::Sin6Params,
+    pub sig2: Vec<f32>,
+    pub dden2: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub calls: Vec<Sin6Call>,
+}
+
+impl Sin6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIN6", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(4);
+        let (sig2, dden2) = (r.table_r().data, r.table_r().data);
+        let (ecos, esin) = (r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (h[0] as usize, h[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(5);
+            let point = ww3_kernels::sin6::Sin6Point { uabs: v[0], ustar: v[1], usdir: v[2], cd: v[3], dair: v[4] };
+            let (a, cg, wn2) = (r.reals(nspec), r.reals(nk), r.reals(nspec));
+            let o = r.reals(4);
+            let out = ww3_kernels::sin6::Sin6Out { tauwx: o[0], tauwy: o[1], tauwnx: o[2], tauwny: o[3], iters: 0, reach: 0 };
+            let (s, d) = (r.reals(nspec), r.reals(nspec));
+            calls.push(Sin6Call { point, a, cg, wn2, out, s, d });
+        }
+        let params = ww3_kernels::sin6::Sin6Params {
+            nk: h[0],
+            nth: h[1],
+            nspec: h[2],
+            dth: f[0],
+            xfr: f[1],
+            sin6a0: f[2],
+            sin6ws: f[3],
+        };
+        Sin6Capture { params, sig2, dden2, ecos, esin, calls }
+    }
+}
