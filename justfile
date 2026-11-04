@@ -42,6 +42,10 @@ sbt4-cmp *captures:
 insin3-cmp *captures:
     bash scripts/rust_in_ref.sh insin3_cmp {{captures}}
 
+# Replays W3SDS1 calls (switch_chaceon_st1 reference), every bit
+sds1-cmp *captures:
+    bash scripts/rust_in_ref.sh sds1_cmp {{captures}}
+
 # Host verdict: the reference and Rust run ww3_ts1, and cmp judges out_pnt.ww3
 ts1-pair variant="default" depth="2500":
     bash scripts/ts1_pair.sh {{variant}} {{depth}}

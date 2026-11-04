@@ -15,6 +15,7 @@ stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
 case "$routine/$variant" in insin3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
+if [ "$routine" = sds1 ]; then switch="${CAPTURE_SWITCH:-switch_chaceon_st1}"; fi
 # shellcheck source=scripts/ts1_variants.sh
 source scripts/ts1_variants.sh
 out="${routine}_${variant}_${depth}m.bin"

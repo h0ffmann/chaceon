@@ -588,3 +588,42 @@ impl Insin3Capture {
         Self { nk, reals, taut, tauhft }
     }
 }
+
+/// One `W3SDS1` call of `regtests/capture/sds1.py`: its inputs and the reference's outputs.
+pub struct Sds1Call {
+    pub point: ww3_kernels::sds1::Sds1Point,
+    pub a: Vec<f32>,
+    pub k: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SDS1` capture.
+pub struct Sds1Capture {
+    pub params: ww3_kernels::sds1::Sds1Params,
+    pub calls: Vec<Sds1Call>,
+}
+
+impl Sds1Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS1", "{path}");
+        let h = r.ints(2);
+        let sdsc1 = r.reals(1)[0];
+        let ns = (h[0] * h[1]) as usize;
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let m = r.reals(3);
+            let (a, k) = (r.reals(ns), r.reals(ns));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sds1Call {
+                point: ww3_kernels::sds1::Sds1Point { emean: m[0], fmean: m[1], wnmean: m[2] },
+                a,
+                k,
+                s,
+                d,
+            });
+        }
+        Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
+    }
+}
