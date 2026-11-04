@@ -15,4 +15,5 @@ pub mod real;
 pub mod sds4;
 pub mod sin4;
 pub mod snl1;
+pub mod spr1;
 pub mod srce;

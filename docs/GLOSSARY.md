@@ -34,6 +34,8 @@
 | `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
 | `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
+| ST1 | WW3 switch: WAM cycle 3 source terms, `W3SIN1`, `W3SDS1`, with the mean parameters of `W3SPR1` |
+| `FTE`, `FTF`, `FTWN` | `W3GDATMD` factors that add the spectral tail beyond `FREQ(NK)` to the mean energy, frequency and wavenumber sums |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |

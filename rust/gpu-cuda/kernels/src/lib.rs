@@ -11,6 +11,7 @@ use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
+use ww3_kernels::spr1::{Spr1Out, Spr1Params, w3spr1};
 use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
 
@@ -226,6 +227,33 @@ pub unsafe fn spr4(
         p, sig, dden, ecos, esin, taut, a, cg, wn, llws, &points[point], w, out, point * p.nspec as usize,
         point * nk, point * 2 * nk, point,
     );
+}
+
+/// `W3SPR1`. `eb` holds `NK` values per point; `a` holds `NSPEC`, `cg` and `wn` `NK`.
+///
+/// # Safety
+/// `eb` and `out` hold `n` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr1(
+    p: &Spr1Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    n: u32,
+    eb: *mut Real,
+    out: *mut Spr1Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= n as usize {
+        return;
+    }
+    let nk = p.nk as usize;
+    let eb = unsafe { core::slice::from_raw_parts_mut(eb, n as usize * nk) };
+    let o = w3spr1(p, sig, dden, a, cg, wn, eb, point * nk * p.nth as usize, point * nk, point * nk);
+    unsafe { *out.add(point) = o };
 }
 
 /// # Safety
