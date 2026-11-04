@@ -282,3 +282,7 @@ bnd-all:
 # Rust's ww3_shel on every case in work/pair, run in copies so the shared directory is not written
 bnd-regress:
     bash scripts/bnd_regress.sh
+
+# Replays W3FLX3 calls (switch_chaceon_st2flx3 reference), every bit
+flx3-cmp *captures:
+    bash scripts/rust_in_ref.sh flx3_cmp {{captures}}

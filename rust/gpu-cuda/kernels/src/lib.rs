@@ -733,3 +733,22 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
+
+/// `W3FLX3`, one point per thread. `ewn1` is `EWN1(0:121)`.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx3(
+    p: &ww3_kernels::flx3::Flx3Params,
+    ewn1: &[Real],
+    points: &[ww3_kernels::flx3::Flx3In],
+    out: *mut ww3_kernels::flx3::Flx3Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = ww3_kernels::flx3::w3flx3(p, ewn1, &points[point]) };
+}

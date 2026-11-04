@@ -971,3 +971,45 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3FLX3` call of `regtests/capture/flx3.py`: its inputs and the reference's results.
+pub struct Flx3Call {
+    pub input: ww3_kernels::flx3::Flx3In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX3` capture: what the routine reads from `W3GDATMD` and `W3DISPMD`, then the calls.
+pub struct Flx3Capture {
+    pub params: ww3_kernels::flx3::Flx3Params,
+    /// `EWN1(0:121)`.
+    pub ewn1: Vec<f32>,
+    pub calls: Vec<Flx3Call>,
+}
+
+impl Flx3Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX3", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(3);
+        let ewn1 = r.reals(122);
+        let params = ww3_kernels::flx3::Flx3Params {
+            nittin: h[0],
+            cap_id: h[1],
+            n1max: h[2],
+            cinxsi: f[0],
+            cd_max: f[1],
+            dsie: f[2],
+        };
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(10);
+            calls.push(Flx3Call {
+                input: ww3_kernels::flx3::Flx3In { zwind: v[0], depth: v[1], fp: v[2], u: v[3], udir: v[4], ust: v[5] },
+                out: [v[6], v[7], v[8], v[9]],
+            });
+        }
+        Flx3Capture { params, ewn1, calls }
+    }
+}
