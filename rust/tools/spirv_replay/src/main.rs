@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1|spr2|swl6|sds2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|flx4|sin1|sds1|spr2|swl6|sds2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -710,6 +710,27 @@ fn flx1_run(code: &[u8], path: &str) -> bool {
     ok & (err == 0)
 }
 
+/// `W3FLX4` on every captured call: one point per call, `Flx4Out` records back.
+fn flx4_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::Flx4Capture;
+    use ww3_kernels::flx4::Flx4Out;
+    let c = Flx4Capture::read(path);
+    let points = c.calls.len();
+    let ins: Vec<_> = c.calls.iter().map(|k| k.input).collect();
+    let slots = [Slot::In(bytes(&ins)), Slot::Out(points * size_of::<Flx4Out>())];
+    let out = dispatch(code, c"flx4", &slots, points);
+    let recs: Vec<&[u8]> = out[1].chunks_exact(size_of::<Flx4Out>()).collect();
+    let mut ok = true;
+    for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
+        let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
+        let theirs: Vec<f32> = c.calls.iter().map(|k| k.out[j]).collect();
+        ok &= compare(name, &ours, &theirs);
+    }
+    let err: u32 = recs.iter().map(|r| u32::from_le_bytes(r[16..20].try_into().unwrap())).sum();
+    println!("ZWND != 10 {err:>7} calls");
+    ok & (err == 0)
+}
+
 /// `W3SIN1` on every captured call.
 fn sin1_run(code: &[u8], path: &str) -> bool {
     let c = Sin1Capture::read(path);
@@ -901,6 +922,7 @@ fn main() {
         "sis1" => sis1_run(&code, &path),
         "sds3" => sds3_run(&code, &path),
         "flx1" => flx1_run(&code, &path),
+        "flx4" => flx4_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
         "spr2" => spr2_run(&code, &path),
