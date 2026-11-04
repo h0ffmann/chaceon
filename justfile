@@ -283,6 +283,10 @@ bnd-all:
 bnd-regress:
     bash scripts/bnd_regress.sh
 
+# Replays W3SWL6 calls (switch_chaceon_st6 reference), every bit
+swl6-cmp *captures:
+    bash scripts/rust_in_ref.sh swl6_cmp {{captures}}
+
 # Replays W3SDS2 calls (switch_chaceon_st2 reference), every bit
 sds2-cmp *captures:
     bash scripts/rust_in_ref.sh sds2_cmp {{captures}}

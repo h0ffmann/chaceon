@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1|sds2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1|swl6|sds2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -667,6 +667,29 @@ fn sds3_run(code: &[u8], path: &str) -> bool {
     compare("S", &out[4], &rs) & compare("D", &out[5], &rd)
 }
 
+/// `W3SWL6` on every captured call.
+fn swl6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Swl6Call, Swl6Capture};
+    let c = Swl6Capture::read(path);
+    let p = c.params;
+    let nspec = (p.nk * p.nth) as usize;
+    let points = c.calls.len();
+    let cat = |f: fn(&Swl6Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, wn, rs, rd) = (cat(|k| &k.a), cat(|k| &k.cg), cat(|k| &k.wn), cat(|k| &k.s), cat(|k| &k.d));
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+    ];
+    let out = dispatch(code, c"swl6", &slots, points);
+    compare("S", &out[6], &rs) & compare("D", &out[7], &rd)
+}
+
 /// `W3FLX1` on every captured call: one point per call, `Flx1Out` records back.
 fn flx1_run(code: &[u8], path: &str) -> bool {
     use ww3_kernels::flx1::Flx1Out;
@@ -850,6 +873,7 @@ fn main() {
         "flx1" => flx1_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
+        "swl6" => swl6_run(&code, &path),
         "sds2" => sds2_run(&code, &path),
         "flx3" => flx3_run(&code, &path),
         "libm" => libm_run(&code, &path),

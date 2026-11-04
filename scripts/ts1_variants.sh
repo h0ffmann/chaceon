@@ -55,6 +55,17 @@ case "$variant" in
   st3tab) sds4='&SIN3 ALPHA0=0.012, BETAMAX=1.4, ZALP=0.008, ZWND=8. /' ;;
   st3grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;
   st3grid2) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.05/' ;;
+  st6swl6) ;;
+  st6swl6cst) sds4='&SWL6 CSTB1=.TRUE. /' ;;
+  st6swl6b1) sds4='&SWL6 SWLB1=0.02 /' ;;
+  st6swl6cstb1) sds4='&SWL6 SWLB1=0.0123, CSTB1=.TRUE. /' ;;
+  st6swl6storm) wind=30 ;;
+  st6swl6light) wind=6 ;;
+  st6swl6calm) wind=0 ;;
+  st6swl6poke) poke=1; limit=500 ;;
+  st6swl6cstpoke) sds4='&SWL6 CSTB1=.TRUE. /'; poke=1; limit=500 ;;
+  st6swl6grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/; s/SPECTRUM%NTH       =  24/SPECTRUM%NTH       =  36/' ;;
+  st6swl6grid2) grid='s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  25/; s/SPECTRUM%NTH       =  24/SPECTRUM%NTH       =  12/'; sds4='&SWL6 CSTB1=.TRUE. /' ;;
   st2sds2) ;;
   st2sds2storm) wind=30 ;;
   st2sds2light) wind=6 ;;

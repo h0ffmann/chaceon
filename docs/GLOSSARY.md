@@ -120,6 +120,9 @@
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
 | `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
 | `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| `W3SWL6`, `SWL6` | ST6's turbulent dissipation of narrow-banded swell (Babanin 2011, section 7.5), `w3swldmd.F90`; `&SWL6 SWLB1, CSTB1` set it, and it runs when `SWLB1 > 0` (`SWL6S6`) |
+| `IRANGE` | The helper of `w3swldmd.F90` (and a copy in `w3src6md.F90`) that builds the index vector `X0, X0+DX, ...` for array addressing |
+| `SWL6CSTB1` | Namelist `CSTB1`: true keeps `SWLB1` as the constant `B1` of `W3SWL6`, false scales it with the steepness at the spectral peak |
 | `W3SDS2`, `SDS2` | Whitecapping dissipation of switch `ST2`, the Tolman and Chalikov (1996) source terms (`w3src2md.F90:582`): a diagonal `D` from a turbulent-scale term and a Phillips-constant term, blended by a frequency filter; `&SDS2` sets `SDSA0`, `SDSA1`, `SDSA2`, `SDSB0`, `SDSB1`, `PHIMIN` |
 | `FPI` | In `ST2`, the "peak frequency" of the input (rad/s), from `W3SPR2` |
 | `HW` | In `W3SDS2`, 4 times the square root of the energy above `XFH*FPI` (a significant wave height of that part), which sets the turbulent length scale |

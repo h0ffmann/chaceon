@@ -734,6 +734,36 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
 
+/// `W3SWL6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` hold `NSPEC`; `sig` and `dden` are
+/// `SIG(1:NK)` and `DDEN(1:NK)`.
+///
+/// # Safety
+/// The output buffers hold `n` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn swl6(
+    p: &ww3_kernels::swl6::Swl6Params,
+    sig: &[Real],
+    dden: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    n: usize,
+    s: *mut Real,
+    d: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= n {
+        return;
+    }
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) =
+        unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
+    ww3_kernels::swl6::w3swl6(p, sig, dden, a, cg, wn, s, d, point * nspec, point * nk);
+}
+
 /// `W3SDS2`. `cg`, `k` and `alfa` hold `NK` per point; `sig` is `SIG(0:NK+1)`, `dden` is `DDEN(NK)`.
 ///
 /// # Safety
