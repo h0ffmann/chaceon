@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -378,6 +378,35 @@ fn spr4_run(code: &[u8], path: &str) -> bool {
     compare("W3SPR4", &out[12], &ro)
 }
 
+/// `W3SPR3` on every captured call (ST3 build).
+fn spr3_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Spr3Call, Spr3Capture};
+    let c = Spr3Capture::read(path);
+    let p = c.params;
+    let points = c.calls.len();
+    let concat = |f: fn(&Spr3Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, wn, ro) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.wn), concat(|x| &x.out));
+    let llws: Vec<u32> = c.calls.iter().flat_map(|x| x.llws.iter().copied()).collect();
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.taut)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::In(bytes(&llws)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * 2 * p.nk as usize * 4),
+        Slot::Out(points * size_of::<ww3_kernels::spr3::Spr3Out>()),
+    ];
+    let out = dispatch(code, c"spr3", &slots, points);
+    compare("W3SPR3", &out[10], &ro)
+}
+
 fn spr1_run(code: &[u8], path: &str) -> bool {
     let c = Spr1Capture::read(path);
     let points = c.calls.len();
@@ -743,6 +772,7 @@ fn main() {
         "sds4" => sds4_run(&code, &path),
         "sin4" => sin4_run(&code, &path),
         "spr4" => spr4_run(&code, &path),
+        "spr3" => spr3_run(&code, &path),
         "spr1" => spr1_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),

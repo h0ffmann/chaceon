@@ -619,6 +619,40 @@ pub unsafe fn ktp3(
     w3ktp3(p, &t, &points[point], point, cg, wn, va, &mut w);
 }
 
+/// `W3SPR3`. `w` holds `2 * NK` per point.
+///
+/// # Safety
+/// `w` and `out` hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr3(
+    p: &ww3_kernels::spr3::Spr3Params,
+    sig: &[Real],
+    dden: &[Real],
+    taut: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    llws: &[u32],
+    points: &[ww3_kernels::spr3::Spr3Point],
+    w: *mut Real,
+    out: *mut ww3_kernels::spr3::Spr3Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nk = p.nk as usize;
+    let (w, out) = unsafe {
+        (core::slice::from_raw_parts_mut(w, n * 2 * nk), core::slice::from_raw_parts_mut(out, n))
+    };
+    ww3_kernels::spr3::w3spr3(
+        p, sig, dden, taut, a, cg, wn, llws, &points[point], w, out, point * p.nspec as usize, point * nk,
+        point * 2 * nk, point,
+    );
+}
+
 /// `W3SIS1`. `a` and `s` hold `NSPEC` per point.
 ///
 /// # Safety

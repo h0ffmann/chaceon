@@ -566,6 +566,69 @@ impl Sbt4Capture {
     }
 }
 
+/// One `W3SPR3` call of `regtests/capture/spr3.py`: its inputs and the reference's outputs.
+pub struct Spr3Call {
+    pub point: ww3_kernels::spr3::Spr3Point,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub llws: Vec<u32>,
+    /// EMEAN FMEAN FMEANS WNMEAN AMAX USTAR USDIR CD Z0 CHARN FMEANWS
+    pub out: Vec<f32>,
+}
+
+/// A `W3SPR3` capture from a build with ST3. `taut` is the reference's `TAUT(0:200,0:200)`.
+pub struct Spr3Capture {
+    pub params: ww3_kernels::spr3::Spr3Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub taut: Vec<f32>,
+    pub calls: Vec<Spr3Call>,
+}
+
+impl Spr3Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR3", "{path}");
+        let i = r.ints(3);
+        let f = r.reals(10);
+        let params = ww3_kernels::spr3::Spr3Params {
+            nk: i[0],
+            nth: i[1],
+            nspec: i[2],
+            wwnmeanp: f[0],
+            wwnmeanptail: f[1],
+            fte: f[2],
+            sstxftf: f[3],
+            sstxftftail: f[4],
+            sstxftwn: f[5],
+            zzwnd: f[6],
+            aalpha: f[7],
+            deltauw: f[8],
+            delu: f[9],
+        };
+        let (sig, dden) = (r.table_r().data, r.table_r().data);
+        let taut = r.table_r().data;
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let s = r.reals(6);
+            let point = ww3_kernels::spr3::Spr3Point {
+                u: s[0],
+                udir: s[1],
+                ustar: s[2],
+                usdir: s[3],
+                tauwx: s[4],
+                tauwy: s[5],
+            };
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let llws = r.u32s(nspec);
+            calls.push(Spr3Call { point, a, cg, wn, llws, out: r.reals(11) });
+        }
+        Self { params, sig, dden, taut, calls }
+    }
+}
+
 /// One `W3SIC1` call of `regtests/capture/sic1.py`: its inputs and the reference's outputs.
 pub struct Sic1Call {
     /// `ICEP1(IX,IY)`, read from the input field at the call.
