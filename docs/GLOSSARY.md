@@ -42,6 +42,8 @@
 | `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
 | `W3SDS1` | ST1 and WAM-3 whitecapping dissipation, the dissipation term of switch `ST1` (`w3src1md.F90:432`, method "WAM-3"): `S = SDSC1 * FMEAN * WNMEAN^3 * EMEAN^2 * K * A` |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
+| `W3SDS3`, `SDS3` | ST3's whitecapping dissipation (WAM cycle 4 with the mean wavenumber of Bidlot et al. 2005), `w3src3md.F90`; `SDSC1`, `SDSDELTA1`, `SDSDELTA2` set it in `&SDS3` |
+| WAM4 | The fourth cycle of the WAM wave model (WAMDI Group 1988; Komen et al. 1994), whose whitecapping `ST3` carries |
 | ST1 | WW3 switch: WAM cycle 3 source terms, `W3SIN1`, `W3SDS1`, with the mean parameters of `W3SPR1` |
 | `FTE`, `FTF`, `FTWN` | `W3GDATMD` factors that add the spectral tail beyond `FREQ(NK)` to the mean energy, frequency and wavenumber sums |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |

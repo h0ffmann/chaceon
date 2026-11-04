@@ -28,6 +28,12 @@ case "$variant" in
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;
   st3) ;;
+  st3wam4) sds4='&SDS3 SDSC1=-4.5, SDSDELTA1=0.5, SDSDELTA2=0.5 /' ;;
+  st3storm) wind=30 ;;
+  st3calm) wind=0 ;;
+  st3light) wind=6 ;;
+  st3wnp) sds4='&SDS3 WNMEANP=-0.5 /' ;;
+  st3poke) poke=1; limit=500 ;;
   st3zmax) sds4='&SIN3 Z0MAX=0.002 /' ;;
   st3tune) sds4='&SIN3 ALPHA0=0.012, BETAMAX=1.4, ZALP=0.008, ZWND=8. /' ;;
   st3grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;

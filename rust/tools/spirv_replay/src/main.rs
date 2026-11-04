@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -530,6 +530,28 @@ fn sbt4_run(code: &[u8], path: &str) -> bool {
     compare("S", &out[12], &rs) & compare("D", &out[13], &rd) & compare("BEDFORM", &out[11], &rb) & compare("TAUBBL", &tau, &rt)
 }
 
+/// `W3SDS3` on every captured call.
+fn sds3_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Sds3Call, Sds3Capture};
+    let c = Sds3Capture::read(path);
+    let p = c.params;
+    let nspec = (p.nk * p.nth) as usize;
+    let points = c.calls.len();
+    let cat = |f: fn(&Sds3Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, k, rs, rd) = (cat(|k| &k.a), cat(|k| &k.k), cat(|k| &k.s), cat(|k| &k.d));
+    let pts: Vec<_> = c.calls.iter().map(|k| k.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+    ];
+    let out = dispatch(code, c"sds3", &slots, points);
+    compare("S", &out[4], &rs) & compare("D", &out[5], &rd)
+}
+
 /// `W3FLX1` on every captured call: one point per call, `Flx1Out` records back.
 fn flx1_run(code: &[u8], path: &str) -> bool {
     use ww3_kernels::flx1::Flx1Out;
@@ -681,6 +703,7 @@ fn main() {
         "spr1" => spr1_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
+        "sds3" => sds3_run(&code, &path),
         "flx1" => flx1_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),

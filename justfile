@@ -38,6 +38,10 @@ st4-cmp routine="sin4" variant="default" depth="2500":
 sbt4-cmp *captures:
     bash scripts/rust_in_ref.sh sbt4_cmp {{captures}}
 
+# Replays W3SDS3 calls (switch_chaceon_st3 reference), every bit
+sds3-cmp *captures:
+    bash scripts/rust_in_ref.sh sds3_cmp {{captures}}
+
 # Replays W3FLX1 calls (switch_chaceon_st1 reference), every bit
 flx1-cmp *captures:
     bash scripts/rust_in_ref.sh flx1_cmp {{captures}}

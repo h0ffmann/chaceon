@@ -566,6 +566,46 @@ impl Sbt4Capture {
     }
 }
 
+/// One `W3SDS3` call of `regtests/capture/sds3.py`: its inputs and the reference's outputs.
+pub struct Sds3Call {
+    pub point: ww3_kernels::sds3::Sds3Point,
+    pub a: Vec<f32>,
+    pub k: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SDS3` capture.
+pub struct Sds3Capture {
+    pub params: ww3_kernels::sds3::Sds3Params,
+    pub calls: Vec<Sds3Call>,
+}
+
+impl Sds3Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS3", "{path}");
+        let h = r.ints(2);
+        let f = r.reals(3);
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(3);
+            let (a, k) = (r.reals(ns), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sds3Call {
+                point: ww3_kernels::sds3::Sds3Point { emean: v[0], fmean: v[1], wnmean: v[2] },
+                a,
+                k,
+                s,
+                d,
+            });
+        }
+        let params = ww3_kernels::sds3::Sds3Params { nk: h[0], nth: h[1], ssdsc1: f[0], ddelta1: f[1], ddelta2: f[2] };
+        Sds3Capture { params, calls }
+    }
+}
+
 /// One `W3FLX1` call of `regtests/capture/flx1.py`: its inputs and the reference's results.
 pub struct Flx1Call {
     pub input: ww3_kernels::flx1::Flx1In,
