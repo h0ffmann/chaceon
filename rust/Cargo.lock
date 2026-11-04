@@ -126,7 +126,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "flx4_cmp"
+name = "flx3_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
@@ -134,7 +134,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "flx3_cmp"
+name = "flx4_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
