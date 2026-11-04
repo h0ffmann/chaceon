@@ -565,3 +565,31 @@ impl Sbt4Capture {
         Sbt4Capture { params, sig, dden, ecos, esin, fwtable, calls }
     }
 }
+
+/// One `W3FLX1` call of `regtests/capture/flx1.py`: its inputs and the reference's results.
+pub struct Flx1Call {
+    pub input: ww3_kernels::flx1::Flx1In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX1` capture.
+pub struct Flx1Capture {
+    pub calls: Vec<Flx1Call>,
+}
+
+impl Flx1Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX1", "{path}");
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(7);
+            calls.push(Flx1Call {
+                input: ww3_kernels::flx1::Flx1In { zwnd: v[0], u10: v[1], u10d: v[2] },
+                out: [v[3], v[4], v[5], v[6]],
+            });
+        }
+        Flx1Capture { calls }
+    }
+}

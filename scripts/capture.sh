@@ -14,6 +14,7 @@ depth="${3:-2500}"
 stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine" in flx1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac # FLX1 is in the ST1 build
 # shellcheck source=scripts/ts1_variants.sh
 source scripts/ts1_variants.sh
 out="${routine}_${variant}_${depth}m.bin"

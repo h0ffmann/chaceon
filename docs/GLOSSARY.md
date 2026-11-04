@@ -2,6 +2,7 @@
 
 | Term | Meaning |
 |---|---|
+| FLX1 | WW3 switch: wind stress from the 10 m speed by Wu (1980), `W3FLX1`: `CD = 0.001*(0.8+0.065*U10)` |
 | DB1 | WW3 switch: Battjes and Janssen depth-induced breaking, `W3SDB1` |
 | BT4 | WW3 switch: SHOWEX bottom friction over a movable sand bed (Ardhuin et al. 2003), `W3SBT4` |
 | SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |
