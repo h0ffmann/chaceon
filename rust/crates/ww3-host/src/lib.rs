@@ -12,6 +12,7 @@ pub mod grid;
 pub mod gridio;
 pub mod gridpre;
 pub mod gridsru;
+pub mod insin3;
 pub mod insin4;
 pub mod insnl1;
 pub mod iobc;
