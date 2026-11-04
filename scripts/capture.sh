@@ -14,6 +14,7 @@ depth="${3:-2500}"
 stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine" in sin1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
 case "$routine/$variant" in insin3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
 if [ "$routine" = sds1 ]; then switch="${CAPTURE_SWITCH:-switch_chaceon_st1}"; fi
 # shellcheck source=scripts/ts1_variants.sh
@@ -23,7 +24,7 @@ mkdir -p work/capture
 docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-add SYS_PTRACE \
   -v "$PWD/work:/work" -v "$PWD/regtests/capture:/capture:ro" \
   -v "$PWD/WW3/regtests/ww3_ts1/input:/ww3_input:ro" \
-  -e CAPTURE_OUT="/work/capture/$out" -e CAPTURE_STRIDE="$stride" -e DEPTH="$depth" -e SDS4="$sds4" -e WIND="$wind" -e CAPTURE_POKE="$poke" -e CAPTURE_LIMIT="$limit" -e GRID="$grid" \
+  -e CAPTURE_OUT="/work/capture/$out" -e CAPTURE_STRIDE="$stride" -e DEPTH="$depth" -e SDS4="$sds4" -e WIND="$wind" -e WDIR="$wdir" -e CAPTURE_POKE="$poke" -e CAPTURE_LIMIT="$limit" -e GRID="$grid" \
   --entrypoint sh "chaceon-ref-capture:$switch" -c "
     set -e
     mkdir -p /run/ts1/work && cp -R /ww3_input /run/ts1/input && cd /run/ts1/work
@@ -31,6 +32,7 @@ docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-a
     sed -i \"s/DEPTH%SF        =  -2500\\\\./DEPTH%SF        =  -\$DEPTH./\" ww3_grid.nml
     grep -q \"DEPTH%SF        =  -\$DEPTH\\\\.\" ww3_grid.nml
     sed -i \"s/VALUE1      = 12\\./VALUE1      = \$WIND./\" ww3_shel.nml
+    sed -i \"s/VALUE2      = 270\\./VALUE2      = \$WDIR./\" ww3_shel.nml
     if [ -n \"\$GRID\" ]; then sed -i \"\$GRID\" ww3_grid.nml; fi
     if [ -n \"\$SDS4\" ]; then
       sed -i \"/END OF NAMELISTS/i \$SDS4\" ../input/namelists_HOMOGENEOUS.nml

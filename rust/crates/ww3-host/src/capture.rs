@@ -566,6 +566,45 @@ impl Sbt4Capture {
     }
 }
 
+/// One `W3SIN1` call of `regtests/capture/sin1.py`: its inputs and the reference's outputs.
+pub struct Sin1Call {
+    pub point: ww3_kernels::sin1::Sin1Point,
+    pub a: Vec<f32>,
+    pub k: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SIN1` capture.
+pub struct Sin1Capture {
+    pub params: ww3_kernels::sin1::Sin1Params,
+    pub sig2: Vec<f32>,
+    pub ecos: Vec<f32>,
+    pub esin: Vec<f32>,
+    pub calls: Vec<Sin1Call>,
+}
+
+impl Sin1Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIN1", "{path}");
+        let h = r.ints(3);
+        let (nk, nth, nspec) = (h[0], h[1], h[2]);
+        let sinc1 = r.reals(1)[0];
+        let (sig2, ecos, esin) = (r.table_r().data, r.table_r().data, r.table_r().data);
+        let ns = nspec as usize;
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(2);
+            let (a, k) = (r.reals(ns), r.reals(ns));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sin1Call { point: ww3_kernels::sin1::Sin1Point { ustar: v[0], usdir: v[1] }, a, k, s, d });
+        }
+        let params = ww3_kernels::sin1::Sin1Params { nk, nth, nspec, sinc1 };
+        Sin1Capture { params, sig2, ecos, esin, calls }
+    }
+}
+
 /// What `regtests/capture/insin3.py` records when `INSIN3` returns: its inputs from `W3GDATMD`, then
 /// the module variables it set.
 pub struct Insin3Capture {

@@ -2,6 +2,8 @@
 
 | Term | Meaning |
 |---|---|
+| ST1 | WW3 switch: WAM cycle 3 source terms (Komen et al. 1984): wind input `W3SIN1`, dissipation `W3SDS1`, mean parameters `W3SPR1` |
+| `SINC1` | `W3SIN1`'s wind input constant, `28 * CINP * DAIR / DWAT` (`w3gridmd.F90:1744`) |
 | DB1 | WW3 switch: Battjes and Janssen depth-induced breaking, `W3SDB1` |
 | BT4 | WW3 switch: SHOWEX bottom friction over a movable sand bed (Ardhuin et al. 2003), `W3SBT4` |
 | SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |

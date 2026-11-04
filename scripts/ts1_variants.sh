@@ -3,6 +3,7 @@
 # Sourced by capture.sh and ts1_pair.sh. A variant changes the case's namelists only, never WW3.
 sds4=''
 wind=12
+wdir=270
 poke=''
 limit=0
 grid=''
@@ -20,6 +21,7 @@ case "$variant" in
   flatswell) sds4='&SIN4 SWELLF2=0., SWELLF3=0.02, SWELLF4=0., SWELLF6=1., SWELLF7=0. /' ;;
   sharp) sds4='&SIN4 SWELLF7=0. /' ;;
   romero2) sds4='&SDS4 SDSBCHOICE=3, SDSC2=-3.8, SDSBR=0.005, SDSSTRAIN=2., SDSSTRAIN2=0.5, FXFM3=20., SDSFACMTF=400., SDSCUM=0., SDSC5=0. /' ;;
+  winddir) wdir=45 ;;
   bt4) ;;
   bt4storm) wind=30 ;;
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
