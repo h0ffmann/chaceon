@@ -1,0 +1,86 @@
+# One routine to status `routine` on chaceon-port. One instance per routine; several run at once.
+#   rig workflow instantiate rigs/workflows/port-routine.yaml \
+#     --root-objective "<packet: module:routine, model/src/<file>.F90:<line>, switch, variant prefix, branch>" \
+#     --created-by orch-lead@chaceon-port
+# An audit that finds a blocker fails the step; the lead routes the fix back to the same porter, whose
+# worktree holds the work, and the instance goes round again under max_hops.
+workflow:
+  id: chaceon-port-routine
+  version: 1
+  objective: >
+    Translate one WAVEWATCH III routine to no_std Rust with every captured call bit-identical on the host and
+    in SPIR-V, check it independently, and merge it into the wave's integration branch.
+  target:
+    rig: chaceon-port
+  entry:
+    role: lead
+  coordination_terminal_turn_rule: hot_potato
+  roles:
+    lead:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [orch-lead@chaceon-port]
+    porter:
+      skill_refs: [openrig-user, ww3-port, port-next]
+      preferred_targets: [port-p1@chaceon-port, port-p2@chaceon-port, port-p3@chaceon-port, port-p4@chaceon-port]
+    auditor:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [audit-auditor@chaceon-port]
+  steps:
+    - id: claim
+      actor_role: lead
+      objective: >
+        Check the routine is unclaimed and absent from rust/ports.tsv, that its reference image exists and
+        scripts/capture.sh selects its switch, add the claim row, refresh the porter's worktree on the
+        integration branch, and hand the packet to a free porter.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: port }
+    - id: port
+      actor_role: porter
+      harness: claude-code
+      objective: >
+        Port the packet's routine to status routine: kernel, captures with variants for unreached branches,
+        host replay in call and batch layouts, SPIR-V replay, faults through every guard, ledger row, report,
+        log. Commit on the seat's branch with a Tested trailer; never push.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: audit, failed: triage }
+    - id: audit
+      actor_role: auditor
+      harness: claude-code
+      objective: >
+        Check the port from the Fortran at the pin and the files, rerun its comparison and two SPIR-V
+        replays, check every guard has a capture or a poke and a caught fault, and list the comparison tool
+        for a person's review.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: merge, failed: triage }
+    - id: triage
+      actor_role: lead
+      objective: >
+        Read the porter's blocker or the auditor's findings. Hand the fix back to the same porter with the
+        findings (handoff), or record the routine as translated with its documented difference, release the
+        claim and close (done).
+      allowed_exits: [handoff, done, failed]
+      next_hop:
+        on: { handoff: port }
+    - id: merge
+      actor_role: lead
+      objective: >
+        Merge the porter's branch into the integration branch with scripts/merge_additive.py for the
+        appended lists, run just check, commit, copy the captures, delete the claim row.
+      allowed_exits: [done, failed]
+      next_hop:
+        mode: forbid
+  invariants:
+    continuation_required: true
+    preserve_lineage: true
+    closure_required: true
+    allowed_exits: [handoff, waiting, done, failed]
+  loop_guards:
+    max_hops: 12
+    spawn_budget: 0
+  closure:
+    success: The routine is at status routine on the integration branch, audited, with its claim released.
+    degraded: The routine stays translated, with its difference documented and the claim released.
+    failed: The routine is blocked; the claim, the blocker and the owner are kept.

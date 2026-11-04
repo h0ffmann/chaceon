@@ -57,6 +57,8 @@ Non-negotiable here; a skill or task may make these stricter, never looser.
 | Compound loop artifacts | `docs/compound/plans/`, `docs/compound/solutions/` |
 | A pinned version | `VERSIONS.md` |
 | A new abbreviation or routine name | `docs/GLOSSARY.md` |
+| An OpenRig rig, agent or workflow spec | `rigs/` ([AGENT_LOOP_202611.md](docs/AGENT_LOOP_202611.md)) |
+| A routine a seat is porting now | a row in `rust/port_claims.tsv`, deleted when its `ports.tsv` row merges |
 
 Layout follows ww3-gpu: `kokkos/` became `rust/`. There is no `WW3-noaa/`, because the reference is
 `WW3/` itself, and no `picasso/`, proposal, course, book or website.
@@ -131,6 +133,10 @@ Size the loop to the change, as ww3-gpu does: a small fix is work, gates, PR; a 
 is `/ce-plan`, `/ce-work`, `/ce-code-review`; a batch is `/ce-brainstorm` first. Artifacts go under
 `docs/compound/`. `/ce-simplify-code` never touches translated code, and "verify" never means a new
 test.
+
+A team of agents runs from the specs in `rigs/` on OpenRig: one routine per seat in its own worktree, an
+independent audit before each merge, and a human gate before any push. A seat follows this file like any
+agent; a rig never decides what this file reserves for a person.
 
 ## Commits and pull requests
 

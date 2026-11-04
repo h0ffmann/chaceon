@@ -1,0 +1,93 @@
+# One source-term package from status routine to host on chaceon-integrate. One instance at a time.
+#   rig workflow instantiate rigs/workflows/wire-package.yaml \
+#     --root-objective "<package, switch file, its routines, the regtest cases>" --created-by orch-lead@chaceon-integrate
+workflow:
+  id: chaceon-wire-package
+  version: 1
+  objective: >
+    Wire one package whose routines are at status routine into W3SRCE, the mod_def.ww3 reader and writer and
+    the namelists, until a whole run built with its switch file gives the reference's output files byte for
+    byte, without changing a byte of any other build.
+  target:
+    rig: chaceon-integrate
+  entry:
+    role: lead
+  coordination_terminal_turn_rule: hot_potato
+  roles:
+    lead:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [orch-lead@chaceon-integrate]
+    integrator:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [dev-wire@chaceon-integrate]
+    regtest:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [dev-regtest@chaceon-integrate]
+    auditor:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [audit-auditor@chaceon-integrate]
+  steps:
+    - id: scope
+      actor_role: lead
+      objective: >
+        Name the package, its switch file, its W3SRCE blocks and mod_def.ww3 fields at the pin, the cases
+        that make it act, and refresh the worktrees on the integration branch.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: wire }
+    - id: wire
+      actor_role: integrator
+      harness: claude-code
+      objective: >
+        Translate the package's W3SRCE blocks, mod_def.ww3 fields, namelists and state; srce-cmp bit-identical
+        on the package's captures, host and SPIR-V; mod_def.ww3 byte-identical; no other build changed.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: run, failed: triage }
+    - id: run
+      actor_role: regtest
+      harness: claude-code
+      objective: >
+        Run the cases through the reference and through Rust, compare every output file with cmp and
+        test.comp, count the calls where the package acted, catch one deliberate fault, and rerun just
+        rust-only.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: audit, failed: triage }
+    - id: audit
+      actor_role: auditor
+      harness: claude-code
+      objective: >
+        Check the wiring against the preprocessed Fortran, the verdict against the regtest seat's logs, and
+        that no other build moved.
+      allowed_exits: [handoff, waiting, failed]
+      next_hop:
+        on: { handoff: merge, failed: triage }
+    - id: triage
+      actor_role: lead
+      objective: >
+        Hand the first differing file or the audit findings back to the integrator (handoff), or close the
+        package at status routine with the difference documented (done).
+      allowed_exits: [handoff, done, failed]
+      next_hop:
+        on: { handoff: wire }
+    - id: merge
+      actor_role: lead
+      objective: >
+        Merge the integration, move the package's ledger rows to host with the regtest evidence, and start
+        ship-wave.
+      allowed_exits: [done, failed]
+      next_hop:
+        mode: forbid
+  invariants:
+    continuation_required: true
+    preserve_lineage: true
+    closure_required: true
+    allowed_exits: [handoff, waiting, done, failed]
+  loop_guards:
+    max_hops: 16
+    spawn_budget: 0
+  closure:
+    success: The package is at status host, with whole-run evidence, merged on the integration branch.
+    degraded: The package stays at routine, with its first differing file documented.
+    failed: The integration is blocked; the blocker and the owner are kept.

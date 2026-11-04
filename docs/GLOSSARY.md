@@ -141,3 +141,7 @@
 | `W3SPR6` | ST6's mean wave parameters (energy, mean frequency, mean wavenumber, maximum) and the peak frequency from Young's weighted integral |
 | FLX3 | WW3 switch: Tolman and Chalikov (1996) stress with a cap on the drag coefficient, `W3FLX3`: `CD_MAX` and `CAP_ID` (0 a minimum, 1 a hyperbolic tangent) |
 | `EWN1` | `W3DISPMD`'s table of wavenumbers for `SI*SQRT(DEPTH)` on a grid of `DSIE`, built by `DISTAB`, which the inlined `WAVNU1` of `W3FLX3` reads |
+| OpenRig | A runner for teams of coding agents (mvschwarz/openrig): seats in tmux sessions, a queue between them, workflows of steps, specs in YAML; `rigs/` holds chaceon's |
+| RigSpec | OpenRig's YAML description of a team (`rig.yaml`): pods of members (seats), the edges between them, a culture file |
+| AgentSpec | OpenRig's YAML description of one role (`agent.yaml`): profiles, skills, guidance and startup files |
+| seat | One running agent of an OpenRig rig, addressed `<pod>-<member>@<rig>`, for example `port-p1@chaceon-port` |

@@ -1,0 +1,71 @@
+# The end of a wave on chaceon-port or chaceon-integrate: every gate again on the merged branch, the
+# documents, then a person's sign-off before anything leaves the machine.
+#   rig workflow instantiate rigs/workflows/ship-wave.yaml \
+#     --root-objective "<integration branch, routines or package of the wave>" --created-by <lead seat>
+# For chaceon-integrate, replace @chaceon-port with @chaceon-integrate in a copy, or launch the port rig's
+# spec under that name with `rig up ... --name`.
+workflow:
+  id: chaceon-ship-wave
+  version: 1
+  objective: >
+    Rerun every gate of the wave on its merged integration branch, update the README state, the port summary
+    and the plan, and hold the push and the pull request until a person signs off.
+  target:
+    rig: chaceon-port
+  entry:
+    role: lead
+  roles:
+    lead:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [orch-lead@chaceon-port]
+    auditor:
+      skill_refs: [openrig-user, ww3-port]
+      preferred_targets: [audit-auditor@chaceon-port]
+  steps:
+    - id: verify
+      actor_role: lead
+      harness: claude-code
+      objective: >
+        On the merged branch: just check, just lint-sh, just spirv, just ptx; every new <x>-cmp on every
+        capture; just spirv-replay on every new capture and on one capture of each older kernel; just
+        srce-cmp default_8m and bt4_8m. bash scripts/wave_verify.sh <routines> writes work/log/verify/summary.txt. Any FAIL stops here.
+      allowed_exits: [handoff, failed]
+      next_hop:
+        on: { handoff: docs }
+    - id: docs
+      actor_role: lead
+      objective: >
+        Update the README state paragraph, run just port-summary, add the plan's dated batch entry, remove
+        duplicate GLOSSARY rows, and commit with a Tested trailer that names every gate and its count.
+      allowed_exits: [handoff, failed]
+      next_hop:
+        on: { handoff: review }
+    - id: review
+      actor_role: auditor
+      harness: claude-code
+      objective: >
+        Read the wave's diff against main once, as a whole: numbers in the README and the plan against the
+        summary file, every new comparison tool listed for a person, every claim with (v) or a warning sign.
+      allowed_exits: [handoff, failed]
+      next_hop:
+        on: { handoff: signoff }
+    - id: signoff
+      actor_role: lead
+      gate:
+        target: human@kernel
+        summary: "Wave verified and documented on its integration branch; sign off to push and open the pull request"
+        evidence_ref: work/log/verify/summary.txt
+    - id: publish
+      actor_role: lead
+      objective: >
+        Only after the gate is resolved: git push -u origin <branch>, gh pr create with what needs a person's
+        review and every warning sign in the body. Never merge it.
+      allowed_exits: [done, failed]
+      next_hop:
+        mode: forbid
+  loop_guards:
+    max_hops: 10
+  closure:
+    success: The wave's pull request is open, with its review list.
+    degraded: The wave is verified and documented, and waits at the gate.
+    failed: A gate failed on the merged branch; the summary file names it.

@@ -1,0 +1,89 @@
+# chaceon-integrate: one source-term package at a time, from status `routine` to `host` (ADR-0005).
+# Launch from the repository root after `scripts/rig_worktrees.sh <branch> wire regtest audit`:
+#   rig up rigs/chaceon-integrate/rig.yaml --plan, then without --plan. Do not pass --cwd.
+version: "0.2"
+name: chaceon-integrate
+summary: >
+  Wires one package whose routines are already at status routine (ST1, ST2, ST3, ST6, FLX1 to FLX4, IC1,
+  IS1, BT4) into W3SRCE and the mod_def.ww3 reader, then runs whole cases through the reference and through
+  Rust until the output files are byte-identical. Serial on purpose: every package touches srce.rs.
+culture_file: CULTURE.md
+env:
+  CARGO_BUILD_JOBS: "4"
+
+pods:
+  - id: orch
+    label: Orchestration
+    summary: Picks the package, merges, verifies and ships through a human gate.
+    members:
+      - id: lead
+        label: Lead
+        agent_ref: "local:../agents/lead"
+        profile: integrate
+        runtime: claude-code
+        model: claude-opus-5-5
+        effort: high
+        cwd: "../.."
+        permission_policy: builtin:auto
+    edges: []
+
+  - id: dev
+    label: Integration
+    summary: The integrator wires the package; the regtest seat gives the whole-run verdict.
+    members:
+      - id: wire
+        label: Integrator
+        agent_ref: "local:../agents/integrator"
+        profile: default
+        runtime: claude-code
+        model: claude-opus-5-5
+        effort: high
+        cwd: "../../.worktrees/wire"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)"]
+      - id: regtest
+        label: Regtest runner
+        agent_ref: "local:../agents/regtest"
+        profile: default
+        runtime: claude-code
+        model: claude-sonnet-5-5
+        cwd: "../../.worktrees/regtest"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)", "Bash(git commit *)"]
+    edges:
+      - kind: delegates_to
+        from: wire
+        to: regtest
+
+  - id: audit
+    label: Audit
+    summary: Checks the integration from the Fortran and the files.
+    members:
+      - id: auditor
+        label: Auditor
+        agent_ref: "local:../agents/auditor"
+        profile: default
+        runtime: claude-code
+        model: claude-opus-5-5
+        effort: high
+        cwd: "../../.worktrees/audit"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)", "Bash(git commit *)"]
+    edges: []
+
+edges:
+  - kind: delegates_to
+    from: orch.lead
+    to: dev.wire
+  - kind: delegates_to
+    from: orch.lead
+    to: audit.auditor
+  - kind: can_observe
+    from: audit.auditor
+    to: dev.wire
+  - kind: can_observe
+    from: audit.auditor
+    to: dev.regtest

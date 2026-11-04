@@ -1,0 +1,38 @@
+# The integrator wires one source-term package, already at status `routine`, into W3SRCE and the host.
+name: chaceon-integrator
+version: "1.0"
+description: Wires one package into W3SRCE and the mod_def.ww3 reader so that a whole model run uses it
+
+defaults:
+  runtime: claude-code
+  effort: high
+  lifecycle:
+    execution_mode: interactive_resident
+    compaction_strategy: default-compaction
+    restore_policy: resume_if_possible
+
+profiles:
+  default:
+    summary: Integrator of chaceon-integrate
+    uses:
+      skills: [openrig-user, ww3-port]
+      guidance: []
+      subagents: []
+      plugins: []
+      runtime_resources: []
+
+resources:
+  guidance:
+    - id: role
+      path: guidance/role.md
+
+startup:
+  files:
+    - path: guidance/role.md
+      orientation: role
+      delivery_hint: send_text
+      required: true
+    - path: startup/context.md
+      delivery_hint: send_text
+      required: true
+  actions: []

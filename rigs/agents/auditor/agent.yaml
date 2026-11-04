@@ -1,0 +1,38 @@
+# The auditor checks a porter's or integrator's claim from the files, without the author's conclusion.
+name: chaceon-auditor
+version: "1.0"
+description: Independent check of a port or an integration against the Fortran, the captures and the faults
+
+defaults:
+  runtime: claude-code
+  effort: high
+  lifecycle:
+    execution_mode: interactive_resident
+    compaction_strategy: default-compaction
+    restore_policy: resume_if_possible
+
+profiles:
+  default:
+    summary: Auditor of chaceon-port and chaceon-integrate
+    uses:
+      skills: [openrig-user, ww3-port]
+      guidance: []
+      subagents: []
+      plugins: []
+      runtime_resources: []
+
+resources:
+  guidance:
+    - id: role
+      path: guidance/role.md
+
+startup:
+  files:
+    - path: guidance/role.md
+      orientation: role
+      delivery_hint: send_text
+      required: true
+    - path: startup/context.md
+      delivery_hint: send_text
+      required: true
+  actions: []

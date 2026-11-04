@@ -1,0 +1,6 @@
+# Who ports which WW3 routine now, so two seats never port the same one (as ww3-gpu's kokkos/port_claims.tsv).
+# The OpenRig lead (rigs/) adds a row when it hands a routine to a seat and deletes it when the routine's
+# rust/ports.tsv row is merged. scripts/port_backlog.py leaves claimed routines out.
+# routine: module:routine in lower case, as rust/ports.tsv. file: model/src/<file>.F90:<line> at 92e2cf66.
+# seat: the OpenRig session address. switch: the switches/ file its captures use. since: YYYY-MM-DD.
+routine	file	seat	switch	since
