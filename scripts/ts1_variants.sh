@@ -5,6 +5,7 @@ sds4=''
 wind=12
 poke=''
 limit=0
+ice=''
 case "$variant" in
   default) ;;
   t700) sds4='&SDS4 SDSBCHOICE=3, SDSC2=-3.8, SDSBR=0.005, SDSSTRAIN=0., SDSSTRAIN2=0., FXFM3=20., SDSFACMTF=400., SDSCUM=0., SDSC5=0. /' ;;
@@ -24,5 +25,11 @@ case "$variant" in
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;
+  ice) ice=0.4 ;;
+  ice2) ice=0.2 ;;
+  icesplit) ice=0.45; sds4='&SIS1 ISC1=0.5, ISC2=0.1 /' ;;
+  iceoff) ice=0.4; sds4='&SIS1 ISC1=-1., ISC2=0.4 /' ;;
+  icepoke) ice=0.4; poke=1; limit=500 ;;
+  iceoffpoke) ice=0.4; sds4='&SIS1 ISC1=-1., ISC2=0.4 /'; poke=1; limit=500 ;;
   *) echo "unknown variant $variant" >&2; exit 64 ;;
 esac
