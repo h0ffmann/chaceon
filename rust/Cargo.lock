@@ -315,6 +315,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sds2_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+ "ww3-libm",
+]
+
+[[package]]
 name = "sds3_cmp"
 version = "0.0.0"
 dependencies = [

@@ -120,6 +120,9 @@
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
 | `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
 | `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| `W3SDS2`, `SDS2` | Whitecapping dissipation of switch `ST2`, the Tolman and Chalikov (1996) source terms (`w3src2md.F90:582`): a diagonal `D` from a turbulent-scale term and a Phillips-constant term, blended by a frequency filter; `&SDS2` sets `SDSA0`, `SDSA1`, `SDSA2`, `SDSB0`, `SDSB1`, `PHIMIN` |
+| `FPI` | In `ST2`, the "peak frequency" of the input (rad/s), from `W3SPR2` |
+| `HW` | In `W3SDS2`, 4 times the square root of the energy above `XFH*FPI` (a significant wave height of that part), which sets the turbulent length scale |
 | ST6 | WW3 switch: observation-based source terms (Donelan et al. 2006, Babanin 2011, Rogers et al. 2012): wind input `W3SIN6`, dissipation `W3SDS6`, mean parameters `W3SPR6` |
 | `W3SPR6` | ST6's mean wave parameters (energy, mean frequency, mean wavenumber, maximum) and the peak frequency from Young's weighted integral |
 | FLX3 | WW3 switch: Tolman and Chalikov (1996) stress with a cap on the drag coefficient, `W3FLX3`: `CD_MAX` and `CAP_ID` (0 a minimum, 1 a hyperbolic tangent) |
