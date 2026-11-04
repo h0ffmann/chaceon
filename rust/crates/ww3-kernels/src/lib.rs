@@ -10,6 +10,7 @@ pub use util::nint;
 
 pub mod constants;
 pub mod flx1;
+pub mod flx2;
 pub mod pro3;
 pub mod sbt4;
 pub mod real;

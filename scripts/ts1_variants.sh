@@ -55,5 +55,12 @@ case "$variant" in
   st3tab) sds4='&SIN3 ALPHA0=0.012, BETAMAX=1.4, ZALP=0.008, ZWND=8. /' ;;
   st3grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;
   st3grid2) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.05/' ;;
+  st2flx2) ;;
+  st2flx2calm) wind=0 ;;
+  st2flx2light) wind=6 ;;
+  st2flx2storm) wind=30 ;;
+  st2flx2gale) wind=60 ;;
+  st2flx2poke) poke=1; limit=2000 ;;
+  st2flx2pokecalm) wind=0; poke=1; limit=2000 ;;
   *) echo "unknown variant $variant" >&2; exit 64 ;;
 esac

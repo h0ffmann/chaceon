@@ -971,3 +971,38 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3FLX2` call of `regtests/capture/flx2.py`: its inputs and the reference's results.
+pub struct Flx2Call {
+    pub input: ww3_kernels::flx2::Flx2In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX2` capture: the grid's `NITTIN` and `CINXSI`, `W3DISPMD`'s `DSIE`, `N1MAX` and `EWN1`, then calls.
+pub struct Flx2Capture {
+    pub params: ww3_kernels::flx2::Flx2Params,
+    pub ewn1: Vec<f32>,
+    pub calls: Vec<Flx2Call>,
+}
+
+impl Flx2Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX2", "{path}");
+        let nittin = r.ints(1)[0];
+        let real = r.reals(2);
+        let n1max = r.ints(1)[0];
+        let ewn1 = r.reals(ww3_kernels::flx2::EWN1_LEN);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(10);
+            calls.push(Flx2Call {
+                input: ww3_kernels::flx2::Flx2In { zwind: v[0], depth: v[1], fp: v[2], u: v[3], udir: v[4], ust: v[5] },
+                out: [v[6], v[7], v[8], v[9]],
+            });
+        }
+        let params = ww3_kernels::flx2::Flx2Params { nittin, n1max, cinxsi: real[0], dsie: real[1] };
+        Flx2Capture { params, ewn1, calls }
+    }
+}
