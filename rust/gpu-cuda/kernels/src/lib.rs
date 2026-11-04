@@ -7,6 +7,7 @@ use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
+use ww3_kernels::flx4::{Flx4In, Flx4Out, w3flx4};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
@@ -732,4 +733,18 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
     let (s, d) =
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
+}
+
+/// `W3FLX4`, one point per thread.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx4(points: &[Flx4In], out: *mut Flx4Out) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = w3flx4(&points[point]) };
 }

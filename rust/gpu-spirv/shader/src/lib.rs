@@ -9,6 +9,7 @@ use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
 use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
+use ww3_kernels::flx4::{Flx4In, Flx4Out, w3flx4};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
@@ -596,4 +597,18 @@ pub fn sds3(
     let pt = points[point];
     let nk = p.nk as usize;
     w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
+}
+
+/// `W3FLX4`, one point per invocation.
+#[spirv(compute(threads(64)))]
+pub fn flx4(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[Flx4In],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] out: &mut [Flx4Out],
+) {
+    let point = id.x as usize;
+    if point >= input.len() {
+        return;
+    }
+    out[point] = w3flx4(&input[point]);
 }

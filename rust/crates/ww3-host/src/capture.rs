@@ -971,3 +971,31 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3FLX4` call of `regtests/capture/flx4.py`: its inputs and the reference's results.
+pub struct Flx4Call {
+    pub input: ww3_kernels::flx4::Flx4In,
+    /// `UST`, `USTD`, `Z0`, `CD`.
+    pub out: [f32; 4],
+}
+
+/// A `W3FLX4` capture.
+pub struct Flx4Capture {
+    pub calls: Vec<Flx4Call>,
+}
+
+impl Flx4Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"FLX4", "{path}");
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(8);
+            calls.push(Flx4Call {
+                input: ww3_kernels::flx4::Flx4In { zwnd: v[0], u10: v[1], u10d: v[2], flx4a0: v[3] },
+                out: [v[4], v[5], v[6], v[7]],
+            });
+        }
+        Flx4Capture { calls }
+    }
+}
