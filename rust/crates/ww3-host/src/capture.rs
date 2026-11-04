@@ -971,3 +971,42 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3SWL6` call of `regtests/capture/swl6.py`: its inputs and the reference's outputs.
+pub struct Swl6Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SWL6` capture. `sig` is `SIG(1:NK)` and `dden` is `DDEN(1:NK)`.
+pub struct Swl6Capture {
+    pub params: ww3_kernels::swl6::Swl6Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Swl6Call>,
+}
+
+impl Swl6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SWL6", "{path}");
+        let h = r.ints(3);
+        let f = r.reals(2);
+        let sig_full = r.table_r().data;
+        let dden = r.table_r().data;
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        // `SIG(0:NK+1)`: the first entry is `SIG(0)`.
+        let sig = sig_full[1..=nk].to_vec();
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(ns), r.reals(nk), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Swl6Call { a, cg, wn, s, d });
+        }
+        let params = ww3_kernels::swl6::Swl6Params { nk: h[0], nth: h[1], dth: f[0], swl6b1: f[1], swl6cstb1: h[2] };
+        Swl6Capture { params, sig, dden, calls }
+    }
+}

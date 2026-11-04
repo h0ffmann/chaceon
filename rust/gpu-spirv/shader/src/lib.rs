@@ -597,3 +597,26 @@ pub fn sds3(
     let nk = p.nk as usize;
     w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
 }
+
+/// `W3SWL6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` hold `NSPEC`; `sig` and `dden` are
+/// `SIG(1:NK)` and `DDEN(1:NK)`. The number of points is the length of `cg` over `NK`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn swl6(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &ww3_kernels::swl6::Swl6Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dden: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] wn: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] d: &mut [Real],
+) {
+    let point = id.x as usize;
+    let nk = p.nk as usize;
+    if point >= cg.len() / nk {
+        return;
+    }
+    ww3_kernels::swl6::w3swl6(p, sig, dden, a, cg, wn, s, d, point * nk * p.nth as usize, point * nk);
+}
