@@ -24,5 +24,7 @@ case "$variant" in
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;
+  st3wn) sds4='&SDS3 WNMEANP=1. /' ;;
+  st3z) sds4='&SIN3 ZWND=15., ALPHA0=0.0095 /' ;;
   *) echo "unknown variant $variant" >&2; exit 64 ;;
 esac

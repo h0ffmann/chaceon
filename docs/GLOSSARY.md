@@ -102,3 +102,7 @@
 | `W3IOBC` | Reads, writes and dumps the boundary data files `nest.ww3` and `nestNN.ww3` (`w3iobcmd.F90`) |
 | `ww3_bounc` | WW3's pre-processor that turns NetCDF spectra into `nest.ww3` |
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
+| ST3 | WW3 switch: WAM cycle 4 wind input and dissipation, `W3SIN3`, `W3SDS3`, `W3SPR3` |
+| `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
+| `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| `TAUT` | Table of the friction velocity as a function of the wave-supported stress and the 10 m wind speed, built by `TABU_STRESS` |

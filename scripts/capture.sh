@@ -14,6 +14,7 @@ depth="${3:-2500}"
 stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine/$variant" in spr3/*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
 # shellcheck source=scripts/ts1_variants.sh
 source scripts/ts1_variants.sh
 out="${routine}_${variant}_${depth}m.bin"

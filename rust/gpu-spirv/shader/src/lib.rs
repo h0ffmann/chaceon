@@ -388,3 +388,32 @@ pub fn libm_probe(
         _ => ww3_libm::erff(a),
     };
 }
+
+/// `W3SPR3`. `w` holds `2 * NK` per point.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn spr3(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &ww3_kernels::spr3::Spr3Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dden: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] taut: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] wn: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] llws: &[u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] points: &[ww3_kernels::spr3::Spr3Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] w: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] out: &mut [ww3_kernels::spr3::Spr3Out],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    let nk = p.nk as usize;
+    ww3_kernels::spr3::w3spr3(
+        p, sig, dden, taut, a, cg, wn, llws, &pt, w, out, point * p.nspec as usize, point * nk, point * 2 * nk,
+        point,
+    );
+}
