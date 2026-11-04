@@ -8,6 +8,7 @@ use ww3_kernels::pro3::{
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
+use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
@@ -103,6 +104,28 @@ pub unsafe fn sds4(
         &points[point], srhs, ddiag, brlambda, whitecap, w, iw,
         point * nspec, point * p.nk as usize, point * 4, point * lw, point * li,
     );
+}
+
+/// `W3SDS1`. `k` is `WN2`, `NSPEC` values per point.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds1(p: &Sds1Params, a: &[Real], k: &[Real], points: &[Sds1Point], s: *mut Real, d: *mut Real) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let nspec = (p.nk * p.nth) as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, points.len() * nspec),
+            core::slice::from_raw_parts_mut(d, points.len() * nspec),
+        )
+    };
+    w3sds1(p, &points[point], a, k, s, d, point * nspec, point * nspec);
 }
 
 /// `W3SBT4`. `bedform` holds three values per point, in and out; `w` holds `NK` per point.

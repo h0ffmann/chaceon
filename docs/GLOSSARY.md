@@ -33,6 +33,7 @@
 | `spirv-opt` | The SPIR-V optimiser of SPIRV-Tools; it folds floats unless `NoContraction` is set |
 | `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
 | `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
+| `W3SDS1` | ST1 and WAM-3 whitecapping dissipation, the dissipation term of switch `ST1` (`w3src1md.F90:432`, method "WAM-3"): `S = SDSC1 * FMEAN * WNMEAN^3 * EMEAN^2 * K * A` |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |

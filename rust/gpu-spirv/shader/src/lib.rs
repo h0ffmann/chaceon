@@ -10,6 +10,7 @@ use ww3_kernels::pro3::{
 };
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
+use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
@@ -352,6 +353,27 @@ pub fn sbt4(
         p, &t, a, cg, wn, &pt, bedform, s, d, w,
         point * nk * p.nth as usize, point * nk, point * nk, point * 3,
     );
+}
+
+/// `W3SDS1`. `k` is `WN2`, `NSPEC` values per point.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sds1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sds1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] points: &[Sds1Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] d: &mut [Real],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    let nspec = (p.nk * p.nth) as usize;
+    w3sds1(p, &pt, a, k, s, d, point * nspec, point * nspec);
 }
 
 /// Each `ww3-libm` function alone, so `spirv_replay libm` can compare it with the host's build.
