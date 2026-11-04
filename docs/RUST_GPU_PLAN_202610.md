@@ -216,7 +216,14 @@ package swapped (`switches/switch_chaceon_st1`, `_st3`, `_ice1`) and bit-identic
 SPIR-V on lavapipe: `ST1`'s `W3SPR1`, `W3SIN1`, `W3SDS1` with `FLX1`'s `W3FLX1`; `ST3`'s `W3SPR3`, its `CALC_USTAR`,
 `W3SIN3`, `W3SDS3`, and the tables of `INSIN3`, `TABU_STRESS` and `TABU_TAUHF` (host only); and the ice terms `W3SIC1`
 and `W3SIS1`. Reports are in `rust/port_report/`, one log entry per routine dated 2026-11-04. None is called from
-`W3SRCE` yet, and the host reads none of their `mod_def.ww3` fields: that is the next step for each package. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
+`W3SRCE` yet, and the host reads none of their `mod_def.ww3` fields: that is the next step for each package.
+
+**2026-11-04, later:** seventeen more are at status `routine`, captured from references built with
+`switches/switch_chaceon_st2` (`ST2`, `FLX2`), `_st2flx3` (`ST2`, `FLX3`) and `_st6` (`ST6`, `FLX4`): `ST2`'s `W3SPR2`,
+`W3SIN2`, `W3SDS2` and its table `INPTAB` with `W3BETA` (host only); `W3FLX2`, `W3FLX3`, `W3FLX4`; `ST6`'s `W3SPR6`,
+`W3SIN6` with `LFACTOR`, `TAU_WAVE_ATMOS`, `TAUWINDS` and `IRANGE`, `W3SDS6`, and `W3SWL6` with its own `IRANGE`. The ten
+kernels are bit-identical on the host and in SPIR-V on lavapipe on every capture, one log entry per routine dated
+2026-11-04. As for the thirteen above, none is called from `W3SRCE` and no `mod_def.ww3` field of theirs is read. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
 grid, `ww3_multi`, domain decomposition over several GPUs. MPI needs an ADR of its own: a binding
 to C MPI, or GPU-aware transport.
 
