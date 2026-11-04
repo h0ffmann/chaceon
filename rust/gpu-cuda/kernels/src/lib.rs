@@ -737,6 +737,48 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
 
+/// `W3SIN6`, with `LFACTOR`, `TAU_WAVE_ATMOS`, `IRANGE` and `TAUWINDS`. `work` holds `work_len` values per point.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin6(
+    p: &ww3_kernels::sin6::Sin6Params,
+    sig2: &[Real],
+    dden2: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn2: &[Real],
+    points: &[ww3_kernels::sin6::Sin6Point],
+    s: *mut Real,
+    d: *mut Real,
+    work: *mut Real,
+    out: *mut ww3_kernels::sin6::Sin6Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let (nk, nspec) = (p.nk as usize, p.nspec as usize);
+    let wl = ww3_kernels::sin6::work_len(nk, nspec, ww3_kernels::sin6::nk10hz(p.nk, sig2[0], p.xfr) as usize);
+    let (s, d, work, out) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(work, n * wl),
+            core::slice::from_raw_parts_mut(out, n),
+        )
+    };
+    ww3_kernels::sin6::w3sin6(
+        p, sig2, dden2, ecos, esin, a, cg, wn2, &points[point], s, d, work, out, point * nspec, point * nk, point * wl,
+        point,
+    );
+}
+
 /// `W3SDS6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` `NSPEC`, `w` four `NK` of scratch.
 ///
 /// # Safety

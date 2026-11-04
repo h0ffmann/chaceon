@@ -981,10 +981,49 @@ fn main() {
         "sds2" => sds2_run(&code, &path),
         "flx3" => flx3_run(&code, &path),
         "libm" => libm_run(&code, &path),
+        "sin6" => sin6_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });
     std::process::exit(!ok as i32);
+}
+
+/// `W3SIN6` on every captured call, with the module tables as the reference left them.
+fn sin6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Sin6Call, Sin6Capture};
+    use ww3_kernels::sin6::{Sin6Out, nk10hz, work_len};
+    let c = Sin6Capture::read(path);
+    let p = c.params;
+    let (nk, nspec) = (p.nk as usize, p.nspec as usize);
+    let points = c.calls.len();
+    let wl = work_len(nk, nspec, nk10hz(p.nk, c.sig2[0], p.xfr) as usize);
+    let concat = |f: fn(&Sin6Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, wn2) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.wn2));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd) = (concat(|x| &x.s), concat(|x| &x.d));
+    let ro: Vec<f32> =
+        c.calls.iter().flat_map(|x| [x.out.tauwx, x.out.tauwy, x.out.tauwnx, x.out.tauwny]).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dden2)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn2)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * wl * 4),
+        Slot::Out(points * size_of::<Sin6Out>()),
+    ];
+    let out = dispatch(code, c"sin6", &slots, points);
+    // The four stresses out of the Sin6Out records; `iters` and `reach` follow them.
+    let tau: Vec<u8> = out[12].chunks_exact(size_of::<Sin6Out>()).flat_map(|r| r[..16].iter().copied()).collect();
+    compare("S", &out[9], &rs) & compare("D", &out[10], &rd) & compare("TAUW", &tau, &ro)
 }
 
 /// `W3SIN2` on every captured call, with `BETATB` as the reference left it.
