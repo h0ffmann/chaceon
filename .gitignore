@@ -1,4 +1,5 @@
 target/
 *.ptx
+!docker/Dockerfile.ptx
 *.spv
 /work/
