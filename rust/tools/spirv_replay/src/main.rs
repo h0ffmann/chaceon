@@ -389,7 +389,15 @@ fn srce_run(code: &[u8], path: &str) -> bool {
         Spr4Capture::read(&sib("spr4")),
     );
     let st = snl.rebuild();
-    let p = c.params(st.params, sds.params, sin.params(), spr.params);
+    let mut p = c.params(st.params, sds.params, sin.params(), spr.params);
+    // A capture from a BT4 build: W3SRCE calls W3SBT4, ERFTABLE built on the host.
+    let mut erf = vec![0.0f32; ww3_kernels::sbt4::SIZEERFTABLE as usize + 1];
+    ww3_kernels::sbt4::tabu_erf(&mut erf);
+    if p.btopt == ww3_kernels::srce::SRCE_BT4 {
+        p.sbt4 = Sbt4Capture::read(&sib("sbt4")).params;
+        p.sbt4.delxerf = ww3_kernels::sbt4::delxerf();
+        println!("BT4: W3SRCE calls W3SBT4");
+    }
     let nspec = p.nspec as usize;
     let points = c.calls.len();
     let concat = |f: fn(&SrceCall) -> &Vec<f32>| -> Vec<f32> {
@@ -447,9 +455,17 @@ fn srce_run(code: &[u8], path: &str) -> bool {
     // Binding 53, `active`: the time loop marks the points due a call; every captured call is one.
     let active = vec![1u32; points];
     slots.push(Slot::In(bytes(&active)));
+    // Bindings 54 and 55: ERFTABLE, and BEDFORM in and out, three per point.
+    let (bin, rb): (Vec<f32>, Vec<f32>) =
+        (c.calls.iter().flat_map(|k| k.bedform_in).collect(), c.calls.iter().flat_map(|k| k.bedform).collect());
+    slots.push(Slot::In(bytes(&erf)));
+    slots.push(Slot::In(bytes(&bin)));
     let out = dispatch(code, c"srce", &slots, points);
     let ours = floats(&out[27]);
-    compare("SPEC", &out[26], &rs) & compare("scalars", bytes(&ours), &ro) & compare("WHITECAP", &out[WHITECAP], &rw)
+    compare("SPEC", &out[26], &rs)
+        & compare("scalars", bytes(&ours), &ro)
+        & compare("WHITECAP", &out[WHITECAP], &rw)
+        & compare("BEDFORM", &out[55], &rb)
 }
 
 /// `W3SBT4` on every captured call, with the `ERFTABLE` that `TABU_ERF` builds on the host.

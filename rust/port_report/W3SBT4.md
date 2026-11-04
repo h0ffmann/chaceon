@@ -8,8 +8,9 @@ the port's target `switch_chaceon_shrd`. Translated from `model/src/w3sbt4md.F90
 `rust/crates/ww3-kernels/src/sbt4.rs`. Two `ww3-libm` functions are new for it: `sinhf` and `erff`.
 
 **Status: `routine`** in `rust/ports.tsv`: every captured call bit-identical, on the host in call and batch layouts
-and in compiled SPIR-V on lavapipe (ADR-0007). It is not called from `W3SRCE` yet, so no model run uses it ⚠. It has
-run on no GPU ⚠.
+and in compiled SPIR-V on lavapipe (ADR-0007). `W3SRCE` calls it when `SrceParams::btopt` is `BT4`, bit-identical on
+15 127 captured `W3SRCE` calls (`rust/port_report/W3SRCE.md`, "With `BT4`"). No model run uses it yet: the host reads
+`mod_def.ww3` for `BT1` only ⚠. It has run on no GPU ⚠.
 
 ## Arguments
 
@@ -101,7 +102,7 @@ On `default, 8 m` unless named.
 
 ## Not translated, not reached
 
-- The call in `W3SRCE` (`w3srcemd.F90:1339-1342`) and the state around it: `SED_D50`, `SED_PSIC`, `BEDFORMS` and
+- The state around the call in `W3SRCE`: `SED_D50`, `SED_PSIC`, `BEDFORMS` and
   `TAUBBL` per sea point in `W3WAVE` (`w3wavemd.F90:2186-2253`), `SBTCX`, `SED_D50` and `SED_PSIC` in `mod_def.ww3`
   (`w3iogrmd.F90:1425`), the `SBT4` namelist and `SED_PSIC` in `ww3_grid` (`w3gridmd.F90:2283-2303`, `:5550-5556`).
   `ww3_grid` and `moddef.rs` read `switch_chaceon_shrd`'s layout only ⚠.

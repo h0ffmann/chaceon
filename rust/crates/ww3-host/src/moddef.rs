@@ -8,7 +8,7 @@ use crate::insnl1::Snl1Tables;
 use ww3_kernels::sds4::Sds4Params;
 use ww3_kernels::sin4::{Sin4Params, Spr4Params};
 use ww3_kernels::snl1::Snl1Params;
-use ww3_kernels::srce::{SrceParams, SrceTables};
+use ww3_kernels::srce::{SRCE_BT1, SrceParams, SrceTables};
 
 /// Fortran unformatted records.
 pub struct Records {
@@ -674,6 +674,8 @@ impl ModDef {
             sds: self.sds4(flogrd),
             sin: self.sin4(),
             spr: self.spr4(),
+            // mod_def.ww3 is read for switch_chaceon_shrd's layout only, so BT1.
+            btopt: SRCE_BT1,
             ..Default::default()
         };
         p.icescales.copy_from_slice(&self.icescales);
@@ -704,6 +706,7 @@ impl ModDef {
             tauhft: &self.tauhft,
             tauhft2: &self.tauhft2,
             taut: &self.taut,
+            erftable: &[],
         }
     }
 }

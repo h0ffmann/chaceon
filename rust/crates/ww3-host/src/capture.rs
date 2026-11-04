@@ -385,9 +385,12 @@ impl Spr4Capture {
 
 /// One `W3SRCE` call: its inputs and the reference's outputs. `out` holds USTAR USTDIR DTDYN FCUT TAUWX
 /// TAUWY TAUOX TAUOY TAUWIX TAUWIY TAUWNX TAUWNY PHIAW CHARN TWS PHIOC PHIBBL TAUBBL(2) TAUICE(2) PHICE
-/// TAUOCX TAUOCY WNMEAN, 25 in all.
+/// TAUOCX TAUOCY WNMEAN, 25 in all. A "SRCB" file also holds `BEDFORM` in and out; an older "SRCE"
+/// file leaves them, `D50` and `PSIC` at zero.
 pub struct SrceCall {
     pub point: SrcePoint,
+    pub bedform_in: [f32; 3],
+    pub bedform: [f32; 3],
     pub spec: Vec<f32>,
     pub wn1: Vec<f32>,
     pub cg1: Vec<f32>,
@@ -406,15 +409,21 @@ pub struct SrceCapture {
 impl SrceCapture {
     pub fn read(path: &str) -> Self {
         let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
-        assert_eq!(&r.b[..4], b"SRCE");
-        let ints = r.ints(5);
+        let srcb = &r.b[..4] == b"SRCB";
+        assert!(srcb || &r.b[..4] == b"SRCE", "{path}");
+        // "SRCB" adds the build's BT switch, 1 or 4; an "SRCE" file is from a BT1 build.
+        let mut ints = r.ints(if srcb { 6 } else { 5 });
+        if !srcb {
+            ints.push(1);
+        }
         let reals = r.reals(19);
         let icescales = r.table_r().data;
         let (nk, nspec) = (ints[0] as usize, ints[2] as usize);
         let mut calls = Vec::new();
         while r.p < r.b.len() {
             let i = r.ints(2);
-            let f = r.reals(9);
+            let f = r.reals(if srcb { 11 } else { 9 });
+            let bedform_in = if srcb { r.reals(3) } else { vec![0.; 3] };
             let point = SrcePoint {
                 srce_call: i[0],
                 it: i[1],
@@ -427,12 +436,25 @@ impl SrceCapture {
                 dtg: f[6],
                 dair: f[7],
                 coef: f[8],
+                d50: f.get(9).copied().unwrap_or(0.),
+                psic: f.get(10).copied().unwrap_or(0.),
             };
             let (spec, wn1, cg1) = (r.reals(nspec), r.reals(nk), r.reals(nk));
             let spec_out = r.reals(nspec);
             let out = r.reals(25);
             let whitecap = r.reals(4);
-            calls.push(SrceCall { point, spec, wn1, cg1, spec_out, out, whitecap });
+            let bedform = if srcb { r.reals(3) } else { vec![0.; 3] };
+            calls.push(SrceCall {
+                point,
+                bedform_in: [bedform_in[0], bedform_in[1], bedform_in[2]],
+                bedform: [bedform[0], bedform[1], bedform[2]],
+                spec,
+                wn1,
+                cg1,
+                spec_out,
+                out,
+                whitecap,
+            });
         }
         Self { ints, reals, icescales, calls }
     }
@@ -445,6 +467,7 @@ impl SrceCapture {
             nspec: i[2],
             fdonly: i[3] as u32,
             inflags2_4: i[4] as u32,
+            btopt: i[5],
             dmin: f[0],
             dtmax: f[1],
             dtmin: f[2],

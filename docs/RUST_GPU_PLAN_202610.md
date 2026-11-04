@@ -207,7 +207,9 @@ ships (`BT4`, `WCOR`, `RWND`, `SEED`, `MPI`).
 
 **2026-11-03:** `W3SBT4` (`BT4`) is a kernel at status `routine`: 33 824 captured calls bit-identical on the host and
 in SPIR-V on lavapipe, against a reference built with `switches/switch_chaceon_bt4` ([log](log/2026-11-03-sbt4-parity.md),
-`rust/port_report/W3SBT4.md`). Next for `BT4`: its call in `W3SRCE`, its state per sea point, and its `mod_def.ww3` fields. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
+`rust/port_report/W3SBT4.md`). It is called from the `W3SRCE` kernel when the build is `BT4`: 15 127 captured `W3SRCE`
+calls bit-identical on the host and in SPIR-V ([log](log/2026-11-03-srce-bt4.md)). Next for `BT4`: its state per sea
+point and its `mod_def.ww3` fields, so that a model run uses it. Batch 8 ([how to run them, and what porting takes](UNSTRUCTURED_GRIDS_202610.md)): PDLIB and the unstructured solvers, the SMC
 grid, `ww3_multi`, domain decomposition over several GPUs. MPI needs an ADR of its own: a binding
 to C MPI, or GPU-aware transport.
 

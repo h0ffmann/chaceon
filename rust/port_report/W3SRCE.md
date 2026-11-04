@@ -31,6 +31,47 @@ just srce-cmp storm_6m
 LIBM_F64_ONLY=1 just libm-bits # exp, expm1, tanh, sqrt: 8e9 samples each, 0 differ
 ```
 
+## With `BT4`
+
+`SrceParams::btopt` selects the bottom friction the build's switch selects: `W3SBT1`, or `W3SBT4`
+(`w3srcemd.F90:1336-1342`), which also overwrites `TAUBBL` on every pass and `BEDFORM`, three values per point
+in `SrceWork::bedform`. `W3SRCE` divides the last pass's `TAUBBL` by `DTG` and takes it from `TAUOX`, `TAUOY`
+(`:2052-2058`). `ERFTABLE` is a new table; `D50` and `PSIC` join `SrcePoint`. With `BT1` none of it is read.
+
+The capture's header now names the build's switch ("SRCB"; older "SRCE" files are `BT1`), and every capture of
+a `bt4*` variant comes from `switches/switch_chaceon_bt4`. `srce_cmp` takes `SBTCX` from the case's `sbt4`
+capture and builds `ERFTABLE` with `TABU_ERF`, as a run would.
+
+| Tag, `switch_chaceon_bt4` | Calls | `W3SDB1` active | `W3SBT4` active | Host differ |
+|---|---|---|---|---|
+| `bt4_8m`, `bt4_20m` | 2161 each | 0 | 2160 | 0 |
+| `bt4storm_8m`, 30 m/s | 2161 | 2129 | 2160 | 0 |
+| `bt4ripple_8m`, `bt4ripple_20m` (ripple branch, per `W3SBT4.md`) | 2161 each | 0 | 2160 | 0 |
+| `bt4coarse_8m`, `bt4flat_8m` | 2161 each | 0 | 2160 | 0 |
+
+`just spirv-replay srce <variant> <depth>` on the same seven, one dispatch each: 0 differ, `BEDFORM` included (v,
+lavapipe). `BEDFORM` written at offset 0, not `3*point`, passes the host replay, which runs one call at a time, and the SPIR-V
+replay catches it: 5 695 values.
+`spirv_shel` binds the new buffers but reads `mod_def.ww3` for `BT1` only, so no chained run has used `BT4` ⚠.
+
+15 127 calls, every call of each run: 13 069 728 `SPEC`, 378 175 scalar, 60 508 `WHITECAP` and 45 381 `BEDFORM`
+values, 0 differ (v, `just srce-cmp <tag>`). `BEDFORM` changed on every call. The 11 `BT1` captures above still
+give 0 (v).
+
+| Fault, `bt4_8m` unless named | Result |
+|---|---|
+| `TAUBBL(1)` left at 0 | caught: 6 414 scalars |
+| `D50` and `PSIC` swapped | caught: 1 101 945 `SPEC`, 6 399 `BEDFORM` |
+| `W3SBT1` called in a `BT4` build | caught: 1 129 467 `SPEC` |
+| `TAUBBL(2)` one ULP up, `bt4storm_8m` | caught: 2 167 scalars |
+| `D_INP` for `DEPTH` in `W3SBT4` | **no effect**: `DEPTH=MAX(DMIN,D_INP)` and every case is deeper than `DMIN` |
+
+```bash
+just capture srce bt4ripple 8           # bt4* variants use switch_chaceon_bt4
+for r in snl1 sds4 sin4 spr4 sbt4; do just capture $r bt4ripple 8 1000; done
+just srce-cmp bt4ripple_8m
+```
+
 ## Fault runs
 
 | Fault | Result |
@@ -57,7 +98,8 @@ This replays each call alone. `W3SRCE` has not run chained as SPIR-V: `spirv_she
 
 ## GPU code
 
-SPIR-V 3.0 MB, passes `spirv-val`, needs `Float64`, `Int64` and 52 storage buffers. PTX 3.0 MB, five
+SPIR-V 3.0 MB, passes `spirv-val`, needs `Float64`, `Int64` and 52 storage buffers. Since `BT4`, the `srce`
+entry point binds 56: `active` (53), `ERFTABLE` (54) and `BEDFORM` (55); the whole module is 4.3 MB. PTX 3.0 MB, five
 kernels, 29 812 float operations, all `.rn`; no `fma`, no libdevice, no `ftz`. Neither has run on a GPU ⚠.
 
 ## Translation notes
@@ -75,7 +117,7 @@ kernels, 29 812 float operations, all `.rn`; no `fma`, no libdevice, no `ftz`. N
 - `srce_imp_pre` and `srce_imp_post`, `SHRD`'s implicit paths: no capture ran them. `INFLAGS2(4)` and the ice
   scaling: no case has ice.
 - `W3SDB1`'s `FDONLY` branch and its threshold cases.
-- This switch only: every other `#ifdef` branch of `W3SRCE`.
+- `switch_chaceon_shrd`, and its `BT4` twin through captures: every other `#ifdef` branch of `W3SRCE`.
 - Other spectral grids, more than one sea point at a time inside WW3, threads, x86_64, any GPU.
 
 ## Timing

@@ -19,6 +19,8 @@ case "$variant" in
   flatswell) sds4='&SIN4 SWELLF2=0., SWELLF3=0.02, SWELLF4=0., SWELLF6=1., SWELLF7=0. /' ;;
   sharp) sds4='&SIN4 SWELLF7=0. /' ;;
   romero2) sds4='&SDS4 SDSBCHOICE=3, SDSC2=-3.8, SDSBR=0.005, SDSSTRAIN=2., SDSSTRAIN2=0.5, FXFM3=20., SDSFACMTF=400., SDSCUM=0., SDSC5=0. /' ;;
+  bt4) ;;
+  bt4storm) wind=30 ;;
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;

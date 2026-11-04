@@ -1728,6 +1728,9 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                         dtg,
                         dair: DAIR,
                         coef: 1.,
+                        // BT1: W3SBT4's inputs, never read.
+                        d50: 0.,
+                        psic: 0.,
                     };
                     if let Some(d) = device.as_deref_mut() {
                         let pts: Vec<_> = (1..=nsea).map(|i| point(i, &s)).collect();
@@ -1789,6 +1792,8 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                 dtg,
                                 dair: DAIR,
                                 coef: 1.,
+                                d50: 0.,
+                                psic: 0.,
                             };
                             let [specinit, dam, wn2, vsln, vsin, vdin, vsnl, vdnl, vsds, vdds, vsbt, vdbt, vsdb, vddb, vs, vd, brlambda] =
                                 sc.bufs.iter_mut().map(|b| b.as_mut_slice()).collect::<Vec<_>>().try_into().ok().unwrap();
@@ -1802,6 +1807,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                                 whitecap: t.whitecap,
                                 sin_out: &mut sc.sin_out,
                                 spr_out: &mut sc.spr_out,
+                                bedform: &mut [],
                             };
                             let (a, b) = (1 + nk2 * isea, nk2 * isea + nk + 1);
                             w3srce(&p, &tables, &q, t.spec, &wn[a..b], &cg[a..b], &mut w, &mut sc.out, 0);
@@ -1837,6 +1843,7 @@ fn run_impl(m: &ModDef, mut r: Run, dir: &str, mut device: Option<&mut dyn Devic
                             whitecap: &mut whitecap[4 * isea..4 * (isea + 1)],
                             sin_out: &mut sin_out,
                             spr_out: &mut spr_out,
+                            bedform: &mut [],
                         };
                         let spec = &mut s.va[nspec * isea..nspec * (isea + 1)];
                         let (a, b) = (1 + nk2 * isea, nk2 * isea + nk + 1);
