@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
 use std::ffi::CStr;
 use ww3_host::capture::{
-    Flx1Capture, Sbt4Call, Sbt4Capture, Sds1Call, Sds1Capture, Sds4Capture, Sin1Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
+    Flx1Capture, Sbt4Call, Sbt4Capture, Sds1Call, Sds1Capture, Sds4Capture, Sic1Call, Sic1Capture, Sin1Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
 };
 use ww3_kernels::srce::{SrceOut, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
@@ -530,6 +530,29 @@ fn sbt4_run(code: &[u8], path: &str) -> bool {
     compare("S", &out[12], &rs) & compare("D", &out[13], &rd) & compare("BEDFORM", &out[11], &rb) & compare("TAUBBL", &tau, &rt)
 }
 
+/// `W3SIC1` on every captured call.
+fn sic1_run(code: &[u8], path: &str) -> bool {
+    use ww3_kernels::sic1::Sic1Out;
+    let c = Sic1Capture::read(path);
+    let ns = (c.params.nk * c.params.nth) as usize;
+    let points = c.calls.len();
+    let cat = |f: fn(&Sic1Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, rs, rd) = (cat(|k| &k.a), cat(|k| &k.cg), cat(|k| &k.s), cat(|k| &k.d));
+    let ice: Vec<f32> = c.calls.iter().map(|k| k.icecoef1).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.mapwn)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&ice)),
+        Slot::Out(points * ns * 4),
+        Slot::Out(points * ns * 4),
+        Slot::Out(points * size_of::<Sic1Out>()),
+    ];
+    let out = dispatch(code, c"sic1", &slots, points);
+    compare("S", &out[5], &rs) & compare("D", &out[6], &rd)
+}
+
 /// `W3SIS1` on every captured call.
 fn sis1_run(code: &[u8], path: &str) -> bool {
     use ww3_host::capture::Sis1Capture;
@@ -723,6 +746,7 @@ fn main() {
         "spr1" => spr1_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
+        "sic1" => sic1_run(&code, &path),
         "sis1" => sis1_run(&code, &path),
         "sds3" => sds3_run(&code, &path),
         "flx1" => flx1_run(&code, &path),

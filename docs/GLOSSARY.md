@@ -15,6 +15,9 @@
 | `TAUT` | `W3SRC3MD`'s table of friction velocity against wave-supported stress and 10 m wind, built by `TABU_STRESS` |
 | `TAUHFT` | `W3SRC3MD`'s table of the high-frequency wave-supported stress against friction velocity and Charnock coefficient, built by `TABU_TAUHF` |
 | Shields parameter | Bed shear stress over the submerged weight of a grain layer; ripples form above a critical value (`PSIC`) |
+| IC1 | WW3 switch: ice damping with one uniform exponential decay rate, `W3SIC1` (Rogers and Orzech 2013) |
+| `ICEP1` | Ice parameter 1 of `W3IDATMD`: the decay rate `k_i` of wave amplitude under ice, read per grid point; `W3SIC1` returns `D = -2*Cg*k_i` |
+| `MAPWN` | `W3GDATMD`'s map from a spectral bin `IS = ITH + (IK-1)*NTH` to its wavenumber band `IK` |
 | DIA | Discrete Interaction Approximation of the nonlinear transfer; WW3's `NL1`, `W3SNL1` |
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
 | GIMPLE | GCC's intermediate form, read to see what `-O3` computes |

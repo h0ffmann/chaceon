@@ -6,6 +6,7 @@ wind=12
 wdir=270
 poke=''
 limit=0
+ice1=''
 ice=''
 grid=''
 case "$variant" in
@@ -28,6 +29,11 @@ case "$variant" in
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;
+  ice1) ice1='0.5:2.0e-5' ;;
+  ice1zero) ice1='0.5:0.' ;;
+  ice1dated) ice1='0.9:2.0e-5,0.9@19680606120000:0.,0.3@19680607000000:3.5e-6' ;;
+  ice1poke) ice1='0.5:2.0e-5'; poke=1; limit=500 ;;
+  ice1storm) wind=30; ice1='0.5:5.0e-5' ;;
   ice) ice=0.4 ;;
   ice2) ice=0.2 ;;
   icesplit) ice=0.45; sds4='&SIS1 ISC1=0.5, ISC2=0.1 /' ;;

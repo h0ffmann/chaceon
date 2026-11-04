@@ -14,6 +14,7 @@ use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::sis1::{Sis1Params, Sis1Point, w3sis1};
@@ -368,6 +369,28 @@ pub fn ktp3(
     let mut w = Ktp3Work { dsdd, frk, frg, fkc, vq, db, dm, vcflt, cflk, fla };
     let q = points[point];
     w3ktp3(p, &t, &q, point, cg, wn, va, &mut w);
+}
+
+/// `W3SIC1`. `icecoef1` holds `ICEP1(IX,IY)` of each point.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sic1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sic1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] mapwn: &[i32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] icecoef1: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] d: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] out: &mut [Sic1Out],
+) {
+    let point = id.x as usize;
+    if point >= icecoef1.len() {
+        return;
+    }
+    let nk = p.nk as usize;
+    out[point] = w3sic1(p, mapwn, a, cg, icecoef1[point], s, d, point * nk * p.nth as usize, point * nk);
 }
 
 /// `W3SBT4`. `bedform` holds three values per point, in and out; `w` holds `NK` per point.

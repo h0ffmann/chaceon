@@ -12,6 +12,7 @@ use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
 use ww3_kernels::sis1::{Sis1Params, Sis1Point, w3sis1};
@@ -109,6 +110,37 @@ pub unsafe fn sds4(
         &points[point], srhs, ddiag, brlambda, whitecap, w, iw,
         point * nspec, point * p.nk as usize, point * 4, point * lw, point * li,
     );
+}
+
+/// `W3SIC1`. `icecoef1` holds `ICEP1(IX,IY)` of each point.
+///
+/// # Safety
+/// The output buffers hold `icecoef1.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sic1(
+    p: &Sic1Params,
+    mapwn: &[i32],
+    a: &[Real],
+    cg: &[Real],
+    icecoef1: &[Real],
+    s: *mut Real,
+    d: *mut Real,
+    out: *mut Sic1Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= icecoef1.len() {
+        return;
+    }
+    let n = icecoef1.len();
+    let nk = p.nk as usize;
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d) = unsafe {
+        (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec))
+    };
+    let o = w3sic1(p, mapwn, a, cg, icecoef1[point], s, d, point * nspec, point * nk);
+    unsafe { *out.add(point) = o };
 }
 
 /// `W3FLX1`, one point per thread.

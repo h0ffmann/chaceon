@@ -15,6 +15,7 @@ stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sis1/* | */ice*) switch="${CAPTURE_SWITCH:-switch_chaceon_ice1}" ;; esac
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine/$variant" in sic1/* | */ice1*) switch="${CAPTURE_SWITCH:-switch_chaceon_ice1}" ;; esac
 # switch_chaceon_st3 for sds3 and for every variant named st3*, as for bt4 above.
 case "$routine/$variant" in sds3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
 case "$routine" in flx1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac # FLX1 is in the ST1 build
@@ -30,7 +31,7 @@ mkdir -p work/capture
 docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-add SYS_PTRACE \
   -v "$PWD/work:/work" -v "$PWD/regtests/capture:/capture:ro" \
   -v "$PWD/WW3/regtests/ww3_ts1/input:/ww3_input:ro" \
-  -e CAPTURE_OUT="/work/capture/$out" -e CAPTURE_STRIDE="$stride" -e DEPTH="$depth" -e SDS4="$sds4" -e WIND="$wind" -e WDIR="$wdir" -e CAPTURE_POKE="$poke" -e CAPTURE_LIMIT="$limit" -e ICE="$ice" -e GRID="$grid" \
+  -e CAPTURE_OUT="/work/capture/$out" -e CAPTURE_STRIDE="$stride" -e DEPTH="$depth" -e SDS4="$sds4" -e WIND="$wind" -e WDIR="$wdir" -e CAPTURE_POKE="$poke" -e CAPTURE_LIMIT="$limit" -e ICE1="$ice1" -e ICE="$ice" -e GRID="$grid" \
   --entrypoint sh "chaceon-ref-capture:$switch" -c "
     set -e
     mkdir -p /run/ts1/work && cp -R /ww3_input /run/ts1/input && cd /run/ts1/work
@@ -48,6 +49,9 @@ docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-a
     if [ -n \"\$GRID\" ]; then sed -i \"\$GRID\" ww3_grid.nml; fi
     if [ -n \"\$SDS4\" ]; then
       sed -i \"/END OF NAMELISTS/i \$SDS4\" ../input/namelists_HOMOGENEOUS.nml
+    fi
+    if [ -n \"\$ICE1\" ]; then
+      sh /capture/ice1_shel.sh ww3_shel.nml \"\$ICE1\"
     fi
     ww3_grid > grid.log 2>&1
     ww3_strt > strt.log 2>&1
