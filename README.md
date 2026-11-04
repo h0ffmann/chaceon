@@ -13,23 +13,26 @@ and [rust-gpu](https://github.com/Rust-GPU/rust-gpu). It is compared with
 [metocean/WW3](https://github.com/metocean/WW3) 7.14 (`7.14.mos-92e2cf6`), and it follows the
 discipline of [ww3-gpu](https://github.com/h0ffmann/ww3-gpu) without Kokkos.
 
-**State, 2026-11-01:** a run with no Fortran program in it exists. Rust's `ww3_grid`, `ww3_strt`, `ww3_prep` (for the
+**State, 2026-11-04:** a run with no Fortran program in it exists. Rust's `ww3_grid`, `ww3_strt`, `ww3_prep` (for the
 case with a forcing file) and `ww3_shel`, in sequence from the namelists, give `mod_def.ww3`, `current.ww3`,
-`out_grd.ww3`, `out_pnt.ww3` and both restarts byte-identical to the reference on 17 cases, 81 files and
-805 162 628 bytes (v, `just rust-only`). `ww3_prep` now takes every input type, and `ww3_strt` every start type
+`out_grd.ww3`, `out_pnt.ww3`, `track_o.ww3` and both restarts byte-identical to the reference on 96 files (v,
+`just rust-only`). `ww3_prep` takes every input type, and `ww3_strt` every start type
 ([prep](rust/port_report/WW3_PREP.md), [strt](rust/port_report/WW3_STRT.md)). `ww3_prnc` reads NetCDF forcing for
 types `AI` and `LL`, byte-identical on 81 cases whose data are synthetic, because the regtests' NetCDF files are not
-in WW3's repository ([report](rust/port_report/WW3_PRNC.md)). After the run, `ww3_ounf` and `ww3_ounp` write NetCDF
-files byte-identical to the reference's through the system `libnetcdf` ([ounf](rust/port_report/WW3_OUNF.md),
-[ounp](rust/port_report/WW3_OUNP.md)), and `ww3_outf` and `ww3_outp` write the same text files on 40 regtest inputs
-([outf](rust/port_report/WW3_OUTF.md), [outp](rust/port_report/WW3_OUTP.md)). Spectral partitioning fields and the
-`nest.ww3` files `ww3_shel` writes are byte-identical too ([partitions](rust/port_report/W3PART.md),
-[boundaries](rust/port_report/W3IOBC.md)), but boundary input in a run is refused and `ww3_bounc` and `ww3_bound`
-are not ported. `ww3_shel` takes `--threads N` and, built with the feature `mpi`,
-`mpirun -n R`, with the same bytes on 120 MPI runs (v, `just mpi-pair`). With `W3SRCE`, `W3XYP3` and `W3KTP3` as
-compiled SPIR-V on CPU Vulkan and `VA` resident on the device, the same files are byte-identical too. **Nothing has
-run on a real GPU**, the PTX has never executed, and there are no timings: this is a verification result, not a
-speed one.
+in WW3's repository ([report](rust/port_report/WW3_PRNC.md)). `ww3_shel` takes water levels, `IC0` ice, file winds and
+boundary input from `nest.ww3`, which Rust's `ww3_bound` writes: 214 comparisons identical over 34 boundary cases (v,
+`just bound-all`), on the host only ([bound](rust/port_report/WW3_BOUND.md), [W3IOBC](rust/port_report/W3IOBC.md)).
+After the run, `ww3_ounf` and `ww3_ounp` write NetCDF files byte-identical to the reference's through the system
+`libnetcdf` ([ounf](rust/port_report/WW3_OUNF.md), [ounp](rust/port_report/WW3_OUNP.md)), `ww3_outf` and `ww3_outp`
+write the same text files on 40 regtest inputs ([outf](rust/port_report/WW3_OUTF.md),
+[outp](rust/port_report/WW3_OUTP.md)), and `ww3_trck` and `ww3_trnc` the same track files (v, `just track-all`, 74
+comparisons). Spectral partitioning fields are byte-identical too ([partitions](rust/port_report/W3PART.md)).
+`ww3_bounc` is not ported. `ww3_shel` takes `--threads N` and, built with the feature `mpi`, `mpirun -n R`, with the
+same bytes (v, `just mpi-pair`). With `W3SRCE`, `W3XYP3` and `W3KTP3` as compiled SPIR-V on CPU Vulkan and `VA`
+resident on the device, the same files are byte-identical too. Batch 7 has begun: `W3SBT4`, MetOcean's bottom
+friction, is bit-identical on 33 824 captured calls and called from `W3SRCE` in a `BT4` build, though no model run
+uses it yet ([report](rust/port_report/W3SBT4.md)). **Nothing has run on a real GPU**, the PTX has never executed, and
+there are no timings: this is a verification result, not a speed one.
 
 ## Port status
 
@@ -83,7 +86,7 @@ Badges compare code lines on both sides: 133 810 Fortran and C lines of all mode
 | `routine`: every captured call identical | 1 620 |
 | `translated`: exists, not fully reached | 22 942 |
 
-**What still depends on Fortran.** No Rust binary links Fortran. A run still reads files that Fortran programs wrote where Rust stops: `mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or unformatted data files (`IDFM` 2 and 3), the old `ww3_grid.inp` and tripole closure; the forcing file of `ww3_prnc` for input types `AT`, `F1`, `F2` and `DAT` and of either forcing program on an unstructured grid; and `nest.ww3`, which only Fortran's `ww3_bound` and `ww3_bounc` write. Rust's `ww3_shel` refuses boundary input in a run. `ww3_prep` and `ww3_prnc` are 4 470 lines, 2% of `model/src`. Every verdict also needs the Fortran reference, by design: it is what Rust is compared with.
+**What still depends on Fortran.** No Rust binary links Fortran. A run still reads files that Fortran programs wrote where Rust stops: `mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or unformatted data files (`IDFM` 2 and 3), the old `ww3_grid.inp` and tripole closure; the forcing file of `ww3_prnc` for input types `AT`, `F1`, `F2` and `DAT` and of either forcing program on an unstructured grid; and `nest.ww3` from NetCDF spectra, which only Fortran's `ww3_bounc` writes (Rust's `ww3_bound` writes it from text spectra). Rust's `ww3_shel` takes water levels, ice and boundary input on the host and refuses them on a device. `ww3_prep` and `ww3_prnc` are 4 470 lines, 2% of `model/src`. Every verdict also needs the Fortran reference, by design: it is what Rust is compared with.
 
 <!-- port-summary:end -->
 

@@ -235,8 +235,9 @@ def build():
           "programs wrote where Rust stops: `mod_def.ww3` from `ww3_grid` for unstructured and SMC grids, formatted or "
           "unformatted data files (`IDFM` 2 and 3), the old `ww3_grid.inp` and tripole closure; the forcing file of "
           "`ww3_prnc` for input types `AT`, `F1`, `F2` and `DAT` and of either forcing program on an unstructured grid; "
-          "and `nest.ww3`, which only Fortran's `ww3_bound` and `ww3_bounc` write. Rust's `ww3_shel` refuses boundary "
-          f"input in a run. `ww3_prep` and `ww3_prnc` are {fmt(prep)} lines, {pct(prep, total['lines'])} of `model/src`. "
+          "and `nest.ww3` from NetCDF spectra, which only Fortran's `ww3_bounc` writes (Rust's `ww3_bound` writes it from "
+          "text spectra). Rust's `ww3_shel` takes water levels, ice and boundary input on the host and refuses them on a "
+          f"device. `ww3_prep` and `ww3_prnc` are {fmt(prep)} lines, {pct(prep, total['lines'])} of `model/src`. "
           "Every verdict also needs the Fortran reference, by design: it is what Rust is compared with.", "", END]
     return "\n".join(o), build_badges(model["code"], ev)
 
