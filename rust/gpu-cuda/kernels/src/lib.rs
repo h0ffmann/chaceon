@@ -13,6 +13,7 @@ use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sds6::{Sds6Params, w3sds6};
 use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
@@ -732,4 +733,39 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
     let (s, d) =
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
+}
+
+/// `W3SDS6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` `NSPEC`, `w` four `NK` of scratch.
+///
+/// # Safety
+/// The output buffers hold `cg.len() / NK` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sds6(
+    p: &Sds6Params,
+    sig2: &[Real],
+    dsii: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    s: *mut Real,
+    d: *mut Real,
+    w: *mut Real,
+) {
+    let point = thread::index_1d() as usize;
+    let nk = p.nk as usize;
+    let n = cg.len() / nk;
+    if point >= n {
+        return;
+    }
+    let nspec = nk * p.nth as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d, w) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(w, n * 4 * nk),
+        )
+    };
+    w3sds6(p, sig2, dsii, a, cg, wn, s, d, w, point * nspec, point * nk, point * 4 * nk);
 }

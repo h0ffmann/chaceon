@@ -55,5 +55,22 @@ case "$variant" in
   st3tab) sds4='&SIN3 ALPHA0=0.012, BETAMAX=1.4, ZALP=0.008, ZWND=8. /' ;;
   st3grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;
   st3grid2) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.05/' ;;
+  st6sds6) ;;
+  st6sds6storm) wind=30 ;;
+  st6sds6light) wind=6 ;;
+  st6sds6calm) wind=0 ;;
+  st6sds6noet) sds4='&SDS6 SDSET=F /' ;;
+  st6sds6p) sds4='&SDS6 SDSA1=9.0E-6, SDSA2=1.4E-4, SDSP1=3, SDSP2=5 /' ;;
+  st6sds6p0) sds4='&SDS6 SDSP1=0, SDSP2=1 /' ;;
+  st6sds6noetp) sds4='&SDS6 SDSET=F, SDSP1=2, SDSP2=1 /' ;;
+  st6sds6neg) sds4='&SDS6 SDSP1=-1, SDSP2=-2 /'; limit=300 ;;
+  st6sds6noetneg) sds4='&SDS6 SDSET=F, SDSP1=-1, SDSP2=-2 /'; limit=300 ;;
+  st6sds6a1neg) sds4='&SDS6 SDSA1=-4.75E-6 /' ;;
+  st6sds6a2neg) sds4='&SDS6 SDSA2=-7.0E-5 /' ;;
+  st6sds6aneg) sds4='&SDS6 SDSA1=-4.75E-6, SDSA2=-7.0E-5 /' ;;
+  st6sds6poke) poke=1; limit=500 ;;
+  st6sds6noetpoke) sds4='&SDS6 SDSET=F /'; poke=1; limit=500 ;;
+  st6sds6grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;
+  st6sds6grid2) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.05/; s/SPECTRUM%NTH       =  24/SPECTRUM%NTH       =  36/' ;;
   *) echo "unknown variant $variant" >&2; exit 64 ;;
 esac

@@ -15,6 +15,7 @@ use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
+use ww3_kernels::sds6::{Sds6Params, w3sds6};
 use ww3_kernels::sic1::{Sic1Out, Sic1Params, w3sic1};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
@@ -596,4 +597,28 @@ pub fn sds3(
     let pt = points[point];
     let nk = p.nk as usize;
     w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
+}
+
+/// `W3SDS6`. `cg` and `wn` hold `NK` per point, `a`, `s` and `d` `NSPEC`, `w` four `NK` of scratch;
+/// `sig2` and `dsii` are one copy.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sds6(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sds6Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dsii: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] wn: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] d: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] w: &mut [Real],
+) {
+    let point = id.x as usize;
+    let nk = p.nk as usize;
+    if (point + 1) * nk > cg.len() {
+        return;
+    }
+    w3sds6(p, sig2, dsii, a, cg, wn, s, d, w, point * nk * p.nth as usize, point * nk, point * 4 * nk);
 }
