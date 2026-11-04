@@ -62,6 +62,10 @@ sds3-cmp *captures:
 flx1-cmp *captures:
     bash scripts/rust_in_ref.sh flx1_cmp {{captures}}
 
+# Replays W3FLX2 calls (switch_chaceon_st2 reference), every bit
+flx2-cmp *captures:
+    bash scripts/rust_in_ref.sh flx2_cmp {{captures}}
+
 # Replays W3SPR1 calls (switch_chaceon_st1 reference), every bit
 spr1-cmp *captures:
     bash scripts/rust_in_ref.sh spr1_cmp {{captures}}
