@@ -57,6 +57,13 @@ longer history; its facts are at NOAA's pin.
 
 ## Device
 
+- A negated product or quotient keeps gfortran's order: `-0.4/SQRT(CD)` is a divide then a negate, and
+  `-2.*CG*WN_I` is `-((CG+CG)*WN_I)`. LLVM, `spirv-opt` and NVPTX move the negation into the operation,
+  which changes only the sign of a NaN result, and an entry poke sees it. `W3FLX1` and `W3SIC1` flip the
+  sign bit as an integer; on the host `black_box` also holds, and rust-gpu ignores it.
+- gfortran's `MAX` on arm64 is `fmaxnm`: a NaN argument gives the other one, and `MAX(+0.,-0.)` is `+0`.
+  SPIR-V `FMax` returned `-0` there on lavapipe. Write the comparison that equals `fmaxnm` on the inputs
+  that reach the site (`W3SPR1`, `W3SDS3`), and read the disassembly first.
 - No closures in a kernel: one that captures a local by reference is a pointer to a pointer, and
   SPIR-V validation refuses it. Use a plain function or a local macro.
 - No sub-slices either: pass the whole buffer and an offset.
