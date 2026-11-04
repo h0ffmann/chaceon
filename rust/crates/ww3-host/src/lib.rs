@@ -35,3 +35,5 @@ pub mod shel;
 pub mod strt;
 pub mod trck;
 pub mod wtime;
+pub mod inptab;
+pub mod capture_sin2;

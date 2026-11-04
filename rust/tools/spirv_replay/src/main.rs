@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1|sin2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -826,9 +826,47 @@ fn main() {
         "flx1" => flx1_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
+        "sin2" => sin2_run(&code, &path),
         "libm" => libm_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });
     std::process::exit(!ok as i32);
+}
+
+/// `W3SIN2` on every captured call, with `BETATB` as the reference left it.
+fn sin2_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture_sin2::{Sin2Call, Sin2Capture};
+    use ww3_kernels::sin2::Sin2Out;
+    let c = Sin2Capture::read(path);
+    let p = c.params;
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let concat = |f: fn(&Sin2Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, k) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.k));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd) = (concat(|x| &x.s), concat(|x| &x.d));
+    let rf: Vec<f32> = c.calls.iter().map(|x| x.fpi).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.betatb)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * size_of::<Sin2Out>()),
+    ];
+    let out = dispatch(code, c"sin2", &slots, points);
+    // `FPI` is the first value of each `Sin2Out` record; `reach` follows it.
+    let fpi: Vec<u8> = out[13].chunks_exact(size_of::<Sin2Out>()).flat_map(|r| r[..4].iter().copied()).collect();
+    compare("S", &out[11], &rs) & compare("D", &out[12], &rd) & compare("FPI", &fpi, &rf)
 }

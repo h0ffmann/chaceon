@@ -733,3 +733,47 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
+
+use ww3_kernels::sin2::{Sin2Out, Sin2Params, Sin2Point, w3sin2};
+
+/// `W3SIN2`. `BETATB` is `INPTAB`'s table, built on the host.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin2(
+    p: &Sin2Params,
+    sig: &[Real],
+    sig2: &[Real],
+    dden: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    betatb: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    k: &[Real],
+    points: &[Sin2Point],
+    s: *mut Real,
+    d: *mut Real,
+    out: *mut Sin2Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nspec = p.nspec as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let (s, d, out) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(out, n),
+        )
+    };
+    w3sin2(
+        p, sig, sig2, dden, ecos, esin, betatb, a, cg, k, &points[point], s, d, out, point * nspec,
+        point * p.nk as usize, point,
+    );
+}

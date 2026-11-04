@@ -132,6 +132,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
+name = "inptab_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
 name = "insin3_cmp"
 version = "0.0.0"
 dependencies = [
@@ -350,6 +358,14 @@ dependencies = [
 
 [[package]]
 name = "sin1_cmp"
+version = "0.0.0"
+dependencies = [
+ "ww3-host",
+ "ww3-kernels",
+]
+
+[[package]]
+name = "sin2_cmp"
 version = "0.0.0"
 dependencies = [
  "ww3-host",
