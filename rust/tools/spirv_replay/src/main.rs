@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr3|spr1|srce|sbt4|sic1|sis1|sds3|flx1|sin1|sds1|spr2> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -805,6 +805,36 @@ fn libm_run(code: &[u8], n: &str) -> bool {
     ok
 }
 
+/// `W3SPR2` on every captured call (ST2 build): the five scalars, then `ALFA(NK)`.
+fn spr2_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Spr2Call, Spr2Capture};
+    let c = Spr2Capture::read(path);
+    let points = c.calls.len();
+    let nk = c.params.nk as usize;
+    let cat = |f: fn(&Spr2Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, wn, ra) = (cat(|x| &x.a), cat(|x| &x.cg), cat(|x| &x.wn), cat(|x| &x.alfa));
+    let ro: Vec<f32> = c.calls.iter().flat_map(|x| [x.out.emean, x.out.fmean, x.out.wnmean, x.out.amax, x.out.fp]).collect();
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nk * 4),
+        Slot::Out(points * nk * 4),
+        Slot::Out(points * size_of::<ww3_kernels::spr2::Spr2Out>()),
+    ];
+    let out = dispatch(code, c"spr2", &slots, points);
+    let ok_s = compare("W3SPR2", &out[9], &ro);
+    let ok_a = compare("W3SPR2 ALFA", &out[8], &ra);
+    ok_s && ok_a
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let (spv, kernel, path) =
@@ -826,6 +856,7 @@ fn main() {
         "flx1" => flx1_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
+        "spr2" => spr2_run(&code, &path),
         "libm" => libm_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
