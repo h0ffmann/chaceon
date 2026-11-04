@@ -600,6 +600,39 @@ pub fn sds3(
     w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
 }
 
+use ww3_kernels::sin2::{Sin2Out, Sin2Params, Sin2Point, w3sin2};
+
+/// `W3SIN2`. `betatb` is `INPTAB`'s table, built on the host.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sin2(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sin2Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] sig2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] dden: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] ecos: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] esin: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] betatb: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] points: &[Sin2Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 11)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 12)] d: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 13)] out: &mut [Sin2Out],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    w3sin2(
+        p, sig, sig2, dden, ecos, esin, betatb, a, cg, k, &pt, s, d, out, point * p.nspec as usize,
+        point * p.nk as usize, point,
+    );
+}
+
 /// `W3FLX2`, one point per invocation. `ewn1` is `W3DISPMD`'s `EWN1(0:NAR1D)`.
 #[spirv(compute(threads(64)))]
 pub fn flx2(

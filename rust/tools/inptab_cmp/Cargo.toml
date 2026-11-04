@@ -1,0 +1,11 @@
+[package]
+name = "inptab_cmp"
+description = "Rebuilds ST2's BETATB (INPTAB, W3BETA) and compares every bit with the reference's"
+license = "MPL-2.0"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ww3-host = { path = "../../crates/ww3-host" }
+ww3-kernels = { path = "../../crates/ww3-kernels" }

@@ -287,6 +287,14 @@ bnd-all:
 bnd-regress:
     bash scripts/bnd_regress.sh
 
+# Replays W3SIN2 calls (switch_chaceon_st2 reference), every bit
+sin2-cmp *captures:
+    bash scripts/rust_in_ref.sh sin2_cmp {{captures}}
+
+# Rebuilds ST2's BETATB (INPTAB, W3BETA) and compares it with the reference's, every bit
+inptab-cmp *captures:
+    bash scripts/rust_in_ref.sh inptab_cmp {{captures}}
+
 # Replays W3FLX4 calls (switch_chaceon_st6 reference), every bit
 flx4-cmp *captures:
     bash scripts/rust_in_ref.sh flx4_cmp {{captures}}

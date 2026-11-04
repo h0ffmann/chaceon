@@ -23,6 +23,7 @@ case "$routine/$variant" in sds3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_ch
 case "$routine" in flx1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac # FLX1 is in the ST1 build
 case "$routine" in spr1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
 case "$routine/$variant" in spr2/* | sin2/* | sds2/* | flx2/* | */st2*) switch="${CAPTURE_SWITCH:-switch_chaceon_st2}" ;; esac
+case "$routine" in inptab) switch="${CAPTURE_SWITCH:-switch_chaceon_st2}" ;; esac
 case "$routine/$variant" in flx3/* | */flx3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st2flx3}" ;; esac
 case "$routine/$variant" in spr6/* | sin6/* | sds6/* | swl6/* | flx4/* | */st6*) switch="${CAPTURE_SWITCH:-switch_chaceon_st6}" ;; esac
 case "$routine" in sin1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
