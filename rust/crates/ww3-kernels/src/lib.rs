@@ -25,4 +25,5 @@ pub mod snl1;
 pub mod spr3;
 pub mod spr1;
 pub mod srce;
+pub mod spr6;
 pub mod flx3;

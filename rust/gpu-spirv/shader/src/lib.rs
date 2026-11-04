@@ -598,6 +598,30 @@ pub fn sds3(
     w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
 }
 
+/// `W3SPR6`. `eb` holds `NK` values per point; the point count is `out.len()`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn spr6(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &ww3_kernels::spr6::Spr6Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] dden: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] dsii: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] wn: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] eb: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] out: &mut [ww3_kernels::spr6::Spr6Out],
+) {
+    let point = id.x as usize;
+    if point >= out.len() {
+        return;
+    }
+    let nk = p.nk as usize;
+    out[point] =
+        ww3_kernels::spr6::w3spr6(p, sig, dden, dsii, a, cg, wn, eb, point * nk * p.nth as usize, point * nk, point * nk);
+}
+
 /// `W3FLX3`, one point per invocation. `ewn1` is `EWN1(0:121)`.
 #[spirv(compute(threads(64)))]
 pub fn flx3(

@@ -55,6 +55,15 @@ case "$variant" in
   st3tab) sds4='&SIN3 ALPHA0=0.012, BETAMAX=1.4, ZALP=0.008, ZWND=8. /' ;;
   st3grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;
   st3grid2) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.05/' ;;
+  st6spr6) ;;
+  st6spr6calm) wind=0 ;;
+  st6spr6light) wind=6 ;;
+  st6spr6storm) wind=30 ;;
+  st6spr6gale) wind=45 ;;
+  st6spr6dir) wdir=45 ;;
+  st6spr6grid) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.07/; s/SPECTRUM%NK        =  36/SPECTRUM%NK        =  40/' ;;
+  st6spr6grid2) grid='s/SPECTRUM%XFR       =  1.10/SPECTRUM%XFR       =  1.05/' ;;
+  st6spr6poke) poke=1; limit=500 ;;
   flx3deep) ;;
   flx3storm) wind=30 ;;
   flx3light) wind=6 ;;
