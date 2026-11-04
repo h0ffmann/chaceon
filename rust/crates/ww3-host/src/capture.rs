@@ -566,6 +566,42 @@ impl Sbt4Capture {
     }
 }
 
+/// One `W3SPR1` call of `regtests/capture/spr1.py`: its inputs and the reference's outputs.
+pub struct Spr1Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub out: ww3_kernels::spr1::Spr1Out,
+}
+
+/// A `W3SPR1` capture.
+pub struct Spr1Capture {
+    pub params: ww3_kernels::spr1::Spr1Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub calls: Vec<Spr1Call>,
+}
+
+impl Spr1Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR1", "{path}");
+        let i = r.ints(3);
+        let f = r.reals(3);
+        let (sig, dden) = (r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let o = r.reals(4);
+            let out = ww3_kernels::spr1::Spr1Out { emean: o[0], fmean: o[1], wnmean: o[2], amax: o[3] };
+            calls.push(Spr1Call { a, cg, wn, out });
+        }
+        let params = ww3_kernels::spr1::Spr1Params { nk: i[0], nth: i[1], fte: f[0], ftf: f[1], ftwn: f[2] };
+        Spr1Capture { params, sig, dden, calls }
+    }
+}
+
 /// One `W3SIN1` call of `regtests/capture/sin1.py`: its inputs and the reference's outputs.
 pub struct Sin1Call {
     pub point: ww3_kernels::sin1::Sin1Point,

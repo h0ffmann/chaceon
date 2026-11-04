@@ -38,6 +38,10 @@ st4-cmp routine="sin4" variant="default" depth="2500":
 sbt4-cmp *captures:
     bash scripts/rust_in_ref.sh sbt4_cmp {{captures}}
 
+# Replays W3SPR1 calls (switch_chaceon_st1 reference), every bit
+spr1-cmp *captures:
+    bash scripts/rust_in_ref.sh spr1_cmp {{captures}}
+
 # Replays W3SIN1 calls (switch_chaceon_st1 reference), every bit; `--fault <name> <captures>` runs a fault that must differ
 sin1-cmp *captures:
     bash scripts/rust_in_ref.sh sin1_cmp {{captures}}

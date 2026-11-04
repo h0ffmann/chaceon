@@ -14,11 +14,13 @@ depth="${3:-2500}"
 stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine" in spr1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
 case "$routine" in sin1) switch="${CAPTURE_SWITCH:-switch_chaceon_st1}" ;; esac
 case "$routine/$variant" in insin3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
 if [ "$routine" = sds1 ]; then switch="${CAPTURE_SWITCH:-switch_chaceon_st1}"; fi
 # shellcheck source=scripts/ts1_variants.sh
 source scripts/ts1_variants.sh
+limit="${CAPTURE_LIMIT:-$limit}"
 out="${routine}_${variant}_${depth}m.bin"
 mkdir -p work/capture
 docker run --rm --platform linux/arm64 --security-opt seccomp=unconfined --cap-add SYS_PTRACE \
