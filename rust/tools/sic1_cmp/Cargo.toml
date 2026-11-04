@@ -1,0 +1,11 @@
+[package]
+name = "sic1_cmp"
+description = "Replays W3SIC1 calls captured from the reference and compares every bit"
+license = "MPL-2.0"
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ww3-host = { path = "../../crates/ww3-host" }
+ww3-kernels = { path = "../../crates/ww3-kernels" }

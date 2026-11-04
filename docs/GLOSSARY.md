@@ -7,6 +7,9 @@
 | SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |
 | `ERFTABLE` | `W3SBT4MD`'s table of `(1+erf(x))/2` on `[-4, 4]`, built by `TABU_ERF` |
 | Shields parameter | Bed shear stress over the submerged weight of a grain layer; ripples form above a critical value (`PSIC`) |
+| IC1 | WW3 switch: ice damping with one uniform exponential decay rate, `W3SIC1` (Rogers and Orzech 2013) |
+| `ICEP1` | Ice parameter 1 of `W3IDATMD`: the decay rate `k_i` of wave amplitude under ice, read per grid point; `W3SIC1` returns `D = -2*Cg*k_i` |
+| `MAPWN` | `W3GDATMD`'s map from a spectral bin `IS = ITH + (IK-1)*NTH` to its wavenumber band `IK` |
 | DIA | Discrete Interaction Approximation of the nonlinear transfer; WW3's `NL1`, `W3SNL1` |
 | FMA | Fused multiply-add: `a*b+c` with one rounding |
 | GIMPLE | GCC's intermediate form, read to see what `-O3` computes |

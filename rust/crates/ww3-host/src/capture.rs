@@ -565,3 +565,45 @@ impl Sbt4Capture {
         Sbt4Capture { params, sig, dden, ecos, esin, fwtable, calls }
     }
 }
+
+/// One `W3SIC1` call of `regtests/capture/sic1.py`: its inputs and the reference's outputs.
+pub struct Sic1Call {
+    /// `ICEP1(IX,IY)`, read from the input field at the call.
+    pub icecoef1: f32,
+    pub depth: f32,
+    pub ix: i32,
+    pub iy: i32,
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SIC1` capture.
+pub struct Sic1Capture {
+    pub params: ww3_kernels::sic1::Sic1Params,
+    /// `INFLAGS2(-7)` when the capture began: `W3SIC1` stops without it.
+    pub inflags2_m7: bool,
+    pub mapwn: Vec<i32>,
+    pub calls: Vec<Sic1Call>,
+}
+
+impl Sic1Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIC1", "{path}");
+        let h = r.ints(4);
+        let (nk, nspec) = (h[0] as usize, h[2] as usize);
+        let mapwn = r.table_i().data;
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let v = r.reals(2);
+            let i = r.ints(2);
+            let (a, cg) = (r.reals(nspec), r.reals(nk));
+            let (s, d) = (r.reals(nspec), r.reals(nspec));
+            calls.push(Sic1Call { icecoef1: v[0], depth: v[1], ix: i[0], iy: i[1], a, cg, s, d });
+        }
+        let params = ww3_kernels::sic1::Sic1Params { nk: h[0], nth: h[1] };
+        Sic1Capture { params, inflags2_m7: h[3] != 0, mapwn, calls }
+    }
+}
