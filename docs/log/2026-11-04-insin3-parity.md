@@ -8,7 +8,7 @@ timings. Not called from a model run yet.
 
 | Command | Result |
 |---|---|
-| `just capture insin3 <variant> 2500 1` for `st3`, `st3zmax`, `st3tune`, `st3grid`, `st3grid2` | one `INSIN3` call each, reference `switch_chaceon_st3` |
+| `just capture insin3 <variant> 2500 1` for `st3`, `st3zmax`, `st3tab`, `st3grid`, `st3grid2` | one `INSIN3` call each, reference `switch_chaceon_st3` |
 | `just insin3-cmp` on the five | `TAUT`, `TAUHFT`, `DELTAUW`, `DELU`, `DELUST`, `DELALP`: 0 of 303 530 values differ |
 | faults 1 to 7 | caught, each by the captures that can reach it |
 | fault 8, `SIG(NK)/TPI` for `SIG(NK)*TPIINV` | undetected, the two roundings agree on these grids |

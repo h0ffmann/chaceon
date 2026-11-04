@@ -15,6 +15,7 @@ stride="${4:-1}"
 switch="${CAPTURE_SWITCH:-switch_chaceon_shrd}"
 case "$routine/$variant" in sis1/* | */ice*) switch="${CAPTURE_SWITCH:-switch_chaceon_ice1}" ;; esac
 case "$routine/$variant" in sbt4/* | */bt4*) switch="${CAPTURE_SWITCH:-switch_chaceon_bt4}" ;; esac
+case "$routine/$variant" in sin3/* | */st3*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
 case "$routine/$variant" in spr3/*) switch="${CAPTURE_SWITCH:-switch_chaceon_st3}" ;; esac
 case "$routine/$variant" in sic1/* | */ice1*) switch="${CAPTURE_SWITCH:-switch_chaceon_ice1}" ;; esac
 # switch_chaceon_st3 for sds3 and for every variant named st3*, as for bt4 above.

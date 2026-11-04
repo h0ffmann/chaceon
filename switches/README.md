@@ -11,6 +11,9 @@ own, with `BT4`, `WCOR`, `RWND`, `SEED` and MPI. It is the target of Batch 7.
 exists to capture `W3SBT4` from a running reference (`CAPTURE_SWITCH`, `scripts/capture.sh`); nothing else
 uses it yet.
 
+`switch_chaceon_st3` is `switch_chaceon_shrd` with `ST4` replaced by `ST3` (Janssen's WAM cycle 4 input, `W3SIN3`) and
+`BT1` kept. It exists to capture `W3SIN3` from a running reference (`CAPTURE_SWITCH`, `scripts/capture.sh`).
+
 `switch_chaceon_st1` is `switch_chaceon_shrd` with `ST1` and `FLX1` (WAM-3 source terms and Wu's stress) for `ST4` and `FLX0`. It exists to capture `W3FLX1` from a running reference (`CAPTURE_SWITCH`, `scripts/capture.sh`).
 
 `switch_chaceon_st1`, `switch_chaceon_st3` and `switch_chaceon_ice1` are `switch_chaceon_shrd` with one package swapped,

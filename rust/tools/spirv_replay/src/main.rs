@@ -8,6 +8,7 @@ use std::ffi::CStr;
 use ww3_host::capture::{
     Flx1Capture, Sbt4Call, Sbt4Capture, Sds1Call, Sds1Capture, Sds4Capture, Sic1Call, Sic1Capture, Sin1Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
 };
+use ww3_host::capture::{Sin3Call, Sin3Capture};
 use ww3_kernels::srce::{SrceOut, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
 
@@ -347,6 +348,48 @@ fn sin4_run(code: &[u8], path: &str) -> bool {
     let bad = llws.zip(rl.iter()).filter(|(a, b)| a != *b).count();
     println!("LLWS     {bad} differ");
     compare("S", &out[14], &rs) & compare("D", &out[15], &rd) & compare("TAUW", &out[17], &ro) & (bad == 0)
+}
+
+/// `W3SIN3` on every captured call, with the module tables as the reference left them.
+fn sin3_run(code: &[u8], path: &str) -> bool {
+    use ww3_kernels::sin3::Sin3Out;
+    let c = Sin3Capture::read(path);
+    let p = c.params;
+    let nspec = p.nspec as usize;
+    let points = c.calls.len();
+    let concat = |f: fn(&Sin3Call) -> &Vec<f32>| -> Vec<f32> {
+        c.calls.iter().flat_map(|k| f(k).iter().copied()).collect()
+    };
+    let (a, cg, k) = (concat(|x| &x.a), concat(|x| &x.cg), concat(|x| &x.k));
+    let pts: Vec<_> = c.calls.iter().map(|x| x.point).collect();
+    let (rs, rd) = (concat(|x| &x.s), concat(|x| &x.d));
+    let rl: Vec<u32> = c.calls.iter().flat_map(|x| x.llws.iter().copied()).collect();
+    let ro: Vec<f32> =
+        c.calls.iter().flat_map(|x| [x.out.tauwx, x.out.tauwy, x.out.tauwnx, x.out.tauwny]).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.sig2)),
+        Slot::In(bytes(&c.dden2)),
+        Slot::In(bytes(&c.ecos)),
+        Slot::In(bytes(&c.esin)),
+        Slot::In(bytes(&c.tauhft)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * size_of::<Sin3Out>()),
+    ];
+    let out = dispatch(code, c"sin3", &slots, points);
+    let llws = out[13].chunks_exact(4).map(|b| u32::from_le_bytes(b.try_into().unwrap()));
+    let bad = llws.zip(rl.iter()).filter(|(a, b)| a != *b).count();
+    println!("LLWS     {bad} differ");
+    // The four stresses out of the Sin3Out records; `reach` follows them.
+    let tau: Vec<u8> = out[14].chunks_exact(size_of::<Sin3Out>()).flat_map(|r| r[..16].iter().copied()).collect();
+    compare("S", &out[11], &rs) & compare("D", &out[12], &rd) & compare("TAUW", &tau, &ro) & (bad == 0)
 }
 
 fn spr4_run(code: &[u8], path: &str) -> bool {
@@ -776,6 +819,7 @@ fn main() {
         "spr1" => spr1_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
+        "sin3" => sin3_run(&code, &path),
         "sic1" => sic1_run(&code, &path),
         "sis1" => sis1_run(&code, &path),
         "sds3" => sds3_run(&code, &path),

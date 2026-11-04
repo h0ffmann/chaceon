@@ -11,6 +11,7 @@ use ww3_kernels::pro3::{
 use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
+use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
@@ -89,6 +90,38 @@ pub fn sds4(
         p, sig, dden, ec2, es2, esc, ecos, esin, satindices, satweights, cumulw, iktab, dcki, qbi, a, k, cg,
         &pt, srhs, ddiag, brlambda, whitecap, w, iw,
         point * p.nspec as usize, point * p.nk as usize, point * 4, point * lw, point * li,
+    );
+}
+
+/// `W3SIN3`.
+#[spirv(compute(threads(64)))]
+#[allow(clippy::too_many_arguments)]
+pub fn sin3(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sin3Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] sig: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] sig2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] dden2: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 4)] ecos: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 5)] esin: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 6)] tauhft: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 7)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 8)] cg: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 9)] k: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 10)] points: &[Sin3Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 11)] s: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 12)] d: &mut [Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 13)] llws: &mut [u32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 14)] out: &mut [Sin3Out],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    w3sin3(
+        p, sig, sig2, dden2, ecos, esin, tauhft, a, cg, k, &pt, s, d, llws, out, point * p.nspec as usize,
+        point * p.nk as usize, point,
     );
 }
 

@@ -9,6 +9,7 @@ use ww3_kernels::pro3::{
 use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
+use ww3_kernels::sin3::{Sin3Out, Sin3Params, Sin3Point, w3sin3};
 use ww3_kernels::sds3::{Sds3Params, Sds3Point, w3sds3};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
@@ -222,6 +223,49 @@ pub unsafe fn sbt4(
     let t = Sbt4Tables { sig, dden, ecos, esin, fwtable, erftable };
     let o = w3sbt4(p, &t, a, cg, wn, &points[point], bedform, s, d, w, point * nspec, point * nk, point * nk, point * 3);
     unsafe { *out.add(point) = o };
+}
+
+/// `W3SIN3`.
+///
+/// # Safety
+/// The output buffers hold `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn sin3(
+    p: &Sin3Params,
+    sig: &[Real],
+    sig2: &[Real],
+    dden2: &[Real],
+    ecos: &[Real],
+    esin: &[Real],
+    tauhft: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    k: &[Real],
+    points: &[Sin3Point],
+    s: *mut Real,
+    d: *mut Real,
+    llws: *mut u32,
+    out: *mut Sin3Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let n = points.len();
+    let nspec = p.nspec as usize;
+    let (s, d, llws, out) = unsafe {
+        (
+            core::slice::from_raw_parts_mut(s, n * nspec),
+            core::slice::from_raw_parts_mut(d, n * nspec),
+            core::slice::from_raw_parts_mut(llws, n * nspec),
+            core::slice::from_raw_parts_mut(out, n),
+        )
+    };
+    w3sin3(
+        p, sig, sig2, dden2, ecos, esin, tauhft, a, cg, k, &points[point], s, d, llws, out, point * nspec,
+        point * p.nk as usize, point,
+    );
 }
 
 /// `W3SIN1`.

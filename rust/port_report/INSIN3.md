@@ -33,7 +33,7 @@ arrays, and ends the run there (one call per run). `ww3_ts1` on `switch_chaceon_
 |---|---|---|---|---|
 | `st3`: default | 8.563788 | 0 | 40 200 | 14 460 |
 | `st3zmax`: `Z0MAX=0.002` | 8.563788 | 0.002 | 40 200 | 20 301 |
-| `st3tune`: `ALPHA0=0.012`, `BETAMAX=1.4`, `ZALP=0.008`, `ZWND=8.` | 8.563788 | 0 | 40 200 | 13 173 |
+| `st3tab`: `ALPHA0=0.012`, `BETAMAX=1.4`, `ZALP=0.008`, `ZWND=8.` | 8.563788 | 0 | 40 200 | 13 173 |
 | `st3grid`: `XFR=1.07`, `NK=40` | 4.2647123 | 0 | 40 200 | 20 200 |
 | `st3grid2`: `XFR=1.05` | 1.6809176 | 0 | 40 200 | 20 301 |
 
@@ -41,9 +41,9 @@ Differences: **0** of 303 530 values (`TAUT` 40 401, `TAUHFT` 20 301, `DELTAUW D
 five captures). The 201 zeros of `TAUT(:,0)` are forced by the Fortran (`:939-941`).
 
 ```bash
-just capture insin3 st3 2500 1   # and st3zmax, st3tune, st3grid, st3grid2
+just capture insin3 st3 2500 1   # and st3zmax, st3tab, st3grid, st3grid2
 just insin3-cmp /work/capture/insin3_st3_2500m.bin /work/capture/insin3_st3zmax_2500m.bin \
-  /work/capture/insin3_st3tune_2500m.bin /work/capture/insin3_st3grid_2500m.bin /work/capture/insin3_st3grid2_2500m.bin
+  /work/capture/insin3_st3tab_2500m.bin /work/capture/insin3_st3grid_2500m.bin /work/capture/insin3_st3grid2_2500m.bin
 ```
 
 ## Faults (`INSIN3_FAULT` of `insin3_cmp`, and one source edit)

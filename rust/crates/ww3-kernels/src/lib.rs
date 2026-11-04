@@ -16,6 +16,7 @@ pub mod real;
 pub mod sds3;
 pub mod sds1;
 pub mod sds4;
+pub mod sin3;
 pub mod sic1;
 pub mod sin1;
 pub mod sin4;
