@@ -1,0 +1,37 @@
+# The regtest seat runs whole cases through the reference and through Rust and compares the output files.
+name: chaceon-regtest
+version: "1.0"
+description: Runs a whole case through the Fortran reference and through Rust and gives the file verdict
+
+defaults:
+  runtime: claude-code
+  lifecycle:
+    execution_mode: interactive_resident
+    compaction_strategy: default-compaction
+    restore_policy: resume_if_possible
+
+profiles:
+  default:
+    summary: Regtest runner of chaceon-integrate
+    uses:
+      skills: [openrig-user, ww3-port]
+      guidance: []
+      subagents: []
+      plugins: []
+      runtime_resources: []
+
+resources:
+  guidance:
+    - id: role
+      path: guidance/role.md
+
+startup:
+  files:
+    - path: guidance/role.md
+      orientation: role
+      delivery_hint: send_text
+      required: true
+    - path: startup/context.md
+      delivery_hint: send_text
+      required: true
+  actions: []

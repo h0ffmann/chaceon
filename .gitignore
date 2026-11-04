@@ -3,3 +3,4 @@ target/
 !docker/Dockerfile.ptx
 *.spv
 /work/
+/.worktrees/

@@ -1,0 +1,59 @@
+# The lead of a chaceon rig: picks the work, builds the references, hands out packets, merges, reruns every
+# gate and holds the ship decision at a human gate. It never ports a routine itself.
+name: chaceon-lead
+version: "1.0"
+description: Plans, claims, merges and verifies the Fortran-to-Rust port; ships only through a human gate
+
+defaults:
+  runtime: claude-code
+  effort: high
+  lifecycle:
+    execution_mode: interactive_resident
+    compaction_strategy: default-compaction
+    restore_policy: resume_if_possible
+
+profiles:
+  port:
+    summary: Lead of chaceon-port, a wave of routines to status routine
+    uses:
+      skills: [openrig-user, ww3-port, port-next]
+      guidance: []
+      subagents: []
+      plugins: []
+      runtime_resources: []
+    startup:
+      files:
+        - path: guidance/port.md
+          delivery_hint: send_text
+          required: true
+      actions: []
+  integrate:
+    summary: Lead of chaceon-integrate, one package wired into W3SRCE at a time
+    uses:
+      skills: [openrig-user, ww3-port]
+      guidance: []
+      subagents: []
+      plugins: []
+      runtime_resources: []
+    startup:
+      files:
+        - path: guidance/integrate.md
+          delivery_hint: send_text
+          required: true
+      actions: []
+
+resources:
+  guidance:
+    - id: role
+      path: guidance/role.md
+
+startup:
+  files:
+    - path: guidance/role.md
+      orientation: role
+      delivery_hint: send_text
+      required: true
+    - path: startup/context.md
+      delivery_hint: send_text
+      required: true
+  actions: []

@@ -1,0 +1,37 @@
+# A porter translates one WW3 routine per packet to status `routine` (ADR-0007), in its own worktree.
+name: chaceon-porter
+version: "1.0"
+description: Ports one WW3 Fortran routine per packet to no_std Rust, bit for bit, with captures and faults
+
+defaults:
+  runtime: claude-code
+  lifecycle:
+    execution_mode: interactive_resident
+    compaction_strategy: default-compaction
+    restore_policy: resume_if_possible
+
+profiles:
+  default:
+    summary: Porter of chaceon-port
+    uses:
+      skills: [openrig-user, ww3-port, port-next]
+      guidance: []
+      subagents: []
+      plugins: []
+      runtime_resources: []
+
+resources:
+  guidance:
+    - id: role
+      path: guidance/role.md
+
+startup:
+  files:
+    - path: guidance/role.md
+      orientation: role
+      delivery_hint: send_text
+      required: true
+    - path: startup/context.md
+      delivery_hint: send_text
+      required: true
+  actions: []

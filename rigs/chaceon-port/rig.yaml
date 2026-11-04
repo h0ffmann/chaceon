@@ -1,0 +1,123 @@
+# chaceon-port: routines to status `routine` (ADR-0007), several at once, each in its own worktree.
+# Launch from the repository root after `scripts/rig_worktrees.sh <branch> p1 p2 p3 p4 audit`:
+#   rig up rigs/chaceon-port/rig.yaml --plan, then without --plan. Do not pass --cwd: it would move every seat.
+version: "0.2"
+name: chaceon-port
+summary: >
+  The Fortran-to-Rust routine factory of chaceon. A lead picks routines from the backlog in plan order and
+  builds the reference images; four porters translate one routine each to bit parity, with captures, SPIR-V
+  replays and faults; an auditor checks each port from the Fortran before the lead merges it. A wave ends at
+  a human gate before any push.
+culture_file: CULTURE.md
+env:
+  CARGO_BUILD_JOBS: "3"
+
+pods:
+  - id: orch
+    label: Orchestration
+    summary: Plans the wave, claims routines, merges, verifies and ships through a human gate.
+    members:
+      - id: lead
+        label: Lead
+        agent_ref: "local:../agents/lead"
+        profile: port
+        runtime: claude-code
+        model: claude-opus-5-5
+        effort: high
+        cwd: "../.."
+        permission_policy: builtin:auto
+        env:
+          CARGO_BUILD_JOBS: "6"
+    edges: []
+
+  - id: port
+    label: Porters
+    summary: One routine per packet each, in .worktrees/<seat>, never sharing a file or a scratch directory.
+    members:
+      - id: p1
+        label: Porter 1
+        agent_ref: "local:../agents/porter"
+        profile: default
+        runtime: claude-code
+        model: claude-sonnet-5-5
+        cwd: "../../.worktrees/p1"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)"]
+      - id: p2
+        label: Porter 2
+        agent_ref: "local:../agents/porter"
+        profile: default
+        runtime: claude-code
+        model: claude-sonnet-5-5
+        cwd: "../../.worktrees/p2"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)"]
+      - id: p3
+        label: Porter 3
+        agent_ref: "local:../agents/porter"
+        profile: default
+        runtime: claude-code
+        model: claude-sonnet-5-5
+        cwd: "../../.worktrees/p3"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)"]
+      - id: p4
+        label: Porter 4
+        agent_ref: "local:../agents/porter"
+        profile: default
+        runtime: claude-code
+        model: claude-sonnet-5-5
+        cwd: "../../.worktrees/p4"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)"]
+    edges: []
+
+  - id: audit
+    label: Audit
+    summary: Checks each port from the Fortran and the files, not from the porter's report.
+    members:
+      - id: auditor
+        label: Auditor
+        agent_ref: "local:../agents/auditor"
+        profile: default
+        runtime: claude-code
+        model: claude-opus-5-5
+        effort: high
+        cwd: "../../.worktrees/audit"
+        permission_policy: builtin:auto
+        claude_permissions:
+          deny: ["Bash(git push *)", "Bash(gh pr *)", "Bash(git commit *)"]
+    edges: []
+
+edges:
+  - kind: delegates_to
+    from: orch.lead
+    to: port.p1
+  - kind: delegates_to
+    from: orch.lead
+    to: port.p2
+  - kind: delegates_to
+    from: orch.lead
+    to: port.p3
+  - kind: delegates_to
+    from: orch.lead
+    to: port.p4
+  - kind: delegates_to
+    from: orch.lead
+    to: audit.auditor
+  - kind: can_observe
+    from: audit.auditor
+    to: port.p1
+  - kind: can_observe
+    from: audit.auditor
+    to: port.p2
+  - kind: can_observe
+    from: audit.auditor
+    to: port.p3
+  - kind: can_observe
+    from: audit.auditor
+    to: port.p4
