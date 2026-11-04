@@ -8,6 +8,7 @@ use spirv_std::spirv;
 use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
+use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
@@ -400,6 +401,20 @@ pub fn sbt4(
         p, &t, a, cg, wn, &pt, bedform, s, d, w,
         point * nk * p.nth as usize, point * nk, point * nk, point * 3,
     );
+}
+
+/// `W3FLX1`, one point per invocation.
+#[spirv(compute(threads(64)))]
+pub fn flx1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[Flx1In],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] out: &mut [Flx1Out],
+) {
+    let point = id.x as usize;
+    if point >= input.len() {
+        return;
+    }
+    out[point] = w3flx1(&input[point]);
 }
 
 /// `W3SDS1`. `k` is `WN2`, `NSPEC` values per point.

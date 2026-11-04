@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|spr1|srce|sbt4|flx1|sin1|sds1> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
 use std::ffi::CStr;
 use ww3_host::capture::{
-    Sbt4Call, Sbt4Capture, Sds1Call, Sds1Capture, Sds4Capture, Sin1Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
+    Flx1Capture, Sbt4Call, Sbt4Capture, Sds1Call, Sds1Capture, Sds4Capture, Sin1Capture, Sin4Call, Sin4Capture, Snl1Capture, Spr1Capture, Spr4Call, Spr4Capture, SrceCall, SrceCapture,
 };
 use ww3_kernels::srce::{SrceOut, work_lens, work_small};
 use ww3_kernels::{sds4, snl1};
@@ -530,6 +530,26 @@ fn sbt4_run(code: &[u8], path: &str) -> bool {
     compare("S", &out[12], &rs) & compare("D", &out[13], &rd) & compare("BEDFORM", &out[11], &rb) & compare("TAUBBL", &tau, &rt)
 }
 
+/// `W3FLX1` on every captured call: one point per call, `Flx1Out` records back.
+fn flx1_run(code: &[u8], path: &str) -> bool {
+    use ww3_kernels::flx1::Flx1Out;
+    let c = Flx1Capture::read(path);
+    let points = c.calls.len();
+    let ins: Vec<_> = c.calls.iter().map(|k| k.input).collect();
+    let slots = [Slot::In(bytes(&ins)), Slot::Out(points * size_of::<Flx1Out>())];
+    let out = dispatch(code, c"flx1", &slots, points);
+    let recs: Vec<&[u8]> = out[1].chunks_exact(size_of::<Flx1Out>()).collect();
+    let mut ok = true;
+    for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
+        let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
+        let theirs: Vec<f32> = c.calls.iter().map(|k| k.out[j]).collect();
+        ok &= compare(name, &ours, &theirs);
+    }
+    let err: u32 = recs.iter().map(|r| u32::from_le_bytes(r[16..20].try_into().unwrap())).sum();
+    println!("ZWND != 10 {err:>7} calls");
+    ok & (err == 0)
+}
+
 /// `W3SIN1` on every captured call.
 fn sin1_run(code: &[u8], path: &str) -> bool {
     let c = Sin1Capture::read(path);
@@ -661,6 +681,7 @@ fn main() {
         "spr1" => spr1_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
+        "flx1" => flx1_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
         "libm" => libm_run(&code, &path),

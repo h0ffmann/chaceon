@@ -6,6 +6,7 @@ use cuda_std::prelude::*;
 use ww3_kernels::pro3::{
     Ktp3Params, Ktp3Point, Ktp3Tables, Ktp3Work, NoBoundary, Xyp3Params, Xyp3Tables, Xyp3Work, w3ktp3, w3xyp3_va,
 };
+use ww3_kernels::flx1::{Flx1In, Flx1Out, w3flx1};
 use ww3_kernels::real::Real;
 use ww3_kernels::sbt4::{Sbt4Out, Sbt4Params, Sbt4Point, Sbt4Tables, w3sbt4};
 use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
@@ -106,6 +107,20 @@ pub unsafe fn sds4(
         &points[point], srhs, ddiag, brlambda, whitecap, w, iw,
         point * nspec, point * p.nk as usize, point * 4, point * lw, point * li,
     );
+}
+
+/// `W3FLX1`, one point per thread.
+///
+/// # Safety
+/// `out` holds `points.len()` records, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn flx1(points: &[Flx1In], out: *mut Flx1Out) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    unsafe { *out.add(point) = w3flx1(&points[point]) };
 }
 
 /// `W3SDS1`. `k` is `WN2`, `NSPEC` values per point.

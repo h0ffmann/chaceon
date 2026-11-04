@@ -2,6 +2,7 @@
 
 | Term | Meaning |
 |---|---|
+| FLX1 | WW3 switch: wind stress from the 10 m speed by Wu (1980), `W3FLX1`: `CD = 0.001*(0.8+0.065*U10)` |
 | ST1 | WW3 switch: WAM cycle 3 source terms (Komen et al. 1984): wind input `W3SIN1`, dissipation `W3SDS1`, mean parameters `W3SPR1` |
 | `SINC1` | `W3SIN1`'s wind input constant, `28 * CINP * DAIR / DWAT` (`w3gridmd.F90:1744`) |
 | DB1 | WW3 switch: Battjes and Janssen depth-induced breaking, `W3SDB1` |
