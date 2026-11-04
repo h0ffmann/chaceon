@@ -597,3 +597,19 @@ pub fn sds3(
     let nk = p.nk as usize;
     w3sds3(p, k, a, &pt, s, d, point * nk * p.nth as usize, point * nk);
 }
+
+/// `W3FLX3`, one point per invocation. `ewn1` is `EWN1(0:121)`.
+#[spirv(compute(threads(64)))]
+pub fn flx3(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &ww3_kernels::flx3::Flx3Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] ewn1: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] input: &[ww3_kernels::flx3::Flx3In],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] out: &mut [ww3_kernels::flx3::Flx3Out],
+) {
+    let point = id.x as usize;
+    if point >= input.len() {
+        return;
+    }
+    out[point] = ww3_kernels::flx3::w3flx3(p, ewn1, &input[point]);
+}

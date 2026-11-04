@@ -805,6 +805,29 @@ fn libm_run(code: &[u8], n: &str) -> bool {
     ok
 }
 
+/// `W3FLX3` on every captured call, with the module tables as the reference left them.
+fn flx3_run(code: &[u8], path: &str) -> bool {
+    use ww3_kernels::flx3::Flx3Out;
+    let c = ww3_host::capture::Flx3Capture::read(path);
+    let points = c.calls.len();
+    let ins: Vec<_> = c.calls.iter().map(|k| k.input).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.ewn1)),
+        Slot::In(bytes(&ins)),
+        Slot::Out(points * size_of::<Flx3Out>()),
+    ];
+    let out = dispatch(code, c"flx3", &slots, points);
+    let recs: Vec<&[u8]> = out[3].chunks_exact(size_of::<Flx3Out>()).collect();
+    let mut ok = true;
+    for (j, name) in ["UST", "USTD", "Z0", "CD"].into_iter().enumerate() {
+        let ours: Vec<u8> = recs.iter().flat_map(|r| r[4 * j..4 * j + 4].iter().copied()).collect();
+        let theirs: Vec<f32> = c.calls.iter().map(|k| k.out[j]).collect();
+        ok &= compare(name, &ours, &theirs);
+    }
+    ok
+}
+
 fn main() {
     let mut args = std::env::args().skip(1);
     let (spv, kernel, path) =
@@ -826,6 +849,7 @@ fn main() {
         "flx1" => flx1_run(&code, &path),
         "sin1" => sin1_run(&code, &path),
         "sds1" => sds1_run(&code, &path),
+        "flx3" => flx3_run(&code, &path),
         "libm" => libm_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
