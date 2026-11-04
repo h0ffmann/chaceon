@@ -817,6 +817,7 @@ fn main() {
         "spr4" => spr4_run(&code, &path),
         "spr3" => spr3_run(&code, &path),
         "spr1" => spr1_run(&code, &path),
+        "spr6" => spr6_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
         "sin3" => sin3_run(&code, &path),
@@ -831,4 +832,27 @@ fn main() {
     };
     println!("{}", if ok { "PARITY: every bit equal" } else { "DIFFERENT" });
     std::process::exit(!ok as i32);
+}
+
+/// `W3SPR6` on every captured call (ST6 build).
+fn spr6_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Spr6Call, Spr6Capture};
+    let c = Spr6Capture::read(path);
+    let points = c.calls.len();
+    let cat = |f: fn(&Spr6Call) -> &Vec<f32>| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, cg, wn) = (cat(|x| &x.a), cat(|x| &x.cg), cat(|x| &x.wn));
+    let ro: Vec<f32> = c.calls.iter().flat_map(|x| [x.out.emean, x.out.fmean, x.out.wnmean, x.out.amax, x.out.fp]).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&c.params))),
+        Slot::In(bytes(&c.sig)),
+        Slot::In(bytes(&c.dden)),
+        Slot::In(bytes(&c.dsii)),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&cg)),
+        Slot::In(bytes(&wn)),
+        Slot::Out(points * c.params.nk as usize * 4),
+        Slot::Out(points * 20),
+    ];
+    let out = dispatch(code, c"spr6", &slots, points);
+    compare("W3SPR6", &out[8], &ro)
 }

@@ -120,3 +120,5 @@
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
 | `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
 | `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| ST6 | WW3 switch: observation-based source terms (Donelan et al. 2006, Babanin 2011, Rogers et al. 2012): wind input `W3SIN6`, dissipation `W3SDS6`, mean parameters `W3SPR6` |
+| `W3SPR6` | ST6's mean wave parameters (energy, mean frequency, mean wavenumber, maximum) and the peak frequency from Young's weighted integral |

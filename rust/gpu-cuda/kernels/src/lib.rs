@@ -733,3 +733,31 @@ pub unsafe fn sds3(p: &Sds3Params, a: &[Real], k: &[Real], points: &[Sds3Point],
         unsafe { (core::slice::from_raw_parts_mut(s, n * nspec), core::slice::from_raw_parts_mut(d, n * nspec)) };
     w3sds3(p, k, a, &points[point], s, d, point * nspec, point * nk);
 }
+
+/// `W3SPR6`. `eb` holds `NK` values per point; `a` holds `NSPEC`, `cg` and `wn` `NK`.
+///
+/// # Safety
+/// `eb` and `out` hold `n` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions, clippy::too_many_arguments)]
+pub unsafe fn spr6(
+    p: &ww3_kernels::spr6::Spr6Params,
+    sig: &[Real],
+    dden: &[Real],
+    dsii: &[Real],
+    a: &[Real],
+    cg: &[Real],
+    wn: &[Real],
+    n: u32,
+    eb: *mut Real,
+    out: *mut ww3_kernels::spr6::Spr6Out,
+) {
+    let point = thread::index_1d() as usize;
+    if point >= n as usize {
+        return;
+    }
+    let nk = p.nk as usize;
+    let eb = unsafe { core::slice::from_raw_parts_mut(eb, n as usize * nk) };
+    let o = ww3_kernels::spr6::w3spr6(p, sig, dden, dsii, a, cg, wn, eb, point * nk * p.nth as usize, point * nk, point * nk);
+    unsafe { *out.add(point) = o };
+}

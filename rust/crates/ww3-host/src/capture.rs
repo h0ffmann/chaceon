@@ -971,3 +971,41 @@ impl Sds1Capture {
         Sds1Capture { params: ww3_kernels::sds1::Sds1Params { nk: h[0], nth: h[1], sdsc1 }, calls }
     }
 }
+
+/// One `W3SPR6` call of `regtests/capture/spr6.py`: its inputs and the reference's outputs.
+pub struct Spr6Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub out: ww3_kernels::spr6::Spr6Out,
+}
+
+/// A `W3SPR6` capture from a build with ST6.
+pub struct Spr6Capture {
+    pub params: ww3_kernels::spr6::Spr6Params,
+    pub sig: Vec<f32>,
+    pub dden: Vec<f32>,
+    pub dsii: Vec<f32>,
+    pub calls: Vec<Spr6Call>,
+}
+
+impl Spr6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SPR6", "{path}");
+        let i = r.ints(3);
+        let f = r.reals(4);
+        let (sig, dden, dsii) = (r.table_r().data, r.table_r().data, r.table_r().data);
+        let (nk, nspec) = (i[0] as usize, i[2] as usize);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(nspec), r.reals(nk), r.reals(nk));
+            let o = r.reals(5);
+            let out = ww3_kernels::spr6::Spr6Out { emean: o[0], fmean: o[1], wnmean: o[2], amax: o[3], fp: o[4] };
+            calls.push(Spr6Call { a, cg, wn, out });
+        }
+        let params =
+            ww3_kernels::spr6::Spr6Params { nk: i[0], nth: i[1], dth: f[0], fte: f[1], ftf: f[2], ftwn: f[3] };
+        Spr6Capture { params, sig, dden, dsii, calls }
+    }
+}
