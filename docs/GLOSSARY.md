@@ -120,6 +120,9 @@
 | `ww3_bound` | WW3's older pre-processor for the same file, from ASCII or binary spectra |
 | `W3SPR3` | ST3's mean wave parameters (energy, mean frequencies, mean wavenumber, maximum) and the drag at the wind level |
 | `CALC_USTAR` | Friction velocity, roughness length and Charnock coefficient from the wind speed and the wave-supported stress, by interpolation in `TAUT`; ST3 and ST4 each have one |
+| ST6 | WW3 switch: the observation-based source terms of Babanin, Rogers and Zieger: `W3SIN6`, `W3SDS6`, `W3SWL6`, `W3SPR6` |
+| `W3SDS6`, `SDS6` | ST6's whitecapping dissipation, an inherent term T1 plus a cumulative term T2 (Babanin et al. 2010; Rogers et al. 2012), `w3src6md.F90`; `SDSET`, `SDSA1`, `SDSA2`, `SDSP1`, `SDSP2` set it in `&SDS6` |
+| `__powisf2` | libgcc's `REAL**INTEGER` with a run-time exponent, a chain of squarings; gfortran calls it at `-O3` |
 | ST2 | WW3 switch: the Tolman and Chalikov (1996) source terms, `W3SIN2`, `W3SDS2`, with `FLX2` or `FLX3` for the stress |
 | `W3SIN2`, `SIN2` | ST2's wind input (`w3src2md.F90`): the growth rate of each bin is read from an interpolation table of the wave age and the drag, with a filter that damps negative input (swell); `&SIN2` sets `ZWND` and `SWELLF` |
 | `INPTAB`, `W3BETA`, `BETATB` | ST2's table of the wind-wave interaction parameter against the nondimensional frequency `OMA` and the drag, and the function that fills it |

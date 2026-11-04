@@ -972,6 +972,56 @@ impl Sds1Capture {
     }
 }
 
+/// One `W3SDS6` call of `regtests/capture/sds6.py`: its inputs and the reference's outputs.
+pub struct Sds6Call {
+    pub a: Vec<f32>,
+    pub cg: Vec<f32>,
+    pub wn: Vec<f32>,
+    pub s: Vec<f32>,
+    pub d: Vec<f32>,
+}
+
+/// A `W3SDS6` capture: the scalars, `SIG2(NSPEC)` and `DSII(NK)` once, then the calls.
+pub struct Sds6Capture {
+    pub params: ww3_kernels::sds6::Sds6Params,
+    pub sig2: Vec<f32>,
+    pub dsii: Vec<f32>,
+    pub calls: Vec<Sds6Call>,
+}
+
+impl Sds6Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SDS6", "{path}");
+        let h = r.ints(5);
+        let f = r.reals(4);
+        let sig2_n = r.ints(2)[1] as usize;
+        let sig2 = r.reals(sig2_n);
+        let dsii_n = r.ints(2)[1] as usize;
+        let dsii = r.reals(dsii_n);
+        let (nk, ns) = (h[0] as usize, (h[0] * h[1]) as usize);
+        assert!(sig2.len() >= ns && dsii.len() >= nk, "{path}: tables");
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let (a, cg, wn) = (r.reals(ns), r.reals(nk), r.reals(nk));
+            let (s, d) = (r.reals(ns), r.reals(ns));
+            calls.push(Sds6Call { a, cg, wn, s, d });
+        }
+        let params = ww3_kernels::sds6::Sds6Params {
+            nk: h[0],
+            nth: h[1],
+            sds6et: h[2],
+            sds6p1: h[3],
+            sds6p2: h[4],
+            sds6a1: f[0],
+            sds6a2: f[1],
+            dth: f[2],
+            xfr: f[3],
+        };
+        Sds6Capture { params, sig2, dsii, calls }
+    }
+}
+
 /// One `W3FLX2` call of `regtests/capture/flx2.py`: its inputs and the reference's results.
 pub struct Flx2Call {
     pub input: ww3_kernels::flx2::Flx2In,
