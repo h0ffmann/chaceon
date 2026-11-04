@@ -6,6 +6,7 @@ wind=12
 wdir=270
 poke=''
 limit=0
+ice=''
 grid=''
 case "$variant" in
   default) ;;
@@ -27,6 +28,12 @@ case "$variant" in
   bt4flat) sds4='&SBT4 SIGDEPTH=0. /' ;;
   bt4ripple) sds4='&SBT4 SIGDEPTH=0., RIPFAC3=0.05 /' ;;
   bt4coarse) sds4='&SBT4 SED_D50_UNIFORM=0.002, RIPFAC3=0.3 /' ;;
+  ice) ice=0.4 ;;
+  ice2) ice=0.2 ;;
+  icesplit) ice=0.45; sds4='&SIS1 ISC1=0.5, ISC2=0.1 /' ;;
+  iceoff) ice=0.4; sds4='&SIS1 ISC1=-1., ISC2=0.4 /' ;;
+  icepoke) ice=0.4; poke=1; limit=500 ;;
+  iceoffpoke) ice=0.4; sds4='&SIS1 ISC1=-1., ISC2=0.4 /'; poke=1; limit=500 ;;
   st3) ;;
   st3wam4) sds4='&SDS3 SDSC1=-4.5, SDSDELTA1=0.5, SDSDELTA2=0.5 /' ;;
   st3storm) wind=30 ;;

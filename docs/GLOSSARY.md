@@ -7,6 +7,7 @@
 | `SINC1` | `W3SIN1`'s wind input constant, `28 * CINP * DAIR / DWAT` (`w3gridmd.F90:1744`) |
 | DB1 | WW3 switch: Battjes and Janssen depth-induced breaking, `W3SDB1` |
 | BT4 | WW3 switch: SHOWEX bottom friction over a movable sand bed (Ardhuin et al. 2003), `W3SBT4` |
+| IS1 | WW3 switch: scattering of wave action across directions by sea ice (Zieger), `W3SIS1`; `IS1C1` and `IS1C2` turn the ice concentration into its coefficient |
 | SHOWEX | Shoaling Waves Experiment, North Carolina, 1999: the field data behind `BT4`'s ripple roughness |
 | `ERFTABLE` | `W3SBT4MD`'s table of `(1+erf(x))/2` on `[-4, 4]`, built by `TABU_ERF` |
 | ST3 | WW3 switch: Janssen's quasi-linear wind input after WAM cycle 4, with its dissipation: `W3SIN3`, `W3SDS3` |

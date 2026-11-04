@@ -566,6 +566,38 @@ impl Sbt4Capture {
     }
 }
 
+/// One `W3SIS1` call of `regtests/capture/sis1.py`: its inputs and the reference's output.
+pub struct Sis1Call {
+    pub point: ww3_kernels::sis1::Sis1Point,
+    pub a: Vec<f32>,
+    pub s: Vec<f32>,
+}
+
+/// A `W3SIS1` capture.
+pub struct Sis1Capture {
+    pub params: ww3_kernels::sis1::Sis1Params,
+    pub calls: Vec<Sis1Call>,
+}
+
+impl Sis1Capture {
+    pub fn read(path: &str) -> Self {
+        let mut r = Reader { b: std::fs::read(path).unwrap(), p: 4 };
+        assert_eq!(&r.b[..4], b"SIS1", "{path}");
+        let h = r.ints(3);
+        let ns = h[2] as usize;
+        let o = r.reals(3);
+        let mut calls = Vec::new();
+        while r.p < r.b.len() {
+            let ice = r.reals(1)[0];
+            let a = r.reals(ns);
+            let s = r.reals(ns);
+            calls.push(Sis1Call { point: ww3_kernels::sis1::Sis1Point { ice }, a, s });
+        }
+        let params = ww3_kernels::sis1::Sis1Params { nk: h[0], nth: h[1], dtmin: o[0], is1c1: o[1], is1c2: o[2] };
+        Sis1Capture { params, calls }
+    }
+}
+
 /// One `W3SDS3` call of `regtests/capture/sds3.py`: its inputs and the reference's outputs.
 pub struct Sds3Call {
     pub point: ww3_kernels::sds3::Sds3Point,

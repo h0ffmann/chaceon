@@ -14,6 +14,7 @@ use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
+use ww3_kernels::sis1::{Sis1Params, Sis1Point, w3sis1};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
 use ww3_kernels::spr1::{Spr1Out, Spr1Params, w3spr1};
 use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce, work_lens, work_small};
@@ -584,6 +585,23 @@ pub unsafe fn ktp3(
     let t = Ktp3Tables { sig, dsip, ecos, esin, ec2, esc, es2, mapwn, mapth2, mapwn2 };
     let mut w = Ktp3Work { dsdd, frk, frg, fkc, vq, db, dm, vcflt, cflk, fla };
     w3ktp3(p, &t, &points[point], point, cg, wn, va, &mut w);
+}
+
+/// `W3SIS1`. `a` and `s` hold `NSPEC` per point.
+///
+/// # Safety
+/// The output buffer holds `points.len()` ranges, and each thread writes only its own.
+#[kernel]
+#[allow(improper_ctypes_definitions)]
+pub unsafe fn sis1(p: &Sis1Params, a: &[Real], points: &[Sis1Point], s: *mut Real) {
+    let point = thread::index_1d() as usize;
+    if point >= points.len() {
+        return;
+    }
+    let nspec = (p.nk * p.nth) as usize;
+    // As in `snl1`: whole buffers and offsets.
+    let s = unsafe { core::slice::from_raw_parts_mut(s, points.len() * nspec) };
+    w3sis1(p, a, &points[point], s, point * nspec);
 }
 
 /// `W3SDS3`. `k` holds `NK` per point.

@@ -16,6 +16,7 @@ use ww3_kernels::sds1::{Sds1Params, Sds1Point, w3sds1};
 use ww3_kernels::sds4::{Sds4Params, Sds4Point, w3sds4};
 use ww3_kernels::sin1::{Sin1Params, Sin1Point, w3sin1};
 use ww3_kernels::sin4::{Sin4Out, Sin4Params, Sin4Point, Spr4Out, Spr4Params, Spr4Point, w3sin4, w3spr4};
+use ww3_kernels::sis1::{Sis1Params, Sis1Point, w3sis1};
 use ww3_kernels::snl1::{Snl1Params, w3snl1};
 use ww3_kernels::spr1::{Spr1Out, Spr1Params, w3spr1};
 use ww3_kernels::srce::{SrceOut, SrceParams, SrcePoint, SrceTables, SrceWork, w3srce};
@@ -402,6 +403,23 @@ pub fn sbt4(
         p, &t, a, cg, wn, &pt, bedform, s, d, w,
         point * nk * p.nth as usize, point * nk, point * nk, point * 3,
     );
+}
+
+/// `W3SIS1`. `a` and `s` hold `NSPEC` per point.
+#[spirv(compute(threads(64)))]
+pub fn sis1(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] p: &Sis1Params,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] a: &[Real],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] points: &[Sis1Point],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] s: &mut [Real],
+) {
+    let point = id.x as usize;
+    if point >= points.len() {
+        return;
+    }
+    let pt = points[point];
+    w3sis1(p, a, &pt, s, point * (p.nk * p.nth) as usize);
 }
 
 /// `W3FLX1`, one point per invocation.
