@@ -34,6 +34,8 @@
 | `NoContraction` | SPIR-V decoration: no fusing or reassociating of that operation |
 | `spirv_exact` | `rust/tools/spirv_exact`: adds `NoContraction`, widens `f32` division |
 | ST4 | WW3 switch: the Ardhuin et al. source terms, `W3SIN4`, `W3SDS4` |
+| `W3SDS3`, `SDS3` | ST3's whitecapping dissipation (WAM cycle 4 with the mean wavenumber of Bidlot et al. 2005), `w3src3md.F90`; `SDSC1`, `SDSDELTA1`, `SDSDELTA2` set it in `&SDS3` |
+| WAM4 | The fourth cycle of the WAM wave model (WAMDI Group 1988; Komen et al. 1994), whose whitecapping `ST3` carries |
 | round to odd | A rounding that lets a later rounding to fewer bits stay correct (Boldo and Melquiond, 2008) |
 | ULP | Unit in the last place |
 | `VA` | WW3's action spectrum per sea point |

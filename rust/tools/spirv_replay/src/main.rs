@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Runs the SPIR-V that rust-gpu built on every captured call of a routine and compares bits with the
-//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce|sbt4> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
+//! reference. Usage: spirv_replay <spv> <snl1|sds4|sin4|spr4|srce|sbt4|sds3> <capture>, or <spv> libm <inputs>. It only accepts a CPU Vulkan implementation (lavapipe), so it never touches a GPU:
 //! `AGENTS.md`, "Running on the GPU". A diagnostic of ADR-0002, never a test.
 
 use ash::vk;
@@ -508,6 +508,28 @@ fn sbt4_run(code: &[u8], path: &str) -> bool {
     compare("S", &out[12], &rs) & compare("D", &out[13], &rd) & compare("BEDFORM", &out[11], &rb) & compare("TAUBBL", &tau, &rt)
 }
 
+/// `W3SDS3` on every captured call.
+fn sds3_run(code: &[u8], path: &str) -> bool {
+    use ww3_host::capture::{Sds3Call, Sds3Capture};
+    let c = Sds3Capture::read(path);
+    let p = c.params;
+    let nspec = (p.nk * p.nth) as usize;
+    let points = c.calls.len();
+    let cat = |f: fn(&Sds3Call) -> &[f32]| -> Vec<f32> { c.calls.iter().flat_map(|k| f(k).iter().copied()).collect() };
+    let (a, k, rs, rd) = (cat(|k| &k.a), cat(|k| &k.k), cat(|k| &k.s), cat(|k| &k.d));
+    let pts: Vec<_> = c.calls.iter().map(|k| k.point).collect();
+    let slots = [
+        Slot::In(bytes(std::slice::from_ref(&p))),
+        Slot::In(bytes(&a)),
+        Slot::In(bytes(&k)),
+        Slot::In(bytes(&pts)),
+        Slot::Out(points * nspec * 4),
+        Slot::Out(points * nspec * 4),
+    ];
+    let out = dispatch(code, c"sds3", &slots, points);
+    compare("S", &out[4], &rs) & compare("D", &out[5], &rd)
+}
+
 /// Every `ww3-libm` function in SPIR-V against the same source on this host, on random finite inputs.
 /// The host build is the one `just libm-bits` proves against glibc.
 fn libm_run(code: &[u8], n: &str) -> bool {
@@ -593,6 +615,7 @@ fn main() {
         "spr4" => spr4_run(&code, &path),
         "srce" => srce_run(&code, &path),
         "sbt4" => sbt4_run(&code, &path),
+        "sds3" => sds3_run(&code, &path),
         "libm" => libm_run(&code, &path),
         other => panic!("unknown kernel {other}"),
     };
