@@ -99,6 +99,7 @@ Badges compare code lines on both sides: 133 810 Fortran and C lines of all mode
 | [`docs/RUST_GPU_PLAN_202610.md`](docs/RUST_GPU_PLAN_202610.md) | The plan, in batches |
 | [`docs/FLOAT_REPRESENTATION_202610.md`](docs/FLOAT_REPRESENTATION_202610.md) | `f32` and `f64` against Fortran's kinds |
 | [`docs/LEAN_202610.md`](docs/LEAN_202610.md) | What Lean proves here, and what it cannot |
+| [`docs/WW3_GPU_PARITY_202611.md`](docs/WW3_GPU_PARITY_202611.md) | Feature parity with ww3-gpu, switch by switch |
 | [`docs/ADRs/`](docs/ADRs/README.md) | The decisions |
 | [`VERSIONS.md`](VERSIONS.md) | What is pinned |
 

@@ -141,3 +141,11 @@
 | `W3SPR6` | ST6's mean wave parameters (energy, mean frequency, mean wavenumber, maximum) and the peak frequency from Young's weighted integral |
 | FLX3 | WW3 switch: Tolman and Chalikov (1996) stress with a cap on the drag coefficient, `W3FLX3`: `CD_MAX` and `CAP_ID` (0 a minimum, 1 a hyperbolic tangent) |
 | `EWN1` | `W3DISPMD`'s table of wavenumbers for `SI*SQRT(DEPTH)` on a grid of `DSIE`, built by `DISTAB`, which the inlined `WAVNU1` of `W3FLX3` reads |
+| Kokkos | C++ library that compiles one source for several backends (Serial, OpenMP, CUDA); ww3-gpu's port is written in it |
+| MPI | Message Passing Interface: WW3's distributed-memory parallelism, switch `DIST MPI` |
+| OpenMP | Shared-memory threading by compiler directives; Kokkos' CPU backend |
+| SMC | Spherical Multiple-Cell grid (Li 2012), WW3's `W3PSMCMD` and `W3SMCOMD` |
+| GKE | Generalised kinetic equation for the nonlinear transfer, WW3's `NL5` (`W3GKEMD`) |
+| WRT | Webb, Resio and Tracy's exact nonlinear transfer, WW3's `NL2` |
+| UOST | Unresolved obstacles source term (Mentaschi et al. 2018), `W3UOSTMD` |
+| `wired`, `regtested` | ww3-gpu's ledger levels: WW3 calls the Kokkos code behind a run-time flag; WW3's regtests agreed with the Fortran on the CPU |
