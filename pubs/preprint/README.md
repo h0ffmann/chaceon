@@ -1,0 +1,22 @@
+# Preprint: one rule, two languages
+
+A short preprint that compares this repository with
+[ww3-gpu](https://github.com/h0ffmann/ww3-gpu): two ports of WAVEWATCH III written by coding
+agents, in Rust and in C++/Kokkos, with one acceptance rule, the Fortran's bits. v0, not peer
+reviewed. It claims no speed-up.
+
+| File | What it is |
+|---|---|
+| [`two-ports.pdf`](two-ports.pdf) | The paper, in English, 5 pages |
+| [`two-ports.pt-BR.pdf`](two-ports.pt-BR.pdf) | Its edition in Português Técnico Controlado, 5 pages |
+
+Authors: Matheus Hoffmann (UFRJ); Pedro Veras Guimarães (LabECO, UFSC), co-advisor of the first
+author; Pedro Cruz (GTA, UFRJ), advisor of the first author.
+
+The source is not here. The PDFs are copies, built by `just preprint` from h0ffmann/ww3-gpu's
+`pubs/preprint/` at
+[`26b84f9`](https://github.com/h0ffmann/ww3-gpu/tree/26b84f9/pubs/preprint). The same text is
+`marola-experiment-005` in [marola-research](https://github.com/marola-dev/marola-research),
+`two-ports/`, which is the record to be minted on Zenodo. When it has a DOI, cite that DOI.
+
+The text is CC BY 4.0, as in marola-research. The rest of this repository stays MPL-2.0.

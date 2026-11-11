@@ -101,6 +101,7 @@ Badges compare code lines on both sides: 133 810 Fortran and C lines of all mode
 | [`docs/LEAN_202610.md`](docs/LEAN_202610.md) | What Lean proves here, and what it cannot |
 | [`docs/WW3_GPU_PARITY_202611.md`](docs/WW3_GPU_PARITY_202611.md) | Feature parity with ww3-gpu, switch by switch |
 | [`docs/ADRs/`](docs/ADRs/README.md) | The decisions |
+| [`pubs/preprint/`](pubs/preprint/README.md) | The preprint that compares chaceon with ww3-gpu, in English and pt-BR |
 | [`VERSIONS.md`](VERSIONS.md) | What is pinned |
 
 ## Licence
