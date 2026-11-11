@@ -15,7 +15,7 @@ author; Pedro Cruz (GTA, UFRJ), advisor of the first author.
 
 The source is not here. The PDFs are copies, built by `just preprint` from h0ffmann/ww3-gpu's
 `pubs/preprint/` at
-[`767556b`](https://github.com/h0ffmann/ww3-gpu/tree/767556b/pubs/preprint). The same text is
+[`935495e`](https://github.com/h0ffmann/ww3-gpu/tree/935495e/pubs/preprint). The same text is
 `marola-experiment-005` in [marola-research](https://github.com/marola-dev/marola-research),
 `wave-models-on-gpus/`, which is the record to be minted on Zenodo. When it has a DOI, cite that DOI.
 
