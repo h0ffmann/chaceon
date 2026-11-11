@@ -1,7 +1,0 @@
-# Compound Engineering defaults; AGENTS.md wins where it is stricter.
-docs_root: docs/compound
-brainstorm_output: md
-plan_output: md
-cross_model_review_mode: "off"
-pr_teaching_section: false
-auto_babysit: false
