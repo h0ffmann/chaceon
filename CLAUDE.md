@@ -5,7 +5,8 @@ reads this file as plain text must open `AGENTS.md` itself.
 
 ## Claude Code-specific additions
 
-- **Skills:** `ww3-port` holds the traps of translating WW3 to Rust; `/port-next` starts a routine.
+- **Skills and commands live in `.agents/`:** `ww3-port` holds the traps of translating WW3 to Rust;
+  `/port-next` starts a routine.
 - **Attribution:** the harness's `Co-Authored-By` stays in the commit trailer, never in code,
   comments, PR titles or documents.
 - **On compaction, preserve:** which files changed, which gates ran and their result, and the

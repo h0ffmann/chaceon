@@ -54,7 +54,6 @@ Non-negotiable here; a skill or task may make these stricter, never looser.
 | Something tried, a negative result included | a dated entry in `docs/log/`: append, never rewrite |
 | A plan or survey | `docs/NAME_YYYYMM.md` |
 | A decision several plans follow | an ADR in `docs/ADRs/`, Proposed until the owner accepts it |
-| Compound loop artifacts | `docs/compound/plans/`, `docs/compound/solutions/` |
 | A pinned version | `VERSIONS.md` |
 | A new abbreviation or routine name | `docs/GLOSSARY.md` |
 
@@ -127,10 +126,9 @@ code, comments, PR titles or documents.
 
 ## Engineering work
 
-Size the loop to the change, as ww3-gpu does: a small fix is work, gates, PR; a routine or a tool
-is `/ce-plan`, `/ce-work`, `/ce-code-review`; a batch is `/ce-brainstorm` first. Artifacts go under
-`docs/compound/`. `/ce-simplify-code` never touches translated code, and "verify" never means a new
-test.
+Size the loop to the change: a small fix is work, gates, PR; a routine or a tool is a plan, the
+work and a review; a batch is designed before it is built. A cleanup never touches translated code,
+and "verify" never means a new test.
 
 ## Commits and pull requests
 
