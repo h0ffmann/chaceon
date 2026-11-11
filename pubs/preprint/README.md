@@ -7,7 +7,7 @@ reviewed. It claims no speed-up.
 
 | File | What it is |
 |---|---|
-| [`wave-models-on-gpus.pdf`](wave-models-on-gpus.pdf) | The paper, in English, 5 pages |
+| [`wave-models-on-gpus.pdf`](wave-models-on-gpus.pdf) | The paper, in English, 6 pages |
 | [`wave-models-on-gpus.pt-BR.pdf`](wave-models-on-gpus.pt-BR.pdf) | Its edition in Português Técnico Controlado, 6 pages |
 
 Authors: Matheus Hoffmann (UFRJ); Pedro Veras Guimarães (LabECO, UFSC), co-advisor of the first
@@ -15,7 +15,7 @@ author; Pedro Cruz (GTA, UFRJ), advisor of the first author.
 
 The source is not here. The PDFs are copies, built by `just preprint` from h0ffmann/ww3-gpu's
 `pubs/preprint/` at
-[`e7996b3`](https://github.com/h0ffmann/ww3-gpu/tree/e7996b3/pubs/preprint). The same text is
+[`697bd47`](https://github.com/h0ffmann/ww3-gpu/tree/697bd47/pubs/preprint). The same text is
 `marola-experiment-005` in [marola-research](https://github.com/marola-dev/marola-research),
 `wave-models-on-gpus/`, which is the record to be minted on Zenodo. When it has a DOI, cite that DOI.
 
